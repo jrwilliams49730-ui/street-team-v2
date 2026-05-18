@@ -1,39 +1,45 @@
-import { useState } from 'react'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import './App.css'
 
-const tabs = [
+const sections = [
   {
-    id: 'discover',
+    path: '/discover',
     label: 'Discover',
     heading: 'Discover the live scene',
     text: 'Find performers, producers, and venues worth following.',
   },
   {
-    id: 'performers',
+    path: '/performers',
     label: 'Performers',
     heading: 'Performers',
     text: 'Comedians, bands, DJs, and entertainers will live here.',
   },
   {
-    id: 'producers',
+    path: '/producers',
     label: 'Producers',
     heading: 'Producers',
     text: 'Follow the people and teams creating the shows.',
   },
   {
-    id: 'venues',
+    path: '/venues',
     label: 'Venues',
     heading: 'Venues',
     text: 'Keep up with the places hosting live events near you.',
   },
 ] as const
 
-type TabId = (typeof tabs)[number]['id']
+type Section = (typeof sections)[number]
+
+function SectionCard({ heading, text }: Pick<Section, 'heading' | 'text'>) {
+  return (
+    <section className="content-card">
+      <h2>{heading}</h2>
+      <p>{text}</p>
+    </section>
+  )
+}
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('discover')
-  const activePanel = tabs.find((tab) => tab.id === activeTab) ?? tabs[0]
-
   return (
     <main className="app-shell">
       <div className="app-frame">
@@ -42,40 +48,32 @@ function App() {
           <p>Live entertainment, powered by the crowd.</p>
         </header>
 
-        <nav
-          className="tab-nav"
-          role="tablist"
-          aria-label="Creator and fan network"
-        >
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTab
-
-            return (
-              <button
-                key={tab.id}
-                id={`${tab.id}-tab`}
-                type="button"
-                role="tab"
-                aria-controls={`${tab.id}-panel`}
-                aria-selected={isActive}
-                className={`tab-button ${isActive ? 'is-active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
+        <nav className="tab-nav" aria-label="Creator and fan network">
+          {sections.map((section) => (
+            <NavLink
+              key={section.path}
+              to={section.path}
+              className={({ isActive }) =>
+                `tab-button ${isActive ? 'is-active' : ''}`
+              }
+            >
+              {section.label}
+            </NavLink>
+          ))}
         </nav>
 
-        <section
-          id={`${activePanel.id}-panel`}
-          className="content-card"
-          role="tabpanel"
-          aria-labelledby={`${activePanel.id}-tab`}
-        >
-          <h2>{activePanel.heading}</h2>
-          <p>{activePanel.text}</p>
-        </section>
+        <Routes>
+          <Route path="/" element={<Navigate to="/discover" replace />} />
+          {sections.map((section) => (
+            <Route
+              key={section.path}
+              path={section.path}
+              element={
+                <SectionCard heading={section.heading} text={section.text} />
+              }
+            />
+          ))}
+        </Routes>
       </div>
     </main>
   )

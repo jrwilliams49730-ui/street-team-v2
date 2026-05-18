@@ -56,6 +56,9 @@
 .tab-button {
   flex: 1 0 auto;
   min-width: max-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 0.75rem;
   padding: 0.75rem 0.9rem;
@@ -63,6 +66,7 @@
   background: transparent;
   font: inherit;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background 160ms ease,
