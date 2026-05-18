@@ -1,11 +1,76 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { findProducerBySlug, formatFollowerCount } from './producers'
+import {
+  fetchProducerBySlug,
+  formatFollowerCount,
+  type Producer,
+} from './producers'
 
 function ProducerProfile() {
   const { slug } = useParams()
-  const producer = findProducerBySlug(slug)
+  const [producer, setProducer] = useState<Producer | null>(null)
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'not-found' | 'error'
+  >('loading')
 
-  if (!producer) {
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadProducer() {
+      if (!slug) {
+        setStatus('not-found')
+        return
+      }
+
+      try {
+        const nextProducer = await fetchProducerBySlug(slug)
+
+        if (!isMounted) {
+          return
+        }
+
+        if (nextProducer) {
+          setProducer(nextProducer)
+          setStatus('ready')
+        } else {
+          setStatus('not-found')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadProducer()
+
+    return () => {
+      isMounted = false
+    }
+  }, [slug])
+
+  if (status === 'loading') {
+    return (
+      <section className="content-card empty-state">
+        <h2>Loading producer...</h2>
+        <p>Getting the latest producer profile.</p>
+      </section>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <section className="content-card empty-state">
+        <h2>Producer profile could not load</h2>
+        <p>Please try again in a moment.</p>
+        <Link to="/producers" className="back-link">
+          Back to producers
+        </Link>
+      </section>
+    )
+  }
+
+  if (status === 'not-found' || !producer) {
     return (
       <section className="content-card empty-state">
         <h2>Producer not found</h2>

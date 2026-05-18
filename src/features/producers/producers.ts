@@ -1,4 +1,21 @@
+import { supabase } from '../../lib/supabase'
+
+export type ProducerRow = {
+  id: string
+  owner_user_id: string
+  name: string
+  slug: string
+  producer_type: string
+  city: string | null
+  state: string | null
+  bio: string | null
+  image_url: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type Producer = {
+  id: string
   name: string
   slug: string
   category: string
@@ -6,60 +23,153 @@ export type Producer = {
   initials: string
   shortBio: string
   bio: string
+  imageUrl: string | null
   followerCount: number
 }
 
-export const producers: Producer[] = [
-  {
-    name: 'Laugh Track Collective',
-    slug: 'laugh-track-collective',
-    category: 'Independent Comedy Producer',
-    location: 'Denver, CO',
-    initials: 'LC',
-    shortBio:
-      'A rotating comedy night crew building sharp lineups in intimate rooms.',
-    bio: 'Laugh Track Collective produces independent comedy nights across Denver, pairing touring comics with rising local voices in intimate rooms built for fast, memorable sets.',
-    followerCount: 12640,
-  },
-  {
-    name: 'Redline Presents',
-    slug: 'redline-presents',
-    category: 'Live Music Promoter',
-    location: 'Seattle, WA',
-    initials: 'RP',
-    shortBio:
-      'A live music promoter curating indie, punk, and alternative bills.',
-    bio: 'Redline Presents is a Seattle live music promoter known for thoughtful indie, punk, and alternative bills that connect emerging artists with rooms ready to move.',
-    followerCount: 23190,
-  },
-  {
-    name: 'Open Air Assembly',
-    slug: 'open-air-assembly',
-    category: 'Festival Organizer',
-    location: 'New Orleans, LA',
-    initials: 'OA',
-    shortBio:
-      'Outdoor festival organizers blending music, food, art, and neighborhood energy.',
-    bio: 'Open Air Assembly organizes outdoor festivals in New Orleans that blend live music, food vendors, visual artists, and neighborhood energy into full-day community gatherings.',
-    followerCount: 34750,
-  },
-  {
-    name: 'Marquee Room Events',
-    slug: 'marquee-room-events',
-    category: 'Venue-Based Event Company',
-    location: 'Atlanta, GA',
-    initials: 'MR',
-    shortBio:
-      'A venue-based event team programming recurring showcases and special nights.',
-    bio: 'Marquee Room Events is an Atlanta venue-based event company programming recurring showcases, themed nights, and special productions that give local audiences a reason to come back.',
-    followerCount: 19880,
-  },
-]
+export type CreateProducerInput = {
+  ownerUserId: string
+  name: string
+  producerType: string
+  city: string
+  state: string
+  bio: string
+}
 
-export function findProducerBySlug(slug?: string) {
-  return producers.find((producer) => producer.slug === slug)
+const producerSelect =
+  'id, owner_user_id, name, slug, producer_type, city, state, bio, image_url, created_at, updated_at'
+
+export function generateProducerSlug(name: string) {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || 'producer'
 }
 
 export function formatFollowerCount(count: number) {
   return new Intl.NumberFormat('en-US').format(count)
+}
+
+export function isDuplicateSlugError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const maybeError = error as { code?: string; message?: string }
+
+  return (
+    maybeError.code === '23505' ||
+    maybeError.message?.toLowerCase().includes('duplicate key') === true ||
+    maybeError.message?.toLowerCase().includes('unique') === true
+  )
+}
+
+export async function fetchProducers(limit?: number) {
+  let query = supabase
+    .from('producers')
+    .select(producerSelect)
+    .order('created_at', { ascending: false })
+
+  if (limit) {
+    query = query.limit(limit)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as ProducerRow[]).map(mapProducerRow)
+}
+
+export async function fetchProducerBySlug(slug: string) {
+  const { data, error } = await supabase
+    .from('producers')
+    .select(producerSelect)
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data ? mapProducerRow(data as ProducerRow) : null
+}
+
+export async function createProducerProfile(input: CreateProducerInput) {
+  const slug = generateProducerSlug(input.name)
+
+  const { data, error } = await supabase
+    .from('producers')
+    .insert({
+      owner_user_id: input.ownerUserId,
+      name: input.name.trim(),
+      slug,
+      producer_type: input.producerType.trim(),
+      city: cleanOptionalText(input.city),
+      state: cleanOptionalText(input.state),
+      bio: cleanOptionalText(input.bio),
+      image_url: null,
+    })
+    .select(producerSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapProducerRow(data as ProducerRow)
+}
+
+function mapProducerRow(row: ProducerRow): Producer {
+  const bio = row.bio?.trim() || 'This producer has not added a bio yet.'
+
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    category: row.producer_type,
+    location: formatLocation(row.city, row.state),
+    initials: getInitials(row.name),
+    shortBio: createShortBio(bio),
+    bio,
+    imageUrl: row.image_url,
+    followerCount: 0,
+  }
+}
+
+function cleanOptionalText(value: string) {
+  const trimmed = value.trim()
+
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function formatLocation(city: string | null, state: string | null) {
+  const locationParts = [city, state]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+
+  return locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD'
+}
+
+function getInitials(name: string) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
+  return initials || 'ST'
+}
+
+function createShortBio(bio: string) {
+  return bio.length > 120 ? `${bio.slice(0, 117).trim()}...` : bio
 }

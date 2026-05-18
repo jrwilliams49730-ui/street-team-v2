@@ -1,7 +1,42 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatFollowerCount, producers } from './producers'
+import {
+  fetchProducers,
+  formatFollowerCount,
+  type Producer,
+} from './producers'
 
 function ProducerDirectory() {
+  const [producers, setProducers] = useState<Producer[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadProducers() {
+      try {
+        const nextProducers = await fetchProducers()
+
+        if (isMounted) {
+          setProducers(nextProducers)
+          setStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadProducers()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   return (
     <section className="producer-directory">
       <header className="section-heading">
@@ -11,34 +46,56 @@ function ProducerDirectory() {
         </p>
       </header>
 
-      <div className="producer-grid">
-        {producers.map((producer) => (
-          <Link
-            key={producer.slug}
-            to={`/producers/${producer.slug}`}
-            className="producer-card"
-          >
-            <div className="producer-card-header">
-              <div className="producer-avatar" aria-hidden="true">
-                {producer.initials}
+      {status === 'loading' ? (
+        <DirectoryStateCard message="Loading producers..." />
+      ) : null}
+
+      {status === 'error' ? (
+        <DirectoryStateCard message="Producer directory could not load." />
+      ) : null}
+
+      {status === 'ready' && producers.length === 0 ? (
+        <DirectoryStateCard message="No producers have been added yet." />
+      ) : null}
+
+      {status === 'ready' && producers.length > 0 ? (
+        <div className="producer-grid">
+          {producers.map((producer) => (
+            <Link
+              key={producer.id}
+              to={`/producers/${producer.slug}`}
+              className="producer-card"
+            >
+              <div className="producer-card-header">
+                <div className="producer-avatar" aria-hidden="true">
+                  {producer.initials}
+                </div>
+
+                <div>
+                  <h3>{producer.name}</h3>
+                  <p>
+                    {producer.category} | {producer.location}
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <h3>{producer.name}</h3>
-                <p>
-                  {producer.category} | {producer.location}
-                </p>
-              </div>
-            </div>
-
-            <p className="producer-bio">{producer.shortBio}</p>
-            <span className="follower-count">
-              {formatFollowerCount(producer.followerCount)} followers
-            </span>
-          </Link>
-        ))}
-      </div>
+              <p className="producer-bio">{producer.shortBio}</p>
+              <span className="follower-count">
+                {formatFollowerCount(producer.followerCount)} followers
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </section>
+  )
+}
+
+function DirectoryStateCard({ message }: { message: string }) {
+  return (
+    <div className="directory-state-card">
+      <p>{message}</p>
+    </div>
   )
 }
 

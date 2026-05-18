@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import {
   fetchPerformers,
-  formatFollowerCount,
   type Performer,
 } from '../performers/performers'
-import { producers } from '../producers/producers'
+import { fetchProducers, type Producer } from '../producers/producers'
 import { venues } from '../venues/venues'
 
 type FeaturedItem = {
@@ -29,14 +28,6 @@ type FeaturedSection = {
 
 const mockFeaturedSections: FeaturedSection[] = [
   {
-    title: 'Featured producers',
-    viewAllLabel: 'View all producers',
-    viewAllPath: '/producers',
-    profileBasePath: '/producers',
-    accentClass: 'is-producer',
-    items: producers.slice(0, 3),
-  },
-  {
     title: 'Featured venues',
     viewAllLabel: 'View all venues',
     viewAllPath: '/venues',
@@ -45,6 +36,10 @@ const mockFeaturedSections: FeaturedSection[] = [
     items: venues.slice(0, 3),
   },
 ]
+
+function formatFollowerCount(count: number) {
+  return new Intl.NumberFormat('en-US').format(count)
+}
 
 function SupabaseStatusCard() {
   const [status, setStatus] = useState<'checking' | 'connected' | 'failed'>(
@@ -88,6 +83,92 @@ function SupabaseStatusCard() {
       <span aria-hidden="true" />
       <p>{statusText}</p>
     </aside>
+  )
+}
+
+function FeaturedProducersSection() {
+  const [producers, setProducers] = useState<Producer[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadFeaturedProducers() {
+      try {
+        const nextProducers = await fetchProducers(3)
+
+        if (isMounted) {
+          setProducers(nextProducers)
+          setStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadFeaturedProducers()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  return (
+    <section className="featured-section">
+      <div className="featured-section-header">
+        <h3>Featured producers</h3>
+      </div>
+
+      {status === 'loading' ? (
+        <p className="featured-empty-state">Loading featured producers...</p>
+      ) : null}
+
+      {status === 'error' ? (
+        <p className="featured-empty-state">
+          Featured producers could not load.
+        </p>
+      ) : null}
+
+      {status === 'ready' && producers.length === 0 ? (
+        <p className="featured-empty-state">
+          Featured producers will appear here once profiles are created.
+        </p>
+      ) : null}
+
+      {status === 'ready' && producers.length > 0 ? (
+        <div className="featured-grid">
+          {producers.map((producer) => (
+            <Link
+              key={producer.id}
+              to={`/producers/${producer.slug}`}
+              className="featured-card"
+            >
+              <div className="featured-avatar is-producer" aria-hidden="true">
+                {producer.initials}
+              </div>
+
+              <div className="featured-card-copy">
+                <h4>{producer.name}</h4>
+                <p>
+                  {producer.category} | {producer.location}
+                </p>
+                <span>
+                  {formatFollowerCount(producer.followerCount)} followers
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      <Link to="/producers" className="view-all-link">
+        View all producers
+      </Link>
+    </section>
   )
 }
 
@@ -193,6 +274,7 @@ function DiscoverPage() {
       </header>
 
       <FeaturedPerformersSection />
+      <FeaturedProducersSection />
 
       {mockFeaturedSections.map((section) => (
         <section key={section.title} className="featured-section">
