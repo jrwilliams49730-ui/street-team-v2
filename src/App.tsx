@@ -1,36 +1,51 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import PerformerDirectory from './features/performers/PerformerDirectory'
+import PerformerProfile from './features/performers/PerformerProfile'
 import './App.css'
 
-const sections = [
+const navigationSections = [
   {
     path: '/discover',
     label: 'Discover',
-    heading: 'Discover the live scene',
-    text: 'Find performers, producers, and venues worth following.',
   },
   {
     path: '/performers',
     label: 'Performers',
-    heading: 'Performers',
-    text: 'Comedians, bands, DJs, and entertainers will live here.',
   },
   {
     path: '/producers',
     label: 'Producers',
+  },
+  {
+    path: '/venues',
+    label: 'Venues',
+  },
+] as const
+
+const placeholderSections = [
+  {
+    path: '/discover',
+    heading: 'Discover the live scene',
+    text: 'Find performers, producers, and venues worth following.',
+  },
+  {
+    path: '/producers',
     heading: 'Producers',
     text: 'Follow the people and teams creating the shows.',
   },
   {
     path: '/venues',
-    label: 'Venues',
     heading: 'Venues',
     text: 'Keep up with the places hosting live events near you.',
   },
 ] as const
 
-type Section = (typeof sections)[number]
+type PlaceholderSection = (typeof placeholderSections)[number]
 
-function SectionCard({ heading, text }: Pick<Section, 'heading' | 'text'>) {
+function SectionCard({
+  heading,
+  text,
+}: Pick<PlaceholderSection, 'heading' | 'text'>) {
   return (
     <section className="content-card">
       <h2>{heading}</h2>
@@ -49,7 +64,7 @@ function App() {
         </header>
 
         <nav className="tab-nav" aria-label="Creator and fan network">
-          {sections.map((section) => (
+          {navigationSections.map((section) => (
             <NavLink
               key={section.path}
               to={section.path}
@@ -64,7 +79,7 @@ function App() {
 
         <Routes>
           <Route path="/" element={<Navigate to="/discover" replace />} />
-          {sections.map((section) => (
+          {placeholderSections.map((section) => (
             <Route
               key={section.path}
               path={section.path}
@@ -73,6 +88,8 @@ function App() {
               }
             />
           ))}
+          <Route path="/performers" element={<PerformerDirectory />} />
+          <Route path="/performers/:slug" element={<PerformerProfile />} />
         </Routes>
       </div>
     </main>

@@ -22,7 +22,17 @@
 .app-header h1,
 .app-header p,
 .content-card h2,
-.content-card p {
+.content-card p,
+.section-heading h2,
+.section-heading p,
+.performer-card h3,
+.performer-card p,
+.profile-copy h2,
+.profile-copy p,
+.profile-meta,
+.profile-bio,
+.upcoming-shows h3,
+.upcoming-shows p {
   margin: 0;
 }
 
@@ -113,6 +123,200 @@
   color: #cbd5e1;
 }
 
+.performer-directory,
+.performer-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0 0.25rem;
+}
+
+.section-heading h2 {
+  font-size: clamp(1.35rem, 4vw, 1.8rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.section-heading p {
+  color: #cbd5e1;
+}
+
+.performer-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.performer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1.25rem;
+  color: inherit;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 1rem 2rem rgba(2, 6, 23, 0.22);
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.performer-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 1.25rem 2.5rem rgba(2, 6, 23, 0.3);
+}
+
+.performer-card:focus-visible,
+.back-link:focus-visible,
+.follow-button:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+.performer-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.performer-avatar {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 1rem;
+  color: #e0f2fe;
+  background:
+    linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(168, 85, 247, 0.32)),
+    #172033;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.performer-card h3 {
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.performer-card-header p,
+.follower-count,
+.profile-copy p,
+.upcoming-shows p {
+  color: #94a3b8;
+}
+
+.performer-bio,
+.profile-bio {
+  color: #cbd5e1;
+}
+
+.follower-count {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.back-link {
+  width: fit-content;
+  color: #cbd5e1;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: #f8fafc;
+}
+
+.profile-card,
+.upcoming-shows {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 1.5rem 3rem rgba(2, 6, 23, 0.3);
+}
+
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1.25rem;
+  font-size: 1rem;
+}
+
+.profile-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.profile-copy h2 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.eyebrow {
+  color: #7dd3fc;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.profile-meta strong {
+  font-size: 1.2rem;
+}
+
+.profile-meta span {
+  color: #94a3b8;
+}
+
+.follow-button {
+  width: fit-content;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.8rem 1.25rem;
+  color: #082f49;
+  background: #7dd3fc;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.upcoming-shows h3 {
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.empty-state {
+  align-items: flex-start;
+}
+
 @media (min-width: 40rem) {
   .app-frame {
     gap: 1.25rem;
@@ -124,5 +328,9 @@
 
   .tab-button {
     flex-basis: 0;
+  }
+
+  .performer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
