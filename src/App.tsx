@@ -3,6 +3,8 @@ import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
 import ProducerDirectory from './features/producers/ProducerDirectory'
 import ProducerProfile from './features/producers/ProducerProfile'
+import VenueDirectory from './features/venues/VenueDirectory'
+import VenueProfile from './features/venues/VenueProfile'
 import './App.css'
 
 const navigationSections = [
@@ -29,11 +31,6 @@ const placeholderSections = [
     path: '/discover',
     heading: 'Discover the live scene',
     text: 'Find performers, producers, and venues worth following.',
-  },
-  {
-    path: '/venues',
-    heading: 'Venues',
-    text: 'Keep up with the places hosting live events near you.',
   },
 ] as const
 
@@ -89,6 +86,8 @@ function App() {
           <Route path="/performers/:slug" element={<PerformerProfile />} />
           <Route path="/producers" element={<ProducerDirectory />} />
           <Route path="/producers/:slug" element={<ProducerProfile />} />
+          <Route path="/venues" element={<VenueDirectory />} />
+          <Route path="/venues/:slug" element={<VenueProfile />} />
         </Routes>
       </div>
     </main>
