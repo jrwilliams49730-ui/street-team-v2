@@ -1,0 +1,37 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.placeholder h1,
+.placeholder h2,
+.placeholder p {
+  margin: 0;
+}
+
+.placeholder h1 {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.placeholder h2 {
+  color: #cbd5e1;
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
+  font-weight: 500;
+}
+
+.placeholder p {
+  color: #94a3b8;
+  font-size: 1rem;
+}
