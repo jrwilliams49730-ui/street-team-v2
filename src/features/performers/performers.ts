@@ -1,4 +1,21 @@
+import { supabase } from '../../lib/supabase'
+
+export type PerformerRow = {
+  id: string
+  owner_user_id: string
+  name: string
+  slug: string
+  performer_type: string
+  city: string | null
+  state: string | null
+  bio: string | null
+  image_url: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type Performer = {
+  id: string
   name: string
   slug: string
   category: string
@@ -6,60 +23,153 @@ export type Performer = {
   initials: string
   shortBio: string
   bio: string
+  imageUrl: string | null
   followerCount: number
 }
 
-export const performers: Performer[] = [
-  {
-    name: 'Maya Rivera',
-    slug: 'maya-rivera',
-    category: 'Comedian',
-    location: 'Chicago, IL',
-    initials: 'MR',
-    shortBio:
-      'Sharp crowd work, late-night stories, and a fearless point of view.',
-    bio: 'Maya Rivera is a Chicago comic known for sharp crowd work, late-night stories, and a fearless point of view that turns everyday chaos into fast-moving sets.',
-    followerCount: 18420,
-  },
-  {
-    name: 'Northbound Atlas',
-    slug: 'northbound-atlas',
-    category: 'Band',
-    location: 'Nashville, TN',
-    initials: 'NA',
-    shortBio:
-      'An indie rock four-piece built on big choruses and road-worn harmonies.',
-    bio: 'Northbound Atlas is a Nashville indie rock band built on big choruses, road-worn harmonies, and live shows that move from intimate verses into full-room singalongs.',
-    followerCount: 26780,
-  },
-  {
-    name: 'DJ Solstice',
-    slug: 'dj-solstice',
-    category: 'DJ',
-    location: 'Miami, FL',
-    initials: 'DS',
-    shortBio:
-      'House, disco, and sunrise sets tuned for dance floors that stay late.',
-    bio: 'DJ Solstice blends house, disco, and warm-weather percussion into sunrise-ready sets designed for dance floors that want momentum without losing soul.',
-    followerCount: 32110,
-  },
-  {
-    name: 'Lena Vale',
-    slug: 'lena-vale',
-    category: 'Singer/Songwriter',
-    location: 'Austin, TX',
-    initials: 'LV',
-    shortBio:
-      'Story-first songs with intimate vocals and folk-pop arrangements.',
-    bio: 'Lena Vale is an Austin singer/songwriter whose story-first writing pairs intimate vocals with folk-pop arrangements and room-stilling live performances.',
-    followerCount: 14360,
-  },
-]
+export type CreatePerformerInput = {
+  ownerUserId: string
+  name: string
+  performerType: string
+  city: string
+  state: string
+  bio: string
+}
 
-export function findPerformerBySlug(slug?: string) {
-  return performers.find((performer) => performer.slug === slug)
+const performerSelect =
+  'id, owner_user_id, name, slug, performer_type, city, state, bio, image_url, created_at, updated_at'
+
+export function generatePerformerSlug(name: string) {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || 'performer'
 }
 
 export function formatFollowerCount(count: number) {
   return new Intl.NumberFormat('en-US').format(count)
+}
+
+export function isDuplicateSlugError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const maybeError = error as { code?: string; message?: string }
+
+  return (
+    maybeError.code === '23505' ||
+    maybeError.message?.toLowerCase().includes('duplicate key') === true ||
+    maybeError.message?.toLowerCase().includes('unique') === true
+  )
+}
+
+export async function fetchPerformers(limit?: number) {
+  let query = supabase
+    .from('performers')
+    .select(performerSelect)
+    .order('created_at', { ascending: false })
+
+  if (limit) {
+    query = query.limit(limit)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as PerformerRow[]).map(mapPerformerRow)
+}
+
+export async function fetchPerformerBySlug(slug: string) {
+  const { data, error } = await supabase
+    .from('performers')
+    .select(performerSelect)
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data ? mapPerformerRow(data as PerformerRow) : null
+}
+
+export async function createPerformerProfile(input: CreatePerformerInput) {
+  const slug = generatePerformerSlug(input.name)
+
+  const { data, error } = await supabase
+    .from('performers')
+    .insert({
+      owner_user_id: input.ownerUserId,
+      name: input.name.trim(),
+      slug,
+      performer_type: input.performerType.trim(),
+      city: cleanOptionalText(input.city),
+      state: cleanOptionalText(input.state),
+      bio: cleanOptionalText(input.bio),
+      image_url: null,
+    })
+    .select(performerSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapPerformerRow(data as PerformerRow)
+}
+
+function mapPerformerRow(row: PerformerRow): Performer {
+  const bio = row.bio?.trim() || 'This performer has not added a bio yet.'
+
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    category: row.performer_type,
+    location: formatLocation(row.city, row.state),
+    initials: getInitials(row.name),
+    shortBio: createShortBio(bio),
+    bio,
+    imageUrl: row.image_url,
+    followerCount: 0,
+  }
+}
+
+function cleanOptionalText(value: string) {
+  const trimmed = value.trim()
+
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function formatLocation(city: string | null, state: string | null) {
+  const locationParts = [city, state]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+
+  return locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD'
+}
+
+function getInitials(name: string) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
+  return initials || 'ST'
+}
+
+function createShortBio(bio: string) {
+  return bio.length > 120 ? `${bio.slice(0, 117).trim()}...` : bio
 }

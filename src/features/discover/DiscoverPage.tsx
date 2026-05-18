@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { performers } from '../performers/performers'
+import {
+  fetchPerformers,
+  formatFollowerCount,
+  type Performer,
+} from '../performers/performers'
 import { producers } from '../producers/producers'
 import { venues } from '../venues/venues'
 
@@ -23,15 +27,7 @@ type FeaturedSection = {
   items: FeaturedItem[]
 }
 
-const featuredSections: FeaturedSection[] = [
-  {
-    title: 'Featured performers',
-    viewAllLabel: 'View all performers',
-    viewAllPath: '/performers',
-    profileBasePath: '/performers',
-    accentClass: 'is-performer',
-    items: performers.slice(0, 3),
-  },
+const mockFeaturedSections: FeaturedSection[] = [
   {
     title: 'Featured producers',
     viewAllLabel: 'View all producers',
@@ -49,10 +45,6 @@ const featuredSections: FeaturedSection[] = [
     items: venues.slice(0, 3),
   },
 ]
-
-function formatFollowerCount(count: number) {
-  return new Intl.NumberFormat('en-US').format(count)
-}
 
 function SupabaseStatusCard() {
   const [status, setStatus] = useState<'checking' | 'connected' | 'failed'>(
@@ -99,6 +91,95 @@ function SupabaseStatusCard() {
   )
 }
 
+function FeaturedPerformersSection() {
+  const [performers, setPerformers] = useState<Performer[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadFeaturedPerformers() {
+      try {
+        const nextPerformers = await fetchPerformers(3)
+
+        if (isMounted) {
+          setPerformers(nextPerformers)
+          setStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadFeaturedPerformers()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  return (
+    <section className="featured-section">
+      <div className="featured-section-header">
+        <h3>Featured performers</h3>
+      </div>
+
+      {status === 'loading' ? (
+        <p className="featured-empty-state">Loading featured performers...</p>
+      ) : null}
+
+      {status === 'error' ? (
+        <p className="featured-empty-state">
+          Featured performers could not load.
+        </p>
+      ) : null}
+
+      {status === 'ready' && performers.length === 0 ? (
+        <p className="featured-empty-state">
+          Featured performers will appear here once profiles are created.
+        </p>
+      ) : null}
+
+      {status === 'ready' && performers.length > 0 ? (
+        <div className="featured-grid">
+          {performers.map((performer) => (
+            <Link
+              key={performer.id}
+              to={`/performers/${performer.slug}`}
+              className="featured-card"
+            >
+              <div
+                className="featured-avatar is-performer"
+                aria-hidden="true"
+              >
+                {performer.initials}
+              </div>
+
+              <div className="featured-card-copy">
+                <h4>{performer.name}</h4>
+                <p>
+                  {performer.category} | {performer.location}
+                </p>
+                <span>
+                  {formatFollowerCount(performer.followerCount)} followers
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      <Link to="/performers" className="view-all-link">
+        View all performers
+      </Link>
+    </section>
+  )
+}
+
 function DiscoverPage() {
   return (
     <section className="discover-page">
@@ -111,7 +192,9 @@ function DiscoverPage() {
         </p>
       </header>
 
-      {featuredSections.map((section) => (
+      <FeaturedPerformersSection />
+
+      {mockFeaturedSections.map((section) => (
         <section key={section.title} className="featured-section">
           <div className="featured-section-header">
             <h3>{section.title}</h3>

@@ -1,14 +1,76 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  findPerformerBySlug,
+  fetchPerformerBySlug,
   formatFollowerCount,
+  type Performer,
 } from './performers'
 
 function PerformerProfile() {
   const { slug } = useParams()
-  const performer = findPerformerBySlug(slug)
+  const [performer, setPerformer] = useState<Performer | null>(null)
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'not-found' | 'error'
+  >('loading')
 
-  if (!performer) {
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadPerformer() {
+      if (!slug) {
+        setStatus('not-found')
+        return
+      }
+
+      try {
+        const nextPerformer = await fetchPerformerBySlug(slug)
+
+        if (!isMounted) {
+          return
+        }
+
+        if (nextPerformer) {
+          setPerformer(nextPerformer)
+          setStatus('ready')
+        } else {
+          setStatus('not-found')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadPerformer()
+
+    return () => {
+      isMounted = false
+    }
+  }, [slug])
+
+  if (status === 'loading') {
+    return (
+      <section className="content-card empty-state">
+        <h2>Loading performer...</h2>
+        <p>Getting the latest performer profile.</p>
+      </section>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <section className="content-card empty-state">
+        <h2>Performer profile could not load</h2>
+        <p>Please try again in a moment.</p>
+        <Link to="/performers" className="back-link">
+          Back to performers
+        </Link>
+      </section>
+    )
+  }
+
+  if (status === 'not-found' || !performer) {
     return (
       <section className="content-card empty-state">
         <h2>Performer not found</h2>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
+import CreatePerformerForm from '../performers/CreatePerformerForm'
 import { useAuth } from './auth-context'
 
 type AuthMode = 'create' | 'login'
@@ -134,6 +135,8 @@ function AccountPage() {
             {isSubmitting ? 'Logging out...' : 'Log Out'}
           </button>
         </div>
+
+        <CreatePerformerForm ownerUserId={session.user.id} />
       </section>
     )
   }

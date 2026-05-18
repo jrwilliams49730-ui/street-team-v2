@@ -32,9 +32,11 @@
 .featured-section h3,
 .featured-card h4,
 .featured-card p,
+.featured-empty-state,
 .backend-status-card p,
 .section-heading h2,
 .section-heading p,
+.directory-state-card p,
 .performer-card h3,
 .performer-card p,
 .producer-card h3,
@@ -295,6 +297,15 @@
   font-size: 0.86rem;
 }
 
+.featured-empty-state {
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1rem;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 0.9rem;
+}
+
 .backend-status-card {
   display: flex;
   align-items: center;
@@ -408,7 +419,20 @@
   font: inherit;
 }
 
+.auth-form textarea {
+  width: 100%;
+  min-height: 8rem;
+  resize: vertical;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  color: #f8fafc;
+  background: rgba(2, 6, 23, 0.32);
+  font: inherit;
+}
+
 .auth-form input:focus,
+.auth-form textarea:focus,
 .auth-mode-switch button:focus-visible,
 .auth-submit-button:focus-visible {
   outline: 2px solid #38bdf8;
@@ -431,6 +455,11 @@
   background: rgba(244, 63, 94, 0.08);
 }
 
+.auth-message a {
+  color: inherit;
+  font-weight: 800;
+}
+
 .auth-submit-button {
   width: fit-content;
   padding: 0.85rem 1.2rem;
@@ -441,6 +470,23 @@
 .auth-submit-button:disabled {
   cursor: not-allowed;
   opacity: 0.68;
+}
+
+.form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.directory-state-card {
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 1rem 2rem rgba(2, 6, 23, 0.22);
+}
+
+.directory-state-card p {
+  color: #cbd5e1;
 }
 
 .performer-directory,
@@ -691,6 +737,10 @@
   .producer-grid,
   .venue-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr 7rem;
   }
 }
 
