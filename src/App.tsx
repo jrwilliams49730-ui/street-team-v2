@@ -1,6 +1,8 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
+import ProducerDirectory from './features/producers/ProducerDirectory'
+import ProducerProfile from './features/producers/ProducerProfile'
 import './App.css'
 
 const navigationSections = [
@@ -27,11 +29,6 @@ const placeholderSections = [
     path: '/discover',
     heading: 'Discover the live scene',
     text: 'Find performers, producers, and venues worth following.',
-  },
-  {
-    path: '/producers',
-    heading: 'Producers',
-    text: 'Follow the people and teams creating the shows.',
   },
   {
     path: '/venues',
@@ -90,6 +87,8 @@ function App() {
           ))}
           <Route path="/performers" element={<PerformerDirectory />} />
           <Route path="/performers/:slug" element={<PerformerProfile />} />
+          <Route path="/producers" element={<ProducerDirectory />} />
+          <Route path="/producers/:slug" element={<ProducerProfile />} />
         </Routes>
       </div>
     </main>

@@ -27,12 +27,16 @@
 .section-heading p,
 .performer-card h3,
 .performer-card p,
+.producer-card h3,
+.producer-card p,
 .profile-copy h2,
 .profile-copy p,
 .profile-meta,
 .profile-bio,
 .upcoming-shows h3,
-.upcoming-shows p {
+.upcoming-shows p,
+.upcoming-panel h3,
+.upcoming-panel p {
   margin: 0;
 }
 
@@ -124,7 +128,9 @@
 }
 
 .performer-directory,
-.performer-profile {
+.performer-profile,
+.producer-directory,
+.producer-profile {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -147,12 +153,14 @@
   color: #cbd5e1;
 }
 
-.performer-grid {
+.performer-grid,
+.producer-grid {
   display: grid;
   gap: 0.9rem;
 }
 
-.performer-card {
+.performer-card,
+.producer-card {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -169,26 +177,30 @@
     box-shadow 160ms ease;
 }
 
-.performer-card:hover {
+.performer-card:hover,
+.producer-card:hover {
   border-color: rgba(56, 189, 248, 0.35);
   transform: translateY(-2px);
   box-shadow: 0 1.25rem 2.5rem rgba(2, 6, 23, 0.3);
 }
 
 .performer-card:focus-visible,
+.producer-card:focus-visible,
 .back-link:focus-visible,
 .follow-button:focus-visible {
   outline: 2px solid #38bdf8;
   outline-offset: 3px;
 }
 
-.performer-card-header {
+.performer-card-header,
+.producer-card-header {
   display: flex;
   align-items: center;
   gap: 0.85rem;
 }
 
-.performer-avatar {
+.performer-avatar,
+.producer-avatar {
   display: grid;
   width: 3rem;
   height: 3rem;
@@ -204,19 +216,29 @@
   letter-spacing: 0.04em;
 }
 
-.performer-card h3 {
+.producer-avatar {
+  background:
+    linear-gradient(135deg, rgba(251, 146, 60, 0.28), rgba(168, 85, 247, 0.32)),
+    #172033;
+}
+
+.performer-card h3,
+.producer-card h3 {
   font-size: 1.05rem;
   font-weight: 650;
 }
 
 .performer-card-header p,
+.producer-card-header p,
 .follower-count,
 .profile-copy p,
-.upcoming-shows p {
+.upcoming-shows p,
+.upcoming-panel p {
   color: #94a3b8;
 }
 
 .performer-bio,
+.producer-bio,
 .profile-bio {
   color: #cbd5e1;
 }
@@ -238,7 +260,8 @@
 }
 
 .profile-card,
-.upcoming-shows {
+.upcoming-shows,
+.upcoming-panel {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -308,7 +331,8 @@
   cursor: pointer;
 }
 
-.upcoming-shows h3 {
+.upcoming-shows h3,
+.upcoming-panel h3 {
   font-size: 1.1rem;
   font-weight: 650;
 }
@@ -330,7 +354,8 @@
     flex-basis: 0;
   }
 
-  .performer-grid {
+  .performer-grid,
+  .producer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
