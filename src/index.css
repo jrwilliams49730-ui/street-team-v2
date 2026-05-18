@@ -4,7 +4,8 @@
   line-height: 1.5;
   font-weight: 400;
   color: #f8fafc;
-  background: #0b1120;
+  background: #070b16;
+  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -23,5 +24,8 @@ body,
 
 body {
   margin: 0;
-  background: #0b1120;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 32%),
+    radial-gradient(circle at top right, rgba(168, 85, 247, 0.1), transparent 28%),
+    #070b16;
 }

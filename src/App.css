@@ -1,37 +1,124 @@
 .app-shell {
   min-height: 100vh;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 2rem;
-  text-align: center;
+  padding: clamp(1rem, 4vw, 2rem);
 }
 
-.placeholder {
+.app-frame {
+  width: min(100%, 48rem);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-.placeholder h1,
-.placeholder h2,
-.placeholder p {
+.app-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.25rem;
+}
+
+.app-header h1,
+.app-header p,
+.content-card h2,
+.content-card p {
   margin: 0;
 }
 
-.placeholder h1 {
-  font-size: clamp(2.5rem, 6vw, 4rem);
+.app-header h1 {
+  font-size: clamp(2rem, 6vw, 3rem);
   font-weight: 700;
   letter-spacing: -0.05em;
 }
 
-.placeholder h2 {
-  color: #cbd5e1;
-  font-size: clamp(1.1rem, 3vw, 1.5rem);
-  font-weight: 500;
+.app-header p {
+  color: #94a3b8;
+  font-size: 0.95rem;
 }
 
-.placeholder p {
-  color: #94a3b8;
-  font-size: 1rem;
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  overflow-x: auto;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 1rem 2rem rgba(2, 6, 23, 0.2);
+  scrollbar-width: none;
+}
+
+.tab-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-button {
+  flex: 1 0 auto;
+  min-width: max-content;
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  color: #cbd5e1;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.tab-button:hover {
+  color: #f8fafc;
+}
+
+.tab-button:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.tab-button.is-active {
+  color: #f8fafc;
+  background: #1e293b;
+  box-shadow: 0 0.75rem 1.5rem rgba(2, 6, 23, 0.32);
+}
+
+.content-card {
+  display: flex;
+  min-height: 12rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 1.5rem 3rem rgba(2, 6, 23, 0.3);
+}
+
+.content-card h2 {
+  font-size: clamp(1.35rem, 4vw, 1.8rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.content-card p {
+  max-width: 32rem;
+  color: #cbd5e1;
+}
+
+@media (min-width: 40rem) {
+  .app-frame {
+    gap: 1.25rem;
+  }
+
+  .app-header {
+    padding-top: 1rem;
+  }
+
+  .tab-button {
+    flex-basis: 0;
+  }
 }
