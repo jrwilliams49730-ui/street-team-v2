@@ -21,6 +21,10 @@
 
 .app-header h1,
 .app-header p,
+.account-card h2,
+.account-card p,
+.auth-form label,
+.auth-message,
 .content-card h2,
 .content-card p,
 .discover-hero h2,
@@ -57,6 +61,21 @@
 .app-header p {
   color: #94a3b8;
   font-size: 0.95rem;
+}
+
+.account-status-badge {
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tab-nav {
@@ -310,6 +329,118 @@
   color: #cbd5e1;
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.account-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.82);
+  box-shadow: 0 1.5rem 3rem rgba(2, 6, 23, 0.3);
+}
+
+.account-card > p {
+  color: #cbd5e1;
+}
+
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.auth-mode-switch button,
+.auth-submit-button {
+  border: 0;
+  border-radius: 0.75rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-mode-switch button {
+  padding: 0.75rem 0.8rem;
+  color: #cbd5e1;
+  background: transparent;
+}
+
+.auth-mode-switch button.is-active {
+  color: #f8fafc;
+  background: #1e293b;
+  box-shadow: 0 0.75rem 1.5rem rgba(2, 6, 23, 0.28);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.auth-form input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  color: #f8fafc;
+  background: rgba(2, 6, 23, 0.32);
+  font: inherit;
+}
+
+.auth-form input:focus,
+.auth-mode-switch button:focus-visible,
+.auth-submit-button:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+.auth-message {
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  color: #bae6fd;
+  background: rgba(14, 165, 233, 0.08);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.auth-message.error {
+  border-color: rgba(251, 113, 133, 0.25);
+  color: #fecdd3;
+  background: rgba(244, 63, 94, 0.08);
+}
+
+.auth-submit-button {
+  width: fit-content;
+  padding: 0.85rem 1.2rem;
+  color: #082f49;
+  background: #7dd3fc;
+}
+
+.auth-submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 
 .performer-directory,

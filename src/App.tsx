@@ -1,4 +1,6 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import AccountPage from './features/account/AccountPage'
+import { useAuth } from './features/account/auth-context'
 import DiscoverPage from './features/discover/DiscoverPage'
 import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
@@ -25,7 +27,20 @@ const navigationSections = [
     path: '/venues',
     label: 'Venues',
   },
+  {
+    path: '/account',
+    label: 'Account',
+  },
 ] as const
+
+function AccountStatusBadge() {
+  const { session } = useAuth()
+  const statusText = session
+    ? session.user.email ?? 'Signed in'
+    : 'Not signed in'
+
+  return <span className="account-status-badge">{statusText}</span>
+}
 
 function App() {
   return (
@@ -34,6 +49,7 @@ function App() {
         <header className="app-header">
           <h1>Street Team</h1>
           <p>Live entertainment, powered by the crowd.</p>
+          <AccountStatusBadge />
         </header>
 
         <nav className="tab-nav" aria-label="Creator and fan network">
@@ -59,6 +75,7 @@ function App() {
           <Route path="/producers/:slug" element={<ProducerProfile />} />
           <Route path="/venues" element={<VenueDirectory />} />
           <Route path="/venues/:slug" element={<VenueProfile />} />
+          <Route path="/account" element={<AccountPage />} />
         </Routes>
       </div>
     </main>
