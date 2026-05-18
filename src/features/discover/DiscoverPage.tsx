@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
 import { performers } from '../performers/performers'
 import { producers } from '../producers/producers'
 import { venues } from '../venues/venues'
@@ -52,6 +54,51 @@ function formatFollowerCount(count: number) {
   return new Intl.NumberFormat('en-US').format(count)
 }
 
+function SupabaseStatusCard() {
+  const [status, setStatus] = useState<'checking' | 'connected' | 'failed'>(
+    'checking',
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function checkConnection() {
+      try {
+        const { error } = await supabase.auth.getSession()
+
+        if (!isMounted) {
+          return
+        }
+
+        setStatus(error ? 'failed' : 'connected')
+      } catch {
+        if (isMounted) {
+          setStatus('failed')
+        }
+      }
+    }
+
+    void checkConnection()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const statusText = {
+    checking: 'Checking Supabase connection...',
+    connected: 'Supabase connected.',
+    failed: 'Supabase connection failed.',
+  }[status]
+
+  return (
+    <aside className="backend-status-card" data-status={status}>
+      <span aria-hidden="true" />
+      <p>{statusText}</p>
+    </aside>
+  )
+}
+
 function DiscoverPage() {
   return (
     <section className="discover-page">
@@ -102,6 +149,8 @@ function DiscoverPage() {
           </Link>
         </section>
       ))}
+
+      <SupabaseStatusCard />
     </section>
   )
 }

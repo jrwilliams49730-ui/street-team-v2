@@ -28,6 +28,7 @@
 .featured-section h3,
 .featured-card h4,
 .featured-card p,
+.backend-status-card p,
 .section-heading h2,
 .section-heading p,
 .performer-card h3,
@@ -273,6 +274,42 @@
 .featured-card span {
   color: #94a3b8;
   font-size: 0.86rem;
+}
+
+.backend-status-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 1rem 2rem rgba(2, 6, 23, 0.18);
+}
+
+.backend-status-card span {
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #fbbf24;
+  box-shadow: 0 0 0 0.25rem rgba(251, 191, 36, 0.12);
+}
+
+.backend-status-card[data-status='connected'] span {
+  background: #22c55e;
+  box-shadow: 0 0 0 0.25rem rgba(34, 197, 94, 0.12);
+}
+
+.backend-status-card[data-status='failed'] span {
+  background: #fb7185;
+  box-shadow: 0 0 0 0.25rem rgba(251, 113, 133, 0.12);
+}
+
+.backend-status-card p {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .performer-directory,
