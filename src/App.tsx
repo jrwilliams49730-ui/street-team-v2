@@ -1,4 +1,5 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import DiscoverPage from './features/discover/DiscoverPage'
 import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
 import ProducerDirectory from './features/producers/ProducerDirectory'
@@ -26,28 +27,6 @@ const navigationSections = [
   },
 ] as const
 
-const placeholderSections = [
-  {
-    path: '/discover',
-    heading: 'Discover the live scene',
-    text: 'Find performers, producers, and venues worth following.',
-  },
-] as const
-
-type PlaceholderSection = (typeof placeholderSections)[number]
-
-function SectionCard({
-  heading,
-  text,
-}: Pick<PlaceholderSection, 'heading' | 'text'>) {
-  return (
-    <section className="content-card">
-      <h2>{heading}</h2>
-      <p>{text}</p>
-    </section>
-  )
-}
-
 function App() {
   return (
     <main className="app-shell">
@@ -73,15 +52,7 @@ function App() {
 
         <Routes>
           <Route path="/" element={<Navigate to="/discover" replace />} />
-          {placeholderSections.map((section) => (
-            <Route
-              key={section.path}
-              path={section.path}
-              element={
-                <SectionCard heading={section.heading} text={section.text} />
-              }
-            />
-          ))}
+          <Route path="/discover" element={<DiscoverPage />} />
           <Route path="/performers" element={<PerformerDirectory />} />
           <Route path="/performers/:slug" element={<PerformerProfile />} />
           <Route path="/producers" element={<ProducerDirectory />} />
