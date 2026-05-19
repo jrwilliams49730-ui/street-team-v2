@@ -1211,6 +1211,12 @@
   font: inherit;
 }
 
+.ticket-claim-form small {
+  color: var(--st-text-subtle);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
 .ticket-claim-actions {
   display: flex;
   flex-wrap: wrap;

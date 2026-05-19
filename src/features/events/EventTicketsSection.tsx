@@ -133,7 +133,16 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
     if (!quantity) {
       setClaimMessage({
         ticketTypeId: ticketType.id,
-        text: 'Enter a valid ticket quantity of at least 1.',
+        text: 'Enter a valid whole-number ticket quantity from 1 to 4.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (quantity > 4) {
+      setClaimMessage({
+        ticketTypeId: ticketType.id,
+        text: 'You can claim a maximum of 4 free tickets at a time.',
         type: 'error',
       })
       return
@@ -248,6 +257,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
                           <input
                             type="number"
                             min={1}
+                            max={4}
                             step={1}
                             value={claimForm.quantity}
                             onChange={(event) =>
@@ -258,6 +268,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
                             }
                             required
                           />
+                          <small>Maximum 4 free tickets per claim.</small>
                         </label>
 
                         <label>
