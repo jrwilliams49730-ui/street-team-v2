@@ -6,10 +6,18 @@ import {
 } from 'react'
 import { Link } from 'react-router-dom'
 import CreatePerformerForm from '../performers/CreatePerformerForm'
+import FeaturedMediaPlayer from '../performers/FeaturedMediaPlayer'
+import {
+  canRenderFeaturedMedia,
+  isSoundCloudUrl,
+  isYouTubeUrl,
+} from '../performers/featuredMediaLinks'
 import {
   fetchOwnedPerformers,
+  updatePerformerFeaturedMedia,
   updatePerformerImageUrl,
   updatePerformerProfile,
+  type FeaturedMediaType,
   type Performer,
 } from '../performers/performers'
 import CreateProducerForm from '../producers/CreateProducerForm'
@@ -45,6 +53,8 @@ type CreatorProfile = {
   category: string
   categoryFieldLabel: string
   city: string
+  featuredMediaType: FeaturedMediaType | null
+  featuredMediaUrl: string | null
   imageUrl: string | null
   initials: string
   location: string
@@ -73,8 +83,12 @@ function CreatorOnboardingSection({
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [body, setBody] = useState('')
+  const [featuredMediaType, setFeaturedMediaType] =
+    useState<FeaturedMediaType>('video')
+  const [featuredMediaUrl, setFeaturedMediaUrl] = useState('')
   const [message, setMessage] = useState<Message | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [isMediaSaving, setIsMediaSaving] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -85,6 +99,8 @@ function CreatorOnboardingSection({
     setCity(nextProfile.city)
     setState(nextProfile.state)
     setBody(nextProfile.body)
+    setFeaturedMediaType(nextProfile.featuredMediaType ?? 'video')
+    setFeaturedMediaUrl(nextProfile.featuredMediaUrl ?? '')
   }
 
   useEffect(() => {
@@ -190,6 +206,104 @@ function CreatorOnboardingSection({
       })
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  async function handleFeaturedMediaSave() {
+    if (!profile || profile.profileType !== 'performer') {
+      return
+    }
+
+    const cleanUrl = featuredMediaUrl.trim()
+
+    if (!cleanUrl) {
+      setMessage({
+        type: 'error',
+        text: 'Paste a YouTube or SoundCloud link before saving featured media.',
+      })
+      return
+    }
+
+    if (featuredMediaType === 'video' && !isYouTubeUrl(cleanUrl)) {
+      setMessage({
+        type: 'error',
+        text: 'Paste a valid YouTube watch link or youtu.be link.',
+      })
+      return
+    }
+
+    if (featuredMediaType === 'audio' && !isSoundCloudUrl(cleanUrl)) {
+      setMessage({
+        type: 'error',
+        text: 'Paste a valid SoundCloud track or share link.',
+      })
+      return
+    }
+
+    setIsMediaSaving(true)
+    setMessage(null)
+
+    try {
+      const nextPerformer = await updatePerformerFeaturedMedia(
+        ownerUserId,
+        profile.id,
+        {
+          featuredMediaType,
+          featuredMediaUrl: cleanUrl,
+        },
+      )
+
+      syncProfileState(mapPerformerProfile(nextPerformer))
+      setMessage({
+        type: 'success',
+        text: 'Featured media saved.',
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Featured media could not be saved. Please try again.',
+      })
+    } finally {
+      setIsMediaSaving(false)
+    }
+  }
+
+  async function handleFeaturedMediaClear() {
+    if (!profile || profile.profileType !== 'performer') {
+      return
+    }
+
+    setIsMediaSaving(true)
+    setMessage(null)
+
+    try {
+      const nextPerformer = await updatePerformerFeaturedMedia(
+        ownerUserId,
+        profile.id,
+        {
+          featuredMediaType: null,
+          featuredMediaUrl: null,
+        },
+      )
+
+      syncProfileState(mapPerformerProfile(nextPerformer))
+      setMessage({
+        type: 'success',
+        text: 'Featured media removed.',
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Featured media could not be removed. Please try again.',
+      })
+    } finally {
+      setIsMediaSaving(false)
     }
   }
 
@@ -366,6 +480,20 @@ function CreatorOnboardingSection({
               />
             </label>
 
+            {profile.profileType === 'performer' ? (
+              <FeaturedMediaArea
+                isEditing
+                isSaving={isMediaSaving}
+                mediaType={featuredMediaType}
+                mediaUrl={featuredMediaUrl}
+                onClearMedia={handleFeaturedMediaClear}
+                onMediaTypeChange={setFeaturedMediaType}
+                onMediaUrlChange={setFeaturedMediaUrl}
+                onSaveMedia={handleFeaturedMediaSave}
+                profile={profile}
+              />
+            ) : null}
+
             <div className="fan-profile-actions">
               <button
                 type="submit"
@@ -398,6 +526,20 @@ function CreatorOnboardingSection({
             <p className="creator-management-body">{profile.body}</p>
           ) : null}
 
+          {profile.profileType === 'performer' ? (
+            <FeaturedMediaArea
+              isEditing={false}
+              isSaving={isMediaSaving}
+              mediaType={featuredMediaType}
+              mediaUrl={featuredMediaUrl}
+              onClearMedia={handleFeaturedMediaClear}
+              onMediaTypeChange={setFeaturedMediaType}
+              onMediaUrlChange={setFeaturedMediaUrl}
+              onSaveMedia={handleFeaturedMediaSave}
+              profile={profile}
+            />
+          ) : null}
+
           <div className="creator-management-actions">
             <Link to={profile.publicPath} className="auth-submit-button">
               View public profile
@@ -414,6 +556,132 @@ function CreatorOnboardingSection({
         </div>
       )}
     </section>
+  )
+}
+
+type FeaturedMediaAreaProps = {
+  isEditing: boolean
+  isSaving: boolean
+  mediaType: FeaturedMediaType
+  mediaUrl: string
+  onClearMedia: () => void
+  onMediaTypeChange: (mediaType: FeaturedMediaType) => void
+  onMediaUrlChange: (mediaUrl: string) => void
+  onSaveMedia: () => void
+  profile: CreatorProfile
+}
+
+function FeaturedMediaArea({
+  isEditing,
+  isSaving,
+  mediaType,
+  mediaUrl,
+  onClearMedia,
+  onMediaTypeChange,
+  onMediaUrlChange,
+  onSaveMedia,
+  profile,
+}: FeaturedMediaAreaProps) {
+  const hasSavedFeaturedMedia = Boolean(
+    profile.featuredMediaUrl && profile.featuredMediaType,
+  )
+  const canPreviewFeaturedMedia = canRenderFeaturedMedia(
+    profile.featuredMediaUrl,
+    profile.featuredMediaType,
+  )
+
+  return (
+    <div className="creator-featured-media">
+      <div className="creator-featured-media-heading">
+        <h3>Featured Media</h3>
+        <p>
+          {hasSavedFeaturedMedia
+            ? 'Your featured media is visible on your public performer profile.'
+            : 'No featured media added yet.'}
+        </p>
+      </div>
+
+      {canPreviewFeaturedMedia &&
+      profile.featuredMediaUrl &&
+      profile.featuredMediaType ? (
+        <FeaturedMediaPlayer
+          mediaType={profile.featuredMediaType}
+          mediaUrl={profile.featuredMediaUrl}
+        />
+      ) : null}
+
+      {isEditing ? (
+        <div className="featured-media-link-form">
+          <fieldset className="featured-media-choice">
+            <legend>Media type</legend>
+
+            <div className="featured-media-options">
+              <label>
+                <input
+                  type="radio"
+                  name="featuredMediaType"
+                  checked={mediaType === 'video'}
+                  onChange={() => onMediaTypeChange('video')}
+                />
+                <span>YouTube Video</span>
+              </label>
+
+              <label>
+                <input
+                  type="radio"
+                  name="featuredMediaType"
+                  checked={mediaType === 'audio'}
+                  onChange={() => onMediaTypeChange('audio')}
+                />
+                <span>SoundCloud Audio</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label className="featured-media-url-field">
+            <span>{mediaType === 'video' ? 'YouTube URL' : 'SoundCloud URL'}</span>
+            <input
+              type="text"
+              value={mediaUrl}
+              placeholder={
+                mediaType === 'video'
+                  ? 'https://www.youtube.com/watch?v=...'
+                  : 'https://soundcloud.com/artist/track'
+              }
+              onChange={(event) => onMediaUrlChange(event.target.value)}
+            />
+          </label>
+
+          <p className="featured-media-helper">
+            {mediaType === 'video'
+              ? 'Paste a youtube.com/watch link or a youtu.be link.'
+              : 'Paste a SoundCloud track or share link.'}
+          </p>
+
+          <div className="featured-media-actions">
+            <button
+              type="button"
+              className="auth-submit-button"
+              disabled={isSaving}
+              onClick={onSaveMedia}
+            >
+              {isSaving ? 'Saving media...' : 'Save Featured Media'}
+            </button>
+
+            {hasSavedFeaturedMedia ? (
+              <button
+                type="button"
+                className="secondary-action-button"
+                disabled={isSaving}
+                onClick={onClearMedia}
+              >
+                Remove Media
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -611,6 +879,8 @@ function mapPerformerProfile(performer: Performer): CreatorProfile {
     category: performer.category,
     categoryFieldLabel: 'Performer type/category',
     city: performer.city,
+    featuredMediaType: performer.featuredMediaType,
+    featuredMediaUrl: performer.featuredMediaUrl,
     imageUrl: performer.imageUrl,
     initials: performer.initials,
     location: performer.location,
@@ -630,6 +900,8 @@ function mapProducerProfile(producer: Producer): CreatorProfile {
     category: producer.category,
     categoryFieldLabel: 'Producer type/category',
     city: producer.city,
+    featuredMediaType: null,
+    featuredMediaUrl: null,
     imageUrl: producer.imageUrl,
     initials: producer.initials,
     location: producer.location,
@@ -649,6 +921,8 @@ function mapVenueProfile(venue: Venue): CreatorProfile {
     category: venue.category,
     categoryFieldLabel: 'Venue type/category',
     city: venue.city,
+    featuredMediaType: null,
+    featuredMediaUrl: null,
     imageUrl: venue.imageUrl,
     initials: venue.initials,
     location: venue.location,

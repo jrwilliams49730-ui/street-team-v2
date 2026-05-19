@@ -11,9 +11,13 @@ export type PerformerRow = {
   state: string | null
   bio: string | null
   image_url: string | null
+  featured_media_url: string | null
+  featured_media_type: string | null
   created_at: string
   updated_at: string
 }
+
+export type FeaturedMediaType = 'video' | 'audio'
 
 export type Performer = {
   id: string
@@ -27,6 +31,8 @@ export type Performer = {
   shortBio: string
   bio: string
   imageUrl: string | null
+  featuredMediaUrl: string | null
+  featuredMediaType: FeaturedMediaType | null
   followerCount: number
 }
 
@@ -47,8 +53,13 @@ export type UpdatePerformerInput = {
   bio: string
 }
 
+export type UpdatePerformerFeaturedMediaInput = {
+  featuredMediaUrl: string | null
+  featuredMediaType: FeaturedMediaType | null
+}
+
 const performerSelect =
-  'id, owner_user_id, name, slug, performer_type, city, state, bio, image_url, created_at, updated_at'
+  'id, owner_user_id, name, slug, performer_type, city, state, bio, image_url, featured_media_url, featured_media_type, created_at, updated_at'
 
 export function generatePerformerSlug(name: string) {
   const slug = name
@@ -219,6 +230,29 @@ export async function updatePerformerProfile(
   return mapPerformerRow(data as PerformerRow)
 }
 
+export async function updatePerformerFeaturedMedia(
+  ownerUserId: string,
+  profileId: string,
+  input: UpdatePerformerFeaturedMediaInput,
+) {
+  const { data, error } = await supabase
+    .from('performers')
+    .update({
+      featured_media_url: input.featuredMediaUrl,
+      featured_media_type: input.featuredMediaType,
+    })
+    .eq('id', profileId)
+    .eq('owner_user_id', ownerUserId)
+    .select(performerSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapPerformerRow(data as PerformerRow)
+}
+
 function mapPerformerRow(row: PerformerRow): Performer {
   const bio = row.bio?.trim() || 'This performer has not added a bio yet.'
 
@@ -234,6 +268,8 @@ function mapPerformerRow(row: PerformerRow): Performer {
     shortBio: createShortBio(bio),
     bio,
     imageUrl: row.image_url,
+    featuredMediaUrl: row.featured_media_url,
+    featuredMediaType: normalizeFeaturedMediaType(row.featured_media_type),
     followerCount: 0,
   }
 }
@@ -282,4 +318,8 @@ function getInitials(name: string) {
 
 function createShortBio(bio: string) {
   return bio.length > 120 ? `${bio.slice(0, 117).trim()}...` : bio
+}
+
+function normalizeFeaturedMediaType(value: string | null) {
+  return value === 'video' || value === 'audio' ? value : null
 }

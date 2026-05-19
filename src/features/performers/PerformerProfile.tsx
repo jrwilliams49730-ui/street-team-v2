@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import FollowButton from '../follows/FollowButton'
 import { formatFollowerCount, formatFollowerNoun } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
+import FeaturedMediaPlayer from './FeaturedMediaPlayer'
+import { canRenderFeaturedMedia } from './featuredMediaLinks'
 import { fetchPerformerBySlug, type Performer } from './performers'
 
 function PerformerProfile() {
@@ -123,6 +125,21 @@ function PerformerProfile() {
           targetType="performer"
         />
       </article>
+
+      {canRenderFeaturedMedia(
+        performer.featuredMediaUrl,
+        performer.featuredMediaType,
+      ) &&
+      performer.featuredMediaUrl &&
+      performer.featuredMediaType ? (
+        <section className="featured-media-section">
+          <h3>Featured Media</h3>
+          <FeaturedMediaPlayer
+            mediaType={performer.featuredMediaType}
+            mediaUrl={performer.featuredMediaUrl}
+          />
+        </section>
+      ) : null}
 
       <section className="upcoming-shows">
         <h3>Upcoming shows</h3>
