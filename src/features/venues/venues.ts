@@ -20,6 +20,8 @@ export type Venue = {
   name: string
   slug: string
   category: string
+  city: string
+  state: string
   location: string
   initials: string
   shortDescription: string
@@ -30,6 +32,14 @@ export type Venue = {
 
 export type CreateVenueInput = {
   ownerUserId: string
+  name: string
+  venueType: string
+  city: string
+  state: string
+  description: string
+}
+
+export type UpdateVenueInput = {
   name: string
   venueType: string
   city: string
@@ -181,6 +191,32 @@ export async function updateVenueImageUrl(
   return mapVenueRow(data as VenueRow)
 }
 
+export async function updateVenueProfile(
+  ownerUserId: string,
+  profileId: string,
+  input: UpdateVenueInput,
+) {
+  const { data, error } = await supabase
+    .from('venues')
+    .update({
+      name: cleanRequiredText(input.name),
+      venue_type: cleanRequiredText(input.venueType),
+      city: cleanOptionalText(input.city),
+      state: cleanOptionalText(input.state),
+      description: cleanOptionalText(input.description),
+    })
+    .eq('id', profileId)
+    .eq('owner_user_id', ownerUserId)
+    .select(venueSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapVenueRow(data as VenueRow)
+}
+
 function mapVenueRow(row: VenueRow): Venue {
   const description =
     row.description?.trim() || 'This venue has not added a description yet.'
@@ -190,6 +226,8 @@ function mapVenueRow(row: VenueRow): Venue {
     name: row.name,
     slug: row.slug,
     category: row.venue_type,
+    city: row.city?.trim() ?? '',
+    state: row.state?.trim() ?? '',
     location: formatLocation(row.city, row.state),
     initials: getInitials(row.name),
     shortDescription: createShortDescription(description),
@@ -215,6 +253,10 @@ function cleanOptionalText(value: string) {
   const trimmed = value.trim()
 
   return trimmed.length > 0 ? trimmed : null
+}
+
+function cleanRequiredText(value: string) {
+  return value.trim()
 }
 
 function formatLocation(city: string | null, state: string | null) {

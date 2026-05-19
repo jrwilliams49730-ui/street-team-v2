@@ -1,15 +1,63 @@
-import { useEffect, useState } from 'react'
+import {
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
+import { Link } from 'react-router-dom'
 import CreatePerformerForm from '../performers/CreatePerformerForm'
-import { fetchOwnedPerformers } from '../performers/performers'
+import {
+  fetchOwnedPerformers,
+  updatePerformerImageUrl,
+  updatePerformerProfile,
+  type Performer,
+} from '../performers/performers'
 import CreateProducerForm from '../producers/CreateProducerForm'
-import { fetchOwnedProducers } from '../producers/producers'
+import {
+  fetchOwnedProducers,
+  updateProducerImageUrl,
+  updateProducerProfile,
+  type Producer,
+} from '../producers/producers'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
+import {
+  uploadProfileImage,
+  type ProfileImageType,
+} from '../profile-images/profileImages'
 import CreateVenueForm from '../venues/CreateVenueForm'
-import { fetchOwnedVenues } from '../venues/venues'
+import {
+  fetchOwnedVenues,
+  updateVenueImageUrl,
+  updateVenueProfile,
+  type Venue,
+} from '../venues/venues'
 import { formatAccountType, type AccountType } from './accountTypes'
 
 type CreatorOnboardingSectionProps = {
   accountType: AccountType
   ownerUserId: string
+}
+
+type CreatorProfile = {
+  id: string
+  body: string
+  bodyFieldLabel: string
+  category: string
+  categoryFieldLabel: string
+  city: string
+  imageUrl: string | null
+  initials: string
+  location: string
+  name: string
+  profileType: ProfileImageType
+  publicPath: string
+  state: string
+  typeLabel: string
+}
+
+type Message = {
+  type: 'success' | 'error' | 'uploading'
+  text: string
 }
 
 function CreatorOnboardingSection({
@@ -19,7 +67,25 @@ function CreatorOnboardingSection({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   )
-  const [hasMatchingProfile, setHasMatchingProfile] = useState(false)
+  const [profile, setProfile] = useState<CreatorProfile | null>(null)
+  const [name, setName] = useState('')
+  const [category, setCategory] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [body, setBody] = useState('')
+  const [message, setMessage] = useState<Message | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+
+  function syncProfileState(nextProfile: CreatorProfile) {
+    setProfile(nextProfile)
+    setName(nextProfile.name)
+    setCategory(nextProfile.category)
+    setCity(nextProfile.city)
+    setState(nextProfile.state)
+    setBody(nextProfile.body)
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -27,22 +93,31 @@ function CreatorOnboardingSection({
     async function loadMatchingProfileStatus() {
       if (accountType === 'fan') {
         setStatus('ready')
-        setHasMatchingProfile(false)
+        setProfile(null)
         return
       }
 
       setStatus('loading')
+      setMessage(null)
 
       try {
-        const matchingProfiles = await fetchMatchingProfiles(
+        const matchingProfile = await fetchMatchingProfile(
           accountType,
           ownerUserId,
         )
 
-        if (isMounted) {
-          setHasMatchingProfile(matchingProfiles.length > 0)
-          setStatus('ready')
+        if (!isMounted) {
+          return
         }
+
+        if (matchingProfile) {
+          syncProfileState(matchingProfile)
+        } else {
+          setProfile(null)
+        }
+
+        setIsEditing(false)
+        setStatus('ready')
       } catch {
         if (isMounted) {
           setStatus('error')
@@ -61,70 +136,528 @@ function CreatorOnboardingSection({
     return null
   }
 
-  const label = formatAccountType(accountType).toLowerCase()
+  const accountTypeLabel = formatAccountType(accountType)
+  const label = accountTypeLabel.toLowerCase()
 
-  return (
-    <>
+  function handleProfileCreated(nextProfile: CreatorProfile) {
+    syncProfileState(nextProfile)
+    setIsEditing(false)
+    setMessage({
+      type: 'success',
+      text: `${accountTypeLabel} profile created.`,
+    })
+  }
+
+  async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+
+    if (!file || !profile) {
+      return
+    }
+
+    setIsUploading(true)
+    setMessage({
+      type: 'uploading',
+      text: 'Uploading image...',
+    })
+
+    try {
+      const imageUrl = await uploadProfileImage({
+        file,
+        ownerUserId,
+        profileId: profile.id,
+        profileType: profile.profileType,
+      })
+      const nextProfile = await updateCreatorImageUrl(
+        ownerUserId,
+        profile,
+        imageUrl,
+      )
+
+      syncProfileState(nextProfile)
+      setMessage({
+        type: 'success',
+        text: 'Image updated.',
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Image could not be uploaded. Please try again.',
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!profile) {
+      return
+    }
+
+    setIsSaving(true)
+    setMessage(null)
+
+    try {
+      const nextProfile = await updateCreatorProfile(ownerUserId, profile, {
+        body,
+        category,
+        city,
+        name,
+        state,
+      })
+
+      syncProfileState(nextProfile)
+      setIsEditing(false)
+      setMessage({
+        type: 'success',
+        text: `${accountTypeLabel} profile updated.`,
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : `${accountTypeLabel} profile could not be updated. Please try again.`,
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function handleEdit() {
+    if (profile) {
+      syncProfileState(profile)
+    }
+
+    setMessage(null)
+    setIsEditing(true)
+  }
+
+  function handleCancel() {
+    if (profile) {
+      syncProfileState(profile)
+    }
+
+    setMessage(null)
+    setIsEditing(false)
+  }
+
+  if (status === 'loading') {
+    return (
       <section className="account-card onboarding-card">
         <header className="section-heading">
-          <h2>{formatAccountType(accountType)} Setup</h2>
-          <p>
-            {status === 'loading'
-              ? `Checking your ${label} profile status...`
-              : null}
-            {status === 'error'
-              ? `Your ${label} profile status could not be loaded.`
-              : null}
-            {status === 'ready' && hasMatchingProfile
-              ? `Your ${label} profile is ready.`
-              : null}
-            {status === 'ready' && !hasMatchingProfile
-              ? `Complete your public ${label} profile so fans can discover and follow you.`
-              : null}
-          </p>
+          <h2>{accountTypeLabel} Setup</h2>
+          <p>{`Checking your ${label} profile status...`}</p>
         </header>
       </section>
+    )
+  }
 
-      {status === 'ready' && !hasMatchingProfile
-        ? renderCreateForm(accountType, ownerUserId)
-        : null}
-    </>
+  if (status === 'error') {
+    return (
+      <section className="account-card onboarding-card">
+        <header className="section-heading">
+          <h2>{accountTypeLabel} Setup</h2>
+          <p>{`Your ${label} profile status could not be loaded.`}</p>
+        </header>
+      </section>
+    )
+  }
+
+  if (!profile) {
+    return (
+      <>
+        <section className="account-card onboarding-card">
+          <header className="section-heading">
+            <h2>{accountTypeLabel} Setup</h2>
+            <p>
+              {`Complete your public ${label} profile so fans can discover and follow you.`}
+            </p>
+          </header>
+        </section>
+
+        {renderCreateForm(accountType, ownerUserId, handleProfileCreated)}
+      </>
+    )
+  }
+
+  return (
+    <section className="account-card creator-management-section">
+      <header className="section-heading">
+        <h2>{`Your ${accountTypeLabel} Profile`}</h2>
+        <p>{`Manage the public ${label} profile fans see across Street Team.`}</p>
+      </header>
+
+      {message ? (
+        <p
+          className={`auth-message ${message.type === 'error' ? 'error' : ''}`}
+        >
+          {message.text}
+        </p>
+      ) : null}
+
+      {isEditing ? (
+        <>
+          <ProfileSummary
+            isUploading={isUploading}
+            onImageChange={handleImageChange}
+            profile={profile}
+            showImageUpload
+          />
+
+          <form className="auth-form" onSubmit={handleSave}>
+            <label>
+              <span>{`${accountTypeLabel} name`}</span>
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+              />
+            </label>
+
+            <label>
+              <span>{profile.categoryFieldLabel}</span>
+              <input
+                type="text"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                required
+              />
+            </label>
+
+            <div className="form-grid">
+              <label>
+                <span>City</span>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                />
+              </label>
+
+              <label>
+                <span>State</span>
+                <input
+                  type="text"
+                  value={state}
+                  maxLength={2}
+                  placeholder="TX"
+                  onChange={(event) =>
+                    setState(event.target.value.toUpperCase())
+                  }
+                />
+              </label>
+            </div>
+
+            <label>
+              <span>{profile.bodyFieldLabel}</span>
+              <textarea
+                value={body}
+                rows={5}
+                onChange={(event) => setBody(event.target.value)}
+              />
+            </label>
+
+            <div className="fan-profile-actions">
+              <button
+                type="submit"
+                className="auth-submit-button"
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving changes...' : 'Save Changes'}
+              </button>
+
+              <button
+                type="button"
+                className="secondary-action-button"
+                onClick={handleCancel}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </>
+      ) : (
+        <div className="owned-profile-card creator-management-card">
+          <ProfileSummary
+            isUploading={isUploading}
+            onImageChange={handleImageChange}
+            profile={profile}
+            showImageUpload={false}
+          />
+
+          {profile.body ? (
+            <p className="creator-management-body">{profile.body}</p>
+          ) : null}
+
+          <div className="creator-management-actions">
+            <Link to={profile.publicPath} className="auth-submit-button">
+              View public profile
+            </Link>
+
+            <button
+              type="button"
+              className="secondary-action-button"
+              onClick={handleEdit}
+            >
+              Edit Profile
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
-function renderCreateForm(accountType: AccountType, ownerUserId: string) {
+type ProfileSummaryProps = {
+  isUploading: boolean
+  onImageChange: (event: ChangeEvent<HTMLInputElement>) => void
+  profile: CreatorProfile
+  showImageUpload: boolean
+}
+
+function ProfileSummary({
+  isUploading,
+  onImageChange,
+  profile,
+  showImageUpload,
+}: ProfileSummaryProps) {
+  return (
+    <div className="owned-profile-main">
+      <ProfileImageAvatar
+        className={`owned-profile-avatar ${profile.profileType}-avatar`}
+        imageUrl={profile.imageUrl}
+        initials={profile.initials}
+        name={profile.name}
+      />
+
+      <div className="owned-profile-copy">
+        <span>{profile.typeLabel}</span>
+        <h3>{profile.name}</h3>
+        <p>{profile.category}</p>
+        <p>{profile.location}</p>
+
+        {showImageUpload ? (
+          <label
+            className={`profile-upload-button ${
+              isUploading ? 'is-disabled' : ''
+            }`}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              disabled={isUploading}
+              onChange={onImageChange}
+            />
+            {isUploading
+              ? 'Uploading...'
+              : profile.imageUrl
+                ? 'Replace image'
+                : 'Upload image'}
+          </label>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function renderCreateForm(
+  accountType: AccountType,
+  ownerUserId: string,
+  onProfileCreated: (profile: CreatorProfile) => void,
+) {
   if (accountType === 'performer') {
-    return <CreatePerformerForm ownerUserId={ownerUserId} />
+    return (
+      <CreatePerformerForm
+        ownerUserId={ownerUserId}
+        onProfileCreated={(performer) =>
+          onProfileCreated(mapPerformerProfile(performer))
+        }
+      />
+    )
   }
 
   if (accountType === 'producer') {
-    return <CreateProducerForm ownerUserId={ownerUserId} />
+    return (
+      <CreateProducerForm
+        ownerUserId={ownerUserId}
+        onProfileCreated={(producer) =>
+          onProfileCreated(mapProducerProfile(producer))
+        }
+      />
+    )
   }
 
   if (accountType === 'venue') {
-    return <CreateVenueForm ownerUserId={ownerUserId} />
+    return (
+      <CreateVenueForm
+        ownerUserId={ownerUserId}
+        onProfileCreated={(venue) => onProfileCreated(mapVenueProfile(venue))}
+      />
+    )
   }
 
   return null
 }
 
-async function fetchMatchingProfiles(
+async function fetchMatchingProfile(
   accountType: AccountType,
   ownerUserId: string,
 ) {
   if (accountType === 'performer') {
-    return fetchOwnedPerformers(ownerUserId)
+    const performers = await fetchOwnedPerformers(ownerUserId)
+
+    return performers[0] ? mapPerformerProfile(performers[0]) : null
   }
 
   if (accountType === 'producer') {
-    return fetchOwnedProducers(ownerUserId)
+    const producers = await fetchOwnedProducers(ownerUserId)
+
+    return producers[0] ? mapProducerProfile(producers[0]) : null
   }
 
   if (accountType === 'venue') {
-    return fetchOwnedVenues(ownerUserId)
+    const venues = await fetchOwnedVenues(ownerUserId)
+
+    return venues[0] ? mapVenueProfile(venues[0]) : null
   }
 
-  return []
+  return null
+}
+
+async function updateCreatorImageUrl(
+  ownerUserId: string,
+  profile: CreatorProfile,
+  imageUrl: string,
+) {
+  if (profile.profileType === 'performer') {
+    return mapPerformerProfile(
+      await updatePerformerImageUrl(ownerUserId, profile.id, imageUrl),
+    )
+  }
+
+  if (profile.profileType === 'producer') {
+    return mapProducerProfile(
+      await updateProducerImageUrl(ownerUserId, profile.id, imageUrl),
+    )
+  }
+
+  return mapVenueProfile(
+    await updateVenueImageUrl(ownerUserId, profile.id, imageUrl),
+  )
+}
+
+type CreatorProfileFormState = {
+  body: string
+  category: string
+  city: string
+  name: string
+  state: string
+}
+
+async function updateCreatorProfile(
+  ownerUserId: string,
+  profile: CreatorProfile,
+  formState: CreatorProfileFormState,
+) {
+  if (profile.profileType === 'performer') {
+    return mapPerformerProfile(
+      await updatePerformerProfile(ownerUserId, profile.id, {
+        bio: formState.body,
+        city: formState.city,
+        name: formState.name,
+        performerType: formState.category,
+        state: formState.state,
+      }),
+    )
+  }
+
+  if (profile.profileType === 'producer') {
+    return mapProducerProfile(
+      await updateProducerProfile(ownerUserId, profile.id, {
+        bio: formState.body,
+        city: formState.city,
+        name: formState.name,
+        producerType: formState.category,
+        state: formState.state,
+      }),
+    )
+  }
+
+  return mapVenueProfile(
+    await updateVenueProfile(ownerUserId, profile.id, {
+      city: formState.city,
+      description: formState.body,
+      name: formState.name,
+      state: formState.state,
+      venueType: formState.category,
+    }),
+  )
+}
+
+function mapPerformerProfile(performer: Performer): CreatorProfile {
+  return {
+    id: performer.id,
+    body: performer.bio,
+    bodyFieldLabel: 'Bio',
+    category: performer.category,
+    categoryFieldLabel: 'Performer type/category',
+    city: performer.city,
+    imageUrl: performer.imageUrl,
+    initials: performer.initials,
+    location: performer.location,
+    name: performer.name,
+    profileType: 'performer',
+    publicPath: `/performers/${performer.slug}`,
+    state: performer.state,
+    typeLabel: 'Performer',
+  }
+}
+
+function mapProducerProfile(producer: Producer): CreatorProfile {
+  return {
+    id: producer.id,
+    body: producer.bio,
+    bodyFieldLabel: 'Bio',
+    category: producer.category,
+    categoryFieldLabel: 'Producer type/category',
+    city: producer.city,
+    imageUrl: producer.imageUrl,
+    initials: producer.initials,
+    location: producer.location,
+    name: producer.name,
+    profileType: 'producer',
+    publicPath: `/producers/${producer.slug}`,
+    state: producer.state,
+    typeLabel: 'Producer',
+  }
+}
+
+function mapVenueProfile(venue: Venue): CreatorProfile {
+  return {
+    id: venue.id,
+    body: venue.description,
+    bodyFieldLabel: 'Description',
+    category: venue.category,
+    categoryFieldLabel: 'Venue type/category',
+    city: venue.city,
+    imageUrl: venue.imageUrl,
+    initials: venue.initials,
+    location: venue.location,
+    name: venue.name,
+    profileType: 'venue',
+    publicPath: `/venues/${venue.slug}`,
+    state: venue.state,
+    typeLabel: 'Venue',
+  }
 }
 
 export default CreatorOnboardingSection

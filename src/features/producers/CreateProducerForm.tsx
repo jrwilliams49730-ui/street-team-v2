@@ -12,10 +12,14 @@ type Message = {
 }
 
 type CreateProducerFormProps = {
+  onProfileCreated?: (producer: Producer) => void
   ownerUserId: string
 }
 
-function CreateProducerForm({ ownerUserId }: CreateProducerFormProps) {
+function CreateProducerForm({
+  onProfileCreated,
+  ownerUserId,
+}: CreateProducerFormProps) {
   const [name, setName] = useState('')
   const [producerType, setProducerType] = useState('')
   const [city, setCity] = useState('')
@@ -42,6 +46,7 @@ function CreateProducerForm({ ownerUserId }: CreateProducerFormProps) {
       })
 
       setCreatedProducer(producer)
+      onProfileCreated?.(producer)
       setMessage({
         type: 'success',
         text: 'Producer profile created.',

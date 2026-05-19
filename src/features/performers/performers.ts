@@ -20,6 +20,8 @@ export type Performer = {
   name: string
   slug: string
   category: string
+  city: string
+  state: string
   location: string
   initials: string
   shortBio: string
@@ -30,6 +32,14 @@ export type Performer = {
 
 export type CreatePerformerInput = {
   ownerUserId: string
+  name: string
+  performerType: string
+  city: string
+  state: string
+  bio: string
+}
+
+export type UpdatePerformerInput = {
   name: string
   performerType: string
   city: string
@@ -183,6 +193,32 @@ export async function updatePerformerImageUrl(
   return mapPerformerRow(data as PerformerRow)
 }
 
+export async function updatePerformerProfile(
+  ownerUserId: string,
+  profileId: string,
+  input: UpdatePerformerInput,
+) {
+  const { data, error } = await supabase
+    .from('performers')
+    .update({
+      name: cleanRequiredText(input.name),
+      performer_type: cleanRequiredText(input.performerType),
+      city: cleanOptionalText(input.city),
+      state: cleanOptionalText(input.state),
+      bio: cleanOptionalText(input.bio),
+    })
+    .eq('id', profileId)
+    .eq('owner_user_id', ownerUserId)
+    .select(performerSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapPerformerRow(data as PerformerRow)
+}
+
 function mapPerformerRow(row: PerformerRow): Performer {
   const bio = row.bio?.trim() || 'This performer has not added a bio yet.'
 
@@ -191,6 +227,8 @@ function mapPerformerRow(row: PerformerRow): Performer {
     name: row.name,
     slug: row.slug,
     category: row.performer_type,
+    city: row.city?.trim() ?? '',
+    state: row.state?.trim() ?? '',
     location: formatLocation(row.city, row.state),
     initials: getInitials(row.name),
     shortBio: createShortBio(bio),
@@ -216,6 +254,10 @@ function cleanOptionalText(value: string) {
   const trimmed = value.trim()
 
   return trimmed.length > 0 ? trimmed : null
+}
+
+function cleanRequiredText(value: string) {
+  return value.trim()
 }
 
 function formatLocation(city: string | null, state: string | null) {

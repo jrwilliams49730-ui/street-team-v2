@@ -38,11 +38,13 @@ type UploadState = {
 
 type MyProfilesSectionProps = {
   hideWhenEmpty?: boolean
+  minimumProfilesToShow?: number
   ownerUserId: string
 }
 
 function MyProfilesSection({
   hideWhenEmpty = false,
+  minimumProfilesToShow = hideWhenEmpty ? 1 : 0,
   ownerUserId,
 }: MyProfilesSectionProps) {
   const [profiles, setProfiles] = useState<OwnedProfile[]>([])
@@ -160,8 +162,10 @@ function MyProfilesSection({
   }
 
   if (
-    hideWhenEmpty &&
-    (status === 'loading' || (status === 'ready' && profiles.length === 0))
+    minimumProfilesToShow > 0 &&
+    (status === 'loading' ||
+      status === 'error' ||
+      (status === 'ready' && profiles.length < minimumProfilesToShow))
   ) {
     return null
   }

@@ -71,6 +71,8 @@
 .owned-profiles-state,
 .owned-profile-card h3,
 .owned-profile-card p,
+.owned-profile-copy p,
+.creator-management-body,
 .performer-card h3,
 .performer-card p,
 .producer-card h3,
@@ -551,10 +553,14 @@
 }
 
 .auth-submit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: fit-content;
   padding: 0.85rem 1.2rem;
   color: var(--st-text);
   background: linear-gradient(180deg, var(--st-accent-hover), var(--st-accent));
+  text-decoration: none;
 }
 
 .secondary-action-button {
@@ -761,6 +767,26 @@
 
 .owned-profile-copy a:hover {
   color: var(--st-accent-hover);
+}
+
+.owned-profile-copy p {
+  color: var(--st-text-subtle);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.creator-management-card {
+  gap: 1rem;
+}
+
+.creator-management-body {
+  color: var(--st-text-muted);
+}
+
+.creator-management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
 .profile-upload-button {

@@ -12,10 +12,14 @@ type Message = {
 }
 
 type CreateVenueFormProps = {
+  onProfileCreated?: (venue: Venue) => void
   ownerUserId: string
 }
 
-function CreateVenueForm({ ownerUserId }: CreateVenueFormProps) {
+function CreateVenueForm({
+  onProfileCreated,
+  ownerUserId,
+}: CreateVenueFormProps) {
   const [name, setName] = useState('')
   const [venueType, setVenueType] = useState('')
   const [city, setCity] = useState('')
@@ -42,6 +46,7 @@ function CreateVenueForm({ ownerUserId }: CreateVenueFormProps) {
       })
 
       setCreatedVenue(venue)
+      onProfileCreated?.(venue)
       setMessage({
         type: 'success',
         text: 'Venue profile created.',

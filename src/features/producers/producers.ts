@@ -20,6 +20,8 @@ export type Producer = {
   name: string
   slug: string
   category: string
+  city: string
+  state: string
   location: string
   initials: string
   shortBio: string
@@ -30,6 +32,14 @@ export type Producer = {
 
 export type CreateProducerInput = {
   ownerUserId: string
+  name: string
+  producerType: string
+  city: string
+  state: string
+  bio: string
+}
+
+export type UpdateProducerInput = {
   name: string
   producerType: string
   city: string
@@ -183,6 +193,32 @@ export async function updateProducerImageUrl(
   return mapProducerRow(data as ProducerRow)
 }
 
+export async function updateProducerProfile(
+  ownerUserId: string,
+  profileId: string,
+  input: UpdateProducerInput,
+) {
+  const { data, error } = await supabase
+    .from('producers')
+    .update({
+      name: cleanRequiredText(input.name),
+      producer_type: cleanRequiredText(input.producerType),
+      city: cleanOptionalText(input.city),
+      state: cleanOptionalText(input.state),
+      bio: cleanOptionalText(input.bio),
+    })
+    .eq('id', profileId)
+    .eq('owner_user_id', ownerUserId)
+    .select(producerSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapProducerRow(data as ProducerRow)
+}
+
 function mapProducerRow(row: ProducerRow): Producer {
   const bio = row.bio?.trim() || 'This producer has not added a bio yet.'
 
@@ -191,6 +227,8 @@ function mapProducerRow(row: ProducerRow): Producer {
     name: row.name,
     slug: row.slug,
     category: row.producer_type,
+    city: row.city?.trim() ?? '',
+    state: row.state?.trim() ?? '',
     location: formatLocation(row.city, row.state),
     initials: getInitials(row.name),
     shortBio: createShortBio(bio),
@@ -216,6 +254,10 @@ function cleanOptionalText(value: string) {
   const trimmed = value.trim()
 
   return trimmed.length > 0 ? trimmed : null
+}
+
+function cleanRequiredText(value: string) {
+  return value.trim()
 }
 
 function formatLocation(city: string | null, state: string | null) {

@@ -1,9 +1,11 @@
 import { supabase } from '../../lib/supabase'
+import { normalizeAccountType, type AccountType } from './accountTypes'
 
 export type UserProfileRow = {
   id: string
   display_name: string | null
   avatar_url: string | null
+  account_type: string | null
   bio: string | null
   city: string | null
   state: string | null
@@ -15,6 +17,7 @@ export type UserProfile = {
   id: string
   displayName: string
   avatarUrl: string | null
+  accountType: AccountType
   bio: string
   city: string
   state: string
@@ -29,7 +32,7 @@ export type UpdateUserProfileInput = {
 }
 
 const profileSelect =
-  'id, display_name, avatar_url, bio, city, state, created_at, updated_at'
+  'id, display_name, avatar_url, account_type, bio, city, state, created_at, updated_at'
 
 export async function fetchUserProfile(userId: string) {
   const { data, error } = await supabase
@@ -95,6 +98,7 @@ function mapUserProfileRow(row: UserProfileRow): UserProfile {
     id: row.id,
     displayName,
     avatarUrl: row.avatar_url,
+    accountType: normalizeAccountType(row.account_type),
     bio: row.bio?.trim() ?? '',
     city: row.city?.trim() ?? '',
     state: row.state?.trim() ?? '',

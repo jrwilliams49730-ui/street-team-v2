@@ -12,10 +12,14 @@ type Message = {
 }
 
 type CreatePerformerFormProps = {
+  onProfileCreated?: (performer: Performer) => void
   ownerUserId: string
 }
 
-function CreatePerformerForm({ ownerUserId }: CreatePerformerFormProps) {
+function CreatePerformerForm({
+  onProfileCreated,
+  ownerUserId,
+}: CreatePerformerFormProps) {
   const [name, setName] = useState('')
   const [performerType, setPerformerType] = useState('')
   const [city, setCity] = useState('')
@@ -44,6 +48,7 @@ function CreatePerformerForm({ ownerUserId }: CreatePerformerFormProps) {
       })
 
       setCreatedPerformer(performer)
+      onProfileCreated?.(performer)
       setMessage({
         type: 'success',
         text: 'Performer profile created.',

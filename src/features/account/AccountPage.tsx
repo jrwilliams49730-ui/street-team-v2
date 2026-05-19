@@ -1,16 +1,15 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import {
   accountTypeOptions,
   formatAccountType,
-  normalizeAccountType,
   type AccountType,
 } from './accountTypes'
 import { useAuth } from './auth-context'
 import CreatorOnboardingSection from './CreatorOnboardingSection'
 import FollowingSection from './FollowingSection'
 import MyFanProfileSection from './MyFanProfileSection'
-import MyProfilesSection from './MyProfilesSection'
+import { fetchUserProfile } from './userProfile'
 
 type AuthMode = 'create' | 'login'
 type Message = {
@@ -27,8 +26,47 @@ function AccountPage() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState<Message | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [signedInAccountType, setSignedInAccountType] =
+    useState<AccountType>('fan')
+  const [accountTypeStatus, setAccountTypeStatus] = useState<
+    'idle' | 'loading' | 'ready' | 'error'
+  >('idle')
 
   const isCreateMode = mode === 'create'
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadAccountType() {
+      if (!session) {
+        setSignedInAccountType('fan')
+        setAccountTypeStatus('idle')
+        return
+      }
+
+      setAccountTypeStatus('loading')
+
+      try {
+        const profile = await fetchUserProfile(session.user.id)
+
+        if (isMounted) {
+          setSignedInAccountType(profile.accountType)
+          setAccountTypeStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setSignedInAccountType('fan')
+          setAccountTypeStatus('error')
+        }
+      }
+    }
+
+    void loadAccountType()
+
+    return () => {
+      isMounted = false
+    }
+  }, [session])
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode)
@@ -133,9 +171,8 @@ function AccountPage() {
   }
 
   if (session) {
-    const signedInAccountType = normalizeAccountType(
-      session.user.user_metadata?.account_type,
-    )
+    const hasLoadedAccountType =
+      accountTypeStatus === 'ready' || accountTypeStatus === 'error'
 
     return (
       <section className="account-page">
@@ -143,7 +180,15 @@ function AccountPage() {
           <div className="section-heading">
             <h2>You are signed in.</h2>
             <p>{session.user.email ?? 'Signed in'}</p>
-            <p>Account type: {formatAccountType(signedInAccountType)}</p>
+            <p>
+              Account type:{' '}
+              {hasLoadedAccountType
+                ? formatAccountType(signedInAccountType)
+                : 'Loading...'}
+            </p>
+            {accountTypeStatus === 'error' ? (
+              <p>Account type could not be loaded, so Fan is being used.</p>
+            ) : null}
           </div>
 
           {message ? (
@@ -160,16 +205,22 @@ function AccountPage() {
           </button>
         </div>
 
-        <MyFanProfileSection ownerUserId={session.user.id} />
-        <FollowingSection ownerUserId={session.user.id} />
-        <MyProfilesSection
-          hideWhenEmpty={signedInAccountType === 'fan'}
-          ownerUserId={session.user.id}
-        />
-        <CreatorOnboardingSection
-          accountType={signedInAccountType}
-          ownerUserId={session.user.id}
-        />
+        {hasLoadedAccountType ? (
+          signedInAccountType === 'fan' ? (
+            <>
+              <MyFanProfileSection ownerUserId={session.user.id} />
+              <FollowingSection ownerUserId={session.user.id} />
+            </>
+          ) : (
+            <>
+              <CreatorOnboardingSection
+                accountType={signedInAccountType}
+                ownerUserId={session.user.id}
+              />
+              <FollowingSection ownerUserId={session.user.id} />
+            </>
+          )
+        ) : null}
       </section>
     )
   }
