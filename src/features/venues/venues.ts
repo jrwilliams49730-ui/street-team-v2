@@ -99,6 +99,23 @@ export async function fetchOwnedVenues(ownerUserId: string) {
   return withFollowerCounts(((data ?? []) as VenueRow[]).map(mapVenueRow))
 }
 
+export async function fetchVenuesByIds(venueIds: string[]) {
+  if (venueIds.length === 0) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('venues')
+    .select(venueSelect)
+    .in('id', venueIds)
+
+  if (error) {
+    throw error
+  }
+
+  return withFollowerCounts(((data ?? []) as VenueRow[]).map(mapVenueRow))
+}
+
 export async function fetchVenueBySlug(slug: string) {
   const { data, error } = await supabase
     .from('venues')

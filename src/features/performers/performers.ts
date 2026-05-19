@@ -99,6 +99,23 @@ export async function fetchOwnedPerformers(ownerUserId: string) {
   return withFollowerCounts(((data ?? []) as PerformerRow[]).map(mapPerformerRow))
 }
 
+export async function fetchPerformersByIds(performerIds: string[]) {
+  if (performerIds.length === 0) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('performers')
+    .select(performerSelect)
+    .in('id', performerIds)
+
+  if (error) {
+    throw error
+  }
+
+  return withFollowerCounts(((data ?? []) as PerformerRow[]).map(mapPerformerRow))
+}
+
 export async function fetchPerformerBySlug(slug: string) {
   const { data, error } = await supabase
     .from('performers')

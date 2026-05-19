@@ -3,8 +3,19 @@ import { supabase } from '../../lib/supabase'
 export type FollowTargetType = 'performer' | 'producer' | 'venue'
 
 type FollowRow = {
+  created_at: string
+  follower_user_id: string
   id: string
   target_id: string
+  target_type: FollowTargetType
+}
+
+export type UserFollow = {
+  createdAt: string
+  followerUserId: string
+  id: string
+  targetId: string
+  targetType: FollowTargetType
 }
 
 export function formatFollowerCount(count: number) {
@@ -44,6 +55,26 @@ export async function fetchFollowerCounts(
     },
     new Map<string, number>(),
   )
+}
+
+export async function fetchUserFollows(followerUserId: string) {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('id, follower_user_id, target_type, target_id, created_at')
+    .eq('follower_user_id', followerUserId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as FollowRow[]).map((follow) => ({
+    createdAt: follow.created_at,
+    followerUserId: follow.follower_user_id,
+    id: follow.id,
+    targetId: follow.target_id,
+    targetType: follow.target_type,
+  }))
 }
 
 export async function fetchFollowState(
