@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type TouchEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   formatEventDate,
@@ -6,9 +6,12 @@ import {
   formatEventTime,
 } from '../events/events'
 import {
+  fetchIndividualTicketsForReservation,
+  formatIndividualTicketStatus,
   formatReservationStatus,
   formatTicketKind,
   formatTicketPrice,
+  type IndividualTicket,
 } from '../events/eventTickets'
 import { fetchMyTickets, type MyTicket } from '../tickets/myTickets'
 
@@ -16,9 +19,18 @@ type MyTicketsSectionProps = {
   ownerUserId: string
 }
 
+type IndividualTicketLoadStatus = 'idle' | 'loading' | 'ready' | 'error'
+
 function MyTicketsSection({ ownerUserId }: MyTicketsSectionProps) {
   const [tickets, setTickets] = useState<MyTicket[]>([])
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
+  const [individualTickets, setIndividualTickets] = useState<
+    IndividualTicket[]
+  >([])
+  const [individualTicketStatus, setIndividualTicketStatus] =
+    useState<IndividualTicketLoadStatus>('idle')
+  const [selectedIndividualTicketIndex, setSelectedIndividualTicketIndex] =
+    useState(0)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   )
@@ -57,6 +69,42 @@ function MyTicketsSection({ ownerUserId }: MyTicketsSectionProps) {
     }
   }, [ownerUserId])
 
+  useEffect(() => {
+    if (!selectedTicketId) {
+      return
+    }
+
+    const reservationId = selectedTicketId
+    let isMounted = true
+
+    async function loadIndividualTickets() {
+      setIndividualTicketStatus('loading')
+      setIndividualTickets([])
+      setSelectedIndividualTicketIndex(0)
+
+      try {
+        const nextIndividualTickets =
+          await fetchIndividualTicketsForReservation(reservationId)
+
+        if (isMounted) {
+          setIndividualTickets(nextIndividualTickets)
+          setIndividualTicketStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setIndividualTickets([])
+          setIndividualTicketStatus('error')
+        }
+      }
+    }
+
+    void loadIndividualTickets()
+
+    return () => {
+      isMounted = false
+    }
+  }, [selectedTicketId])
+
   const { pastTickets, upcomingTickets } = useMemo(() => {
     const today = getTodayDateString()
 
@@ -72,6 +120,28 @@ function MyTicketsSection({ ownerUserId }: MyTicketsSectionProps) {
 
   const selectedTicket =
     tickets.find((ticket) => ticket.reservation.id === selectedTicketId) ?? null
+  const openTicketDetail = (reservationId: string) => {
+    setIndividualTickets([])
+    setIndividualTicketStatus('loading')
+    setSelectedIndividualTicketIndex(0)
+    setSelectedTicketId(reservationId)
+  }
+  const closeTicketDetail = () => {
+    setSelectedTicketId(null)
+    setIndividualTickets([])
+    setIndividualTicketStatus('idle')
+    setSelectedIndividualTicketIndex(0)
+  }
+  const goToPreviousIndividualTicket = () => {
+    setSelectedIndividualTicketIndex((currentIndex) =>
+      Math.max(0, currentIndex - 1),
+    )
+  }
+  const goToNextIndividualTicket = () => {
+    setSelectedIndividualTicketIndex((currentIndex) =>
+      Math.min(Math.max(0, individualTickets.length - 1), currentIndex + 1),
+    )
+  }
 
   return (
     <section className="account-card my-tickets-section">
@@ -95,14 +165,19 @@ function MyTicketsSection({ ownerUserId }: MyTicketsSectionProps) {
       {status === 'ready' && tickets.length > 0 ? (
         selectedTicket ? (
           <TicketDetailView
-            onBack={() => setSelectedTicketId(null)}
+            individualTicketLoadStatus={individualTicketStatus}
+            individualTickets={individualTickets}
+            onBack={closeTicketDetail}
+            onNextTicket={goToNextIndividualTicket}
+            onPreviousTicket={goToPreviousIndividualTicket}
+            selectedTicketIndex={selectedIndividualTicketIndex}
             ticket={selectedTicket}
           />
         ) : (
           <div className="my-ticket-sections">
             {upcomingTickets.length > 0 ? (
               <TicketGroup
-                onViewTicket={setSelectedTicketId}
+                onViewTicket={openTicketDetail}
                 tickets={upcomingTickets}
                 title="Upcoming Tickets"
               />
@@ -110,7 +185,7 @@ function MyTicketsSection({ ownerUserId }: MyTicketsSectionProps) {
 
             {pastTickets.length > 0 ? (
               <TicketGroup
-                onViewTicket={setSelectedTicketId}
+                onViewTicket={openTicketDetail}
                 tickets={pastTickets}
                 title="Past Tickets"
               />
@@ -216,12 +291,23 @@ function MyTicketCard({
 }
 
 function TicketDetailView({
+  individualTicketLoadStatus,
+  individualTickets,
   onBack,
+  onNextTicket,
+  onPreviousTicket,
+  selectedTicketIndex,
   ticket,
 }: {
+  individualTicketLoadStatus: IndividualTicketLoadStatus
+  individualTickets: IndividualTicket[]
   onBack: () => void
+  onNextTicket: () => void
+  onPreviousTicket: () => void
+  selectedTicketIndex: number
   ticket: MyTicket
 }) {
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
   const { event, reservation, ticketType } = ticket
   const location = event ? formatEventLocation(event) : ''
   const ticketKind = reservation.ticketKindSnapshot
@@ -235,6 +321,67 @@ function TicketDetailView({
     : 'Location unavailable'
   const priceCents =
     reservation.unitPriceCentsSnapshot || ticketType?.priceCents || 0
+  const currentIndividualTicket =
+    individualTickets[selectedTicketIndex] ?? null
+  const currentTicketPosition = currentIndividualTicket?.ticketNumber ?? 1
+  const ticketCount =
+    individualTickets.length > 0
+      ? individualTickets.length
+      : reservation.quantity
+  const ticketCountLabel =
+    individualTicketLoadStatus === 'loading'
+      ? 'Loading ticket records...'
+      : individualTicketLoadStatus === 'error'
+        ? 'Ticket records unavailable'
+        : `Ticket ${currentTicketPosition} of ${ticketCount}`
+  const currentTicketStatusLabel = currentIndividualTicket
+    ? formatIndividualTicketStatus(currentIndividualTicket.ticketStatus)
+    : null
+  const showTicketControls = individualTickets.length > 1
+  const canMoveToPreviousTicket = selectedTicketIndex > 0
+  const canMoveToNextTicket =
+    individualTickets.length > 0 &&
+    selectedTicketIndex < individualTickets.length - 1
+
+  function handleTicketTouchStart(event: TouchEvent<HTMLElement>) {
+    if (!showTicketControls) {
+      return
+    }
+
+    const touch = event.touches.item(0)
+
+    if (touch) {
+      setTouchStartX(touch.clientX)
+    }
+  }
+
+  function handleTicketTouchEnd(event: TouchEvent<HTMLElement>) {
+    if (!showTicketControls || touchStartX === null) {
+      setTouchStartX(null)
+      return
+    }
+
+    const touch = event.changedTouches.item(0)
+
+    if (!touch) {
+      setTouchStartX(null)
+      return
+    }
+
+    const swipeDistance = touch.clientX - touchStartX
+
+    if (Math.abs(swipeDistance) >= 50) {
+      if (swipeDistance < 0 && canMoveToNextTicket) {
+        onNextTicket()
+      }
+
+      if (swipeDistance > 0 && canMoveToPreviousTicket) {
+        onPreviousTicket()
+      }
+    }
+
+    setTouchStartX(null)
+  }
 
   return (
     <div className="my-ticket-detail-view">
@@ -246,7 +393,13 @@ function TicketDetailView({
         Back to My Tickets
       </button>
 
-      <article className="my-ticket-detail" aria-label="Ticket details">
+      <article
+        className="my-ticket-detail"
+        aria-label="Ticket details"
+        onTouchStart={handleTicketTouchStart}
+        onTouchEnd={handleTicketTouchEnd}
+        onTouchCancel={() => setTouchStartX(null)}
+      >
         <header className="my-ticket-detail-header">
           <div className="my-ticket-detail-timebar">
             <span>{eventDate}</span>
@@ -280,13 +433,61 @@ function TicketDetailView({
           </div>
         </header>
 
-        <div className="my-ticket-qr-zone">
-          <p>QR ticket code will appear here once scanning is added.</p>
+        <div className="my-ticket-instance-bar">
+          <span>{ticketCountLabel}</span>
+          {currentIndividualTicket ? (
+            <span
+              className={`individual-ticket-status-badge is-${currentIndividualTicket.ticketStatus}`}
+            >
+              {currentTicketStatusLabel}
+            </span>
+          ) : null}
         </div>
+
+        <div className="my-ticket-qr-zone">
+          <p>
+            QR ticket code for this ticket will appear here once scanning is
+            added.
+          </p>
+        </div>
+
+        {showTicketControls ? (
+          <div className="my-ticket-navigation" aria-label="Ticket navigation">
+            <button
+              type="button"
+              className="secondary-action-button"
+              disabled={!canMoveToPreviousTicket}
+              onClick={onPreviousTicket}
+            >
+              Previous Ticket
+            </button>
+            <button
+              type="button"
+              className="secondary-action-button"
+              disabled={!canMoveToNextTicket}
+              onClick={onNextTicket}
+            >
+              Next Ticket
+            </button>
+          </div>
+        ) : null}
 
         <div className="my-ticket-divider" aria-hidden="true" />
 
         <div className="my-ticket-detail-body">
+          {individualTicketLoadStatus === 'error' ? (
+            <p className="my-ticket-record-note is-error">
+              Individual ticket records could not be loaded right now.
+            </p>
+          ) : null}
+
+          {individualTicketLoadStatus === 'ready' &&
+          individualTickets.length === 0 ? (
+            <p className="my-ticket-record-note">
+              Individual ticket records are not available for this reservation yet.
+            </p>
+          ) : null}
+
           {reservation.quantity > 1 ? (
             <p className="my-ticket-quantity-note">
               This reservation includes {reservation.quantity} tickets.
@@ -318,8 +519,14 @@ function TicketDetailView({
               <dt>Ticket kind</dt>
               <dd>{formatTicketKind(ticketKind)}</dd>
             </div>
+            {currentIndividualTicket ? (
+              <div>
+                <dt>Ticket status</dt>
+                <dd>{currentTicketStatusLabel}</dd>
+              </div>
+            ) : null}
             <div>
-              <dt>Status</dt>
+              <dt>Reservation status</dt>
               <dd>{formatReservationStatus(reservation.reservationStatus)}</dd>
             </div>
             {ticketKind === 'paid' ? (

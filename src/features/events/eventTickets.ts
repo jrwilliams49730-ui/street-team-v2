@@ -6,6 +6,7 @@ export type TicketReservationStatus =
   | 'confirmed'
   | 'cancelled'
   | 'expired'
+export type IndividualTicketStatus = 'issued' | 'checked_in' | 'void'
 
 export type EventTicketTypeRow = {
   id: string
@@ -47,6 +48,19 @@ export type TicketReservation = {
   updatedAt: string
 }
 
+export type IndividualTicket = {
+  id: string
+  reservationId: string
+  eventId: string
+  ticketTypeId: string
+  ticketNumber: number
+  ticketStatus: IndividualTicketStatus
+  qrToken: string
+  checkedInAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type TicketReservationRow = {
   id: string
   event_id: string
@@ -59,6 +73,19 @@ export type TicketReservationRow = {
   ticket_kind_snapshot: string
   unit_price_cents_snapshot: number
   total_price_cents_snapshot: number
+  created_at: string
+  updated_at: string
+}
+
+export type IndividualTicketRow = {
+  id: string
+  reservation_id: string
+  event_id: string
+  ticket_type_id: string
+  ticket_number: number
+  ticket_status: string
+  qr_token: string
+  checked_in_at: string | null
   created_at: string
   updated_at: string
 }
@@ -87,6 +114,9 @@ const eventTicketTypeSelect =
 
 const ticketReservationSelect =
   'id, event_id, ticket_type_id, purchaser_user_id, buyer_name, buyer_email, quantity, reservation_status, ticket_kind_snapshot, unit_price_cents_snapshot, total_price_cents_snapshot, created_at, updated_at'
+
+const individualTicketSelect =
+  'id, reservation_id, event_id, ticket_type_id, ticket_number, ticket_status, qr_token, checked_in_at, created_at, updated_at'
 
 export async function fetchEventTicketTypes(eventId: string) {
   const { data, error } = await supabase
@@ -230,6 +260,22 @@ export async function fetchTicketReservationsForUser(userId: string) {
   return ((data ?? []) as TicketReservationRow[]).map(mapTicketReservationRow)
 }
 
+export async function fetchIndividualTicketsForReservation(
+  reservationId: string,
+) {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(individualTicketSelect)
+    .eq('reservation_id', reservationId)
+    .order('ticket_number', { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as IndividualTicketRow[]).map(mapIndividualTicketRow)
+}
+
 export function formatTicketPrice(priceCents: number) {
   return new Intl.NumberFormat(undefined, {
     currency: 'USD',
@@ -255,6 +301,18 @@ export function formatReservationStatus(status: TicketReservationStatus) {
   }
 
   return 'Confirmed'
+}
+
+export function formatIndividualTicketStatus(status: IndividualTicketStatus) {
+  if (status === 'checked_in') {
+    return 'Checked In'
+  }
+
+  if (status === 'void') {
+    return 'Void'
+  }
+
+  return 'Issued'
 }
 
 function mapTicketTypeRow(row: EventTicketTypeRow): EventTicketType {
@@ -289,6 +347,21 @@ function mapTicketReservationRow(row: TicketReservationRow): TicketReservation {
   }
 }
 
+function mapIndividualTicketRow(row: IndividualTicketRow): IndividualTicket {
+  return {
+    checkedInAt: row.checked_in_at,
+    createdAt: row.created_at,
+    eventId: row.event_id,
+    id: row.id,
+    qrToken: row.qr_token,
+    reservationId: row.reservation_id,
+    ticketNumber: row.ticket_number,
+    ticketStatus: normalizeIndividualTicketStatus(row.ticket_status),
+    ticketTypeId: row.ticket_type_id,
+    updatedAt: row.updated_at,
+  }
+}
+
 function normalizeTicketKind(value: string): TicketKind {
   return value === 'paid' ? 'paid' : 'free'
 }
@@ -299,6 +372,14 @@ function normalizeReservationStatus(value: string): TicketReservationStatus {
   }
 
   return 'confirmed'
+}
+
+function normalizeIndividualTicketStatus(value: string): IndividualTicketStatus {
+  if (value === 'checked_in' || value === 'void') {
+    return value
+  }
+
+  return 'issued'
 }
 
 function cleanOptionalText(value: string) {
