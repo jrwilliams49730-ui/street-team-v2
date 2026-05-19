@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase'
+import { publicSupabase, supabase } from '../../lib/supabase'
 
 export type EventOrganizerType = 'producer' | 'venue'
 export type EventStatus = 'draft' | 'published' | 'cancelled'
@@ -121,7 +121,7 @@ export function isDuplicateEventSlugError(error: unknown) {
 }
 
 export async function fetchPublishedEvents(limit?: number) {
-  let query = supabase
+  let query = publicSupabase
     .from('events')
     .select(eventSelect)
     .eq('status', 'published')
@@ -142,7 +142,7 @@ export async function fetchPublishedEvents(limit?: number) {
 }
 
 export async function fetchUpcomingPublishedEvents(limit?: number) {
-  let query = supabase
+  let query = publicSupabase
     .from('events')
     .select(eventSelect)
     .eq('status', 'published')
@@ -168,7 +168,7 @@ export async function fetchUpcomingPublishedEventsByIds(eventIds: string[]) {
     return []
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await publicSupabase
     .from('events')
     .select(eventSelect)
     .in('id', eventIds)
@@ -184,8 +184,30 @@ export async function fetchUpcomingPublishedEventsByIds(eventIds: string[]) {
   return ((data ?? []) as EventRow[]).map(mapEventRow)
 }
 
+export async function fetchEventsByIds(eventIds: string[]) {
+  const uniqueEventIds = [...new Set(eventIds)]
+
+  if (uniqueEventIds.length === 0) {
+    return []
+  }
+
+  const { data, error } = await publicSupabase
+    .from('events')
+    .select(eventSelect)
+    .in('id', uniqueEventIds)
+    .eq('status', 'published')
+    .order('event_date', { ascending: true })
+    .order('start_time', { ascending: true, nullsFirst: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as EventRow[]).map(mapEventRow)
+}
+
 export async function fetchPublishedEventBySlug(slug: string) {
-  const { data, error } = await supabase
+  const { data, error } = await publicSupabase
     .from('events')
     .select(eventSelect)
     .eq('slug', slug)

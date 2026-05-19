@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import {
   accountTypeOptions,
@@ -9,16 +10,41 @@ import { useAuth } from './auth-context'
 import CreatorOnboardingSection from './CreatorOnboardingSection'
 import FollowingSection from './FollowingSection'
 import MyFanProfileSection from './MyFanProfileSection'
+import MyTicketsSection from './MyTicketsSection'
 import { fetchUserProfile } from './userProfile'
 
 type AuthMode = 'create' | 'login'
+type AccountTabId = 'my-profile' | 'my-tickets' | 'following' | 'appearances' | 'my-events'
+type AccountTab = {
+  id: AccountTabId
+  label: string
+}
 type Message = {
   type: 'success' | 'error'
   text: string
 }
 
+const fanTabs: AccountTab[] = [
+  { id: 'my-profile', label: 'My Profile' },
+  { id: 'my-tickets', label: 'My Tickets' },
+  { id: 'following', label: 'Following' },
+]
+
+const performerTabs: AccountTab[] = [
+  { id: 'my-profile', label: 'My Profile' },
+  { id: 'appearances', label: 'Appearances' },
+  { id: 'following', label: 'Following' },
+]
+
+const creatorEventTabs: AccountTab[] = [
+  { id: 'my-profile', label: 'My Profile' },
+  { id: 'my-events', label: 'My Events' },
+  { id: 'following', label: 'Following' },
+]
+
 function AccountPage() {
   const { isLoading, session } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [mode, setMode] = useState<AuthMode>('create')
   const [displayName, setDisplayName] = useState('')
   const [accountType, setAccountType] = useState<AccountType | ''>('')
@@ -173,6 +199,17 @@ function AccountPage() {
   if (session) {
     const hasLoadedAccountType =
       accountTypeStatus === 'ready' || accountTypeStatus === 'error'
+    const accountTabs = getAccountTabs(signedInAccountType)
+    const requestedTab = searchParams.get('tab')
+    const activeTab = accountTabs.some((tab) => tab.id === requestedTab)
+      ? (requestedTab as AccountTabId)
+      : accountTabs[0].id
+
+    function handleTabChange(tabId: AccountTabId) {
+      const nextSearchParams = new URLSearchParams(searchParams)
+      nextSearchParams.set('tab', tabId)
+      setSearchParams(nextSearchParams)
+    }
 
     return (
       <section className="account-page">
@@ -206,20 +243,30 @@ function AccountPage() {
         </div>
 
         {hasLoadedAccountType ? (
-          signedInAccountType === 'fan' ? (
-            <>
-              <MyFanProfileSection ownerUserId={session.user.id} />
-              <FollowingSection ownerUserId={session.user.id} />
-            </>
-          ) : (
-            <>
-              <CreatorOnboardingSection
+          <>
+            <nav className="account-tab-nav" aria-label="Account sections">
+              {accountTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`account-tab-button ${
+                    activeTab === tab.id ? 'is-active' : ''
+                  }`}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="account-tab-panel">
+              <AccountTabPanel
                 accountType={signedInAccountType}
+                activeTab={activeTab}
                 ownerUserId={session.user.id}
               />
-              <FollowingSection ownerUserId={session.user.id} />
-            </>
-          )
+            </div>
+          </>
         ) : null}
       </section>
     )
@@ -333,6 +380,68 @@ function AccountPage() {
       </div>
     </section>
   )
+}
+
+function AccountTabPanel({
+  accountType,
+  activeTab,
+  ownerUserId,
+}: {
+  accountType: AccountType
+  activeTab: AccountTabId
+  ownerUserId: string
+}) {
+  if (activeTab === 'following') {
+    return <FollowingSection ownerUserId={ownerUserId} />
+  }
+
+  if (accountType === 'fan') {
+    return activeTab === 'my-tickets' ? (
+      <MyTicketsSection ownerUserId={ownerUserId} />
+    ) : (
+      <MyFanProfileSection ownerUserId={ownerUserId} />
+    )
+  }
+
+  if (activeTab === 'appearances') {
+    return (
+      <CreatorOnboardingSection
+        accountType={accountType}
+        ownerUserId={ownerUserId}
+        section="appearances"
+      />
+    )
+  }
+
+  if (activeTab === 'my-events') {
+    return (
+      <CreatorOnboardingSection
+        accountType={accountType}
+        ownerUserId={ownerUserId}
+        section="events"
+      />
+    )
+  }
+
+  return (
+    <CreatorOnboardingSection
+      accountType={accountType}
+      ownerUserId={ownerUserId}
+      section="profile"
+    />
+  )
+}
+
+function getAccountTabs(accountType: AccountType) {
+  if (accountType === 'fan') {
+    return fanTabs
+  }
+
+  if (accountType === 'performer') {
+    return performerTabs
+  }
+
+  return creatorEventTabs
 }
 
 export default AccountPage

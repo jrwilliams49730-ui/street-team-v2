@@ -94,6 +94,10 @@ function App() {
           <Route path="/venues/:slug" element={<VenueProfile />} />
           <Route path="/events" element={<EventDirectory />} />
           <Route path="/events/:slug" element={<EventProfile />} />
+          <Route
+            path="/my-tickets"
+            element={<Navigate to="/account?tab=my-tickets" replace />}
+          />
           <Route path="/account" element={<AccountPage />} />
         </Routes>
       </div>

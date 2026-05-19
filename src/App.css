@@ -61,6 +61,16 @@
 .event-card p,
 .event-detail-panel h3,
 .event-detail-panel p,
+.my-ticket-card h3,
+.my-ticket-card p,
+.my-ticket-card span,
+.my-ticket-detail h3,
+.my-ticket-detail p,
+.my-ticket-details,
+.my-ticket-details dt,
+.my-ticket-details dd,
+.my-ticket-group h3,
+.my-tickets-state,
 .event-management-heading h3,
 .event-management-heading p,
 .event-image-field,
@@ -480,6 +490,61 @@
   border: 1px solid var(--st-border);
   border-radius: 1rem;
   background: rgba(0, 0, 0, 0.24);
+}
+
+.account-tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  overflow-x: auto;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: var(--st-surface-muted);
+  box-shadow: 0 1rem 2rem var(--st-shadow);
+  scrollbar-width: none;
+}
+
+.account-tab-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.account-tab-button {
+  flex: 1 0 auto;
+  min-width: max-content;
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  color: var(--st-text-muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.account-tab-button:hover {
+  color: var(--st-text);
+  background: var(--st-accent-softer);
+}
+
+.account-tab-button:focus-visible {
+  outline: 2px solid var(--st-accent-hover);
+  outline-offset: 2px;
+}
+
+.account-tab-button.is-active {
+  color: var(--st-text);
+  background: linear-gradient(180deg, var(--st-accent), var(--st-accent-deep));
+  box-shadow: 0 0.75rem 1.5rem rgba(239, 39, 34, 0.18);
+}
+
+.account-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .auth-mode-switch button,
@@ -1862,6 +1927,383 @@
   text-transform: uppercase;
 }
 
+.my-ticket-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.my-ticket-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.my-ticket-group h3 {
+  padding: 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.my-ticket-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.my-tickets-state {
+  color: var(--st-text-muted);
+}
+
+.my-ticket-card {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
+    rgba(0, 0, 0, 0.2);
+}
+
+.my-ticket-thumbnail-frame {
+  display: grid;
+  width: 4.75rem;
+  height: 4.75rem;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  color: var(--st-text);
+  background:
+    linear-gradient(135deg, rgba(239, 39, 34, 0.38), rgba(48, 44, 39, 0.7)),
+    #090807;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.my-ticket-thumbnail-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.my-ticket-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.my-ticket-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.my-ticket-event {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.my-ticket-card h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.98rem;
+  font-weight: 750;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.my-ticket-card p {
+  color: var(--st-text-subtle);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.my-ticket-wallet-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.my-ticket-wallet-meta > span:not(.ticket-reservation-status-badge) {
+  color: var(--st-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.my-ticket-card-action {
+  grid-column: 2;
+}
+
+.my-ticket-card-action .auth-submit-button {
+  padding: 0.65rem 0.9rem;
+  font-size: 0.86rem;
+}
+
+.my-ticket-detail-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.my-ticket-detail-view > .secondary-action-button {
+  align-self: flex-start;
+}
+
+.my-ticket-detail {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 24rem);
+  overflow: hidden;
+  border: 1px solid rgba(32, 27, 22, 0.12);
+  border-radius: 1.4rem;
+  color: #231d18;
+  background: #f7f0e6;
+  box-shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.36);
+}
+
+.my-ticket-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1rem 0.8rem;
+}
+
+.my-ticket-detail-timebar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #6f6254;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.my-ticket-detail-summary {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.my-ticket-detail-thumbnail {
+  display: grid;
+  width: 4.25rem;
+  height: 4.25rem;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 0.9rem;
+  color: var(--st-text);
+  background:
+    linear-gradient(135deg, rgba(239, 39, 34, 0.5), rgba(33, 29, 26, 0.78)),
+    #15110f;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.my-ticket-detail-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.my-ticket-detail-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.my-ticket-detail h3 {
+  color: #211b16;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.my-ticket-detail p {
+  color: #625548;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.my-ticket-detail .my-ticket-badges {
+  gap: 0.35rem;
+}
+
+.my-ticket-detail .ticket-kind-badge,
+.my-ticket-detail .ticket-reservation-status-badge {
+  border-color: rgba(35, 29, 24, 0.16);
+  color: #2a231d;
+  background: rgba(35, 29, 24, 0.08);
+}
+
+.my-ticket-detail .ticket-kind-badge.is-free,
+.my-ticket-detail .ticket-reservation-status-badge.is-confirmed {
+  border-color: rgba(91, 122, 62, 0.28);
+  color: #29351f;
+  background: rgba(91, 122, 62, 0.14);
+}
+
+.my-ticket-detail .ticket-kind-badge.is-paid,
+.my-ticket-detail .ticket-reservation-status-badge.is-pending {
+  border-color: rgba(153, 96, 34, 0.24);
+  color: #543816;
+  background: rgba(210, 154, 70, 0.16);
+}
+
+.my-ticket-qr-zone {
+  display: grid;
+  width: min(72vw, 16.5rem);
+  aspect-ratio: 1;
+  align-self: center;
+  place-items: center;
+  border: 2px dashed rgba(35, 29, 24, 0.34);
+  border-radius: 1.15rem;
+  padding: 1.2rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent),
+    repeating-linear-gradient(
+      45deg,
+      rgba(35, 29, 24, 0.035) 0,
+      rgba(35, 29, 24, 0.035) 0.5rem,
+      transparent 0.5rem,
+      transparent 1rem
+    ),
+    #efe5d7;
+  text-align: center;
+}
+
+.my-ticket-qr-zone p {
+  max-width: 12rem;
+  color: #5d5043;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.my-ticket-divider {
+  height: 1px;
+  margin: 1rem 0 0;
+  background-image: linear-gradient(
+    90deg,
+    rgba(35, 29, 24, 0.32) 50%,
+    transparent 50%
+  );
+  background-size: 0.9rem 1px;
+}
+
+.my-ticket-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.my-ticket-quantity-note {
+  border: 1px solid rgba(91, 122, 62, 0.26);
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  color: #29351f;
+  background: rgba(91, 122, 62, 0.12);
+}
+
+.my-ticket-detail-info {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 0.75rem;
+}
+
+.my-ticket-detail-info .is-wide {
+  grid-column: 1 / -1;
+}
+
+.my-ticket-detail-info dt {
+  color: #817263;
+}
+
+.my-ticket-detail-info dd {
+  color: #231d18;
+}
+
+.my-ticket-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.my-ticket-detail-actions .secondary-action-button {
+  color: var(--st-text);
+  background: #231d18;
+  box-shadow: none;
+}
+
+.my-ticket-details {
+  display: grid;
+  width: 100%;
+  gap: 0.65rem;
+}
+
+.my-ticket-details div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.my-ticket-details dt {
+  color: var(--st-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.my-ticket-details dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.ticket-reservation-status-badge {
+  width: fit-content;
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  color: var(--st-text-muted);
+  background: var(--st-surface-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ticket-reservation-status-badge.is-confirmed {
+  border-color: rgba(143, 163, 106, 0.4);
+  color: var(--st-text);
+  background: rgba(143, 163, 106, 0.14);
+}
+
+.ticket-reservation-status-badge.is-pending {
+  border-color: rgba(210, 154, 70, 0.4);
+  color: var(--st-text);
+  background: rgba(210, 154, 70, 0.14);
+}
+
 .performer-bio,
 .producer-bio,
 .venue-description,
@@ -2058,6 +2500,27 @@
 
   .tab-button {
     flex-basis: 0;
+  }
+
+  .account-tab-button {
+    flex-basis: 0;
+  }
+
+  .my-ticket-card {
+    grid-template-columns: 5.25rem minmax(0, 1fr) auto;
+  }
+
+  .my-ticket-thumbnail-frame {
+    width: 5.25rem;
+    height: 5.25rem;
+  }
+
+  .my-ticket-card-action {
+    grid-column: auto;
+  }
+
+  .my-ticket-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .performer-grid,

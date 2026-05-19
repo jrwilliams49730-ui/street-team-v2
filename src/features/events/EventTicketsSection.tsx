@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../account/auth-context'
 import { fetchUserProfile } from '../account/userProfile'
 import {
   claimFreeTicket,
-  fetchEventTicketTypes,
+  fetchPublicEventTicketTypes,
   formatTicketKind,
   formatTicketPrice,
   type EventTicketType,
@@ -20,6 +21,7 @@ type ClaimFormState = {
 }
 
 type ClaimMessage = {
+  showMyTicketsLink?: boolean
   ticketTypeId: string
   type: 'success' | 'error'
   text: string
@@ -55,7 +57,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
       setStatus('loading')
 
       try {
-        const nextTicketTypes = await fetchEventTicketTypes(eventId)
+        const nextTicketTypes = await fetchPublicEventTicketTypes(eventId)
 
         if (isMounted) {
           setTicketTypes(nextTicketTypes)
@@ -183,6 +185,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
       setActiveTicketTypeId(null)
       setClaimForm(emptyClaimForm)
       setClaimMessage({
+        showMyTicketsLink: Boolean(session),
         ticketTypeId: ticketType.id,
         text: `Your free ticket has been claimed. ${ticketType.name} x ${quantity} for ${buyerEmail}.`,
         type: 'success',
@@ -242,6 +245,14 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
                     {claimMessage?.ticketTypeId === ticketType.id ? (
                       <p className={`auth-message ${claimMessage.type}`}>
                         {claimMessage.text}
+                        {claimMessage.showMyTicketsLink ? (
+                          <>
+                            {' '}
+                            <Link to="/account?tab=my-tickets">
+                              View tickets in your Account.
+                            </Link>
+                          </>
+                        ) : null}
                       </p>
                     ) : null}
 

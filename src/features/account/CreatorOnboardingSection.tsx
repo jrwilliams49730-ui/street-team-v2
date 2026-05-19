@@ -46,7 +46,10 @@ import PerformerAppearancesManager from './PerformerAppearancesManager'
 type CreatorOnboardingSectionProps = {
   accountType: AccountType
   ownerUserId: string
+  section?: CreatorAccountSection
 }
+
+type CreatorAccountSection = 'profile' | 'appearances' | 'events' | 'all'
 
 type CreatorProfile = {
   id: string
@@ -75,6 +78,7 @@ type Message = {
 function CreatorOnboardingSection({
   accountType,
   ownerUserId,
+  section = 'all',
 }: CreatorOnboardingSectionProps) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -388,6 +392,17 @@ function CreatorOnboardingSection({
   }
 
   if (!profile) {
+    if (section !== 'profile' && section !== 'all') {
+      return (
+        <section className="account-card onboarding-card">
+          <header className="section-heading">
+            <h2>{accountTypeLabel} Setup Needed</h2>
+            <p>{`Create your ${label} profile before managing this area.`}</p>
+          </header>
+        </section>
+      )
+    }
+
     return (
       <>
         <section className="account-card onboarding-card">
@@ -407,11 +422,11 @@ function CreatorOnboardingSection({
   return (
     <section className="account-card creator-management-section">
       <header className="section-heading">
-        <h2>{`Your ${accountTypeLabel} Profile`}</h2>
-        <p>{`Manage the public ${label} profile fans see across Street Team.`}</p>
+        <h2>{getCreatorSectionTitle(accountTypeLabel, section)}</h2>
+        <p>{getCreatorSectionDescription(label, section)}</p>
       </header>
 
-      {message ? (
+      {message && (section === 'profile' || section === 'all') ? (
         <p
           className={`auth-message ${message.type === 'error' ? 'error' : ''}`}
         >
@@ -419,7 +434,8 @@ function CreatorOnboardingSection({
         </p>
       ) : null}
 
-      {isEditing ? (
+      {section === 'profile' || section === 'all' ? (
+        isEditing ? (
         <>
           <ProfileSummary
             isUploading={isUploading}
@@ -556,16 +572,19 @@ function CreatorOnboardingSection({
             </button>
           </div>
         </div>
-      )}
+        )
+      ) : null}
 
-      {profile.profileType === 'performer' ? (
+      {profile.profileType === 'performer' &&
+      (section === 'appearances' || section === 'all') ? (
         <PerformerAppearancesManager
           ownerUserId={ownerUserId}
           performerId={profile.id}
         />
       ) : null}
 
-      {profile.profileType === 'producer' || profile.profileType === 'venue' ? (
+      {(profile.profileType === 'producer' || profile.profileType === 'venue') &&
+      (section === 'events' || section === 'all') ? (
         <EventManagementSection
           organizerProfileId={profile.id}
           organizerType={profile.profileType}
@@ -574,6 +593,36 @@ function CreatorOnboardingSection({
       ) : null}
     </section>
   )
+}
+
+function getCreatorSectionTitle(
+  accountTypeLabel: string,
+  section: CreatorAccountSection,
+) {
+  if (section === 'appearances') {
+    return 'Appearances'
+  }
+
+  if (section === 'events') {
+    return 'My Events'
+  }
+
+  return `Your ${accountTypeLabel} Profile`
+}
+
+function getCreatorSectionDescription(
+  label: string,
+  section: CreatorAccountSection,
+) {
+  if (section === 'appearances') {
+    return 'Manage your performer appearances and tour dates.'
+  }
+
+  if (section === 'events') {
+    return 'Create and manage official Street Team events.'
+  }
+
+  return `Manage the public ${label} profile fans see across Street Team.`
 }
 
 type FeaturedMediaAreaProps = {
