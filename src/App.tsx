@@ -2,6 +2,8 @@ import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import AccountPage from './features/account/AccountPage'
 import { useAuth } from './features/account/auth-context'
 import DiscoverPage from './features/discover/DiscoverPage'
+import EventDirectory from './features/events/EventDirectory'
+import EventProfile from './features/events/EventProfile'
 import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
 import ProducerDirectory from './features/producers/ProducerDirectory'
@@ -26,6 +28,10 @@ const navigationSections = [
   {
     path: '/venues',
     label: 'Venues',
+  },
+  {
+    path: '/events',
+    label: 'Events',
   },
   {
     path: '/account',
@@ -86,6 +92,8 @@ function App() {
           <Route path="/producers/:slug" element={<ProducerProfile />} />
           <Route path="/venues" element={<VenueDirectory />} />
           <Route path="/venues/:slug" element={<VenueProfile />} />
+          <Route path="/events" element={<EventDirectory />} />
+          <Route path="/events/:slug" element={<EventProfile />} />
           <Route path="/account" element={<AccountPage />} />
         </Routes>
       </div>

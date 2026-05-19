@@ -57,6 +57,16 @@
 .featured-card h4,
 .featured-card p,
 .featured-empty-state,
+.event-card h3,
+.event-card p,
+.event-detail-panel h3,
+.event-detail-panel p,
+.event-management-heading h3,
+.event-management-heading p,
+.event-status-field legend,
+.owned-event-card h4,
+.owned-event-card p,
+.owned-events-list > p,
 .backend-status-card p,
 .section-heading h2,
 .section-heading p,
@@ -474,7 +484,28 @@
   font-weight: 700;
 }
 
+.event-status-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.6rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.event-status-field legend {
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .account-type-options {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.event-status-options {
   display: grid;
   gap: 0.55rem;
 }
@@ -492,7 +523,29 @@
   cursor: pointer;
 }
 
+.event-status-options label {
+  position: relative;
+  display: flex;
+  min-height: 3rem;
+  justify-content: center;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  color: var(--st-text-muted);
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .account-type-options input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.event-status-options input {
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -505,7 +558,18 @@
   background: var(--st-accent-soft);
 }
 
+.event-status-options label:has(input:checked) {
+  border-color: var(--st-border-strong);
+  color: var(--st-text);
+  background: var(--st-accent-soft);
+}
+
 .account-type-options label:focus-within {
+  outline: 2px solid var(--st-accent-hover);
+  outline-offset: 3px;
+}
+
+.event-status-options label:focus-within {
   outline: 2px solid var(--st-accent-hover);
   outline-offset: 3px;
 }
@@ -814,6 +878,16 @@
   background: rgba(0, 0, 0, 0.18);
 }
 
+.event-management {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
 .appearance-management {
   display: flex;
   flex-direction: column;
@@ -830,6 +904,12 @@
   gap: 0.25rem;
 }
 
+.event-management-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .appearance-management-heading {
   display: flex;
   flex-direction: column;
@@ -837,6 +917,7 @@
 }
 
 .creator-featured-media-heading h3,
+.event-management-heading h3,
 .appearance-management-heading h3,
 .featured-media-section h3 {
   font-size: 1rem;
@@ -844,8 +925,88 @@
 }
 
 .creator-featured-media-heading p,
+.event-management-heading p,
 .appearance-management-heading p {
   color: var(--st-text-muted);
+}
+
+.event-form {
+  padding-top: 0.1rem;
+}
+
+.event-date-time-grid,
+.event-location-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.owned-events-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.owned-events-list > p {
+  color: var(--st-text-muted);
+}
+
+.owned-event-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.owned-event-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.owned-event-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.owned-event-card h4 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.owned-event-card p {
+  color: var(--st-text-subtle);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.event-status-badge {
+  width: fit-content;
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  color: var(--st-text-muted);
+  background: var(--st-surface-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.event-status-badge.is-published {
+  border-color: rgba(143, 163, 106, 0.4);
+  color: var(--st-text);
+  background: rgba(143, 163, 106, 0.14);
+}
+
+.event-status-badge.is-cancelled {
+  border-color: rgba(255, 90, 79, 0.34);
+  color: #ffd2cc;
+  background: rgba(239, 39, 34, 0.1);
 }
 
 .appearance-form {
@@ -1091,6 +1252,8 @@
 }
 
 .performer-directory,
+.event-directory,
+.event-profile,
 .performer-profile,
 .producer-directory,
 .producer-profile,
@@ -1119,6 +1282,7 @@
 }
 
 .performer-grid,
+.event-grid,
 .producer-grid,
 .venue-grid {
   display: grid;
@@ -1126,6 +1290,7 @@
 }
 
 .performer-card,
+.event-card,
 .producer-card,
 .venue-card {
   display: flex;
@@ -1145,6 +1310,7 @@
 }
 
 .performer-card:hover,
+.event-card:hover,
 .producer-card:hover,
 .venue-card:hover {
   border-color: var(--st-border-strong);
@@ -1153,6 +1319,7 @@
 }
 
 .performer-card:focus-visible,
+.event-card:focus-visible,
 .producer-card:focus-visible,
 .venue-card:focus-visible,
 .following-card:focus-visible,
@@ -1218,6 +1385,7 @@
 }
 
 .performer-card h3,
+.event-card h3,
 .producer-card h3,
 .venue-card h3 {
   font-size: 1.05rem;
@@ -1225,6 +1393,7 @@
 }
 
 .performer-card-header p,
+.event-card p,
 .producer-card-header p,
 .venue-card-header p,
 .follower-count,
@@ -1232,6 +1401,34 @@
 .upcoming-shows p,
 .upcoming-panel p {
   color: var(--st-text-subtle);
+}
+
+.event-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.event-card-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.event-card-location {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.event-organizer-label {
+  width: fit-content;
+  color: var(--st-accent-hover);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .performer-bio,
@@ -1258,6 +1455,7 @@
 }
 
 .profile-card,
+.event-detail-panel,
 .featured-media-section,
 .upcoming-shows,
 .upcoming-panel {
@@ -1294,6 +1492,21 @@
   font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: 700;
   letter-spacing: -0.04em;
+}
+
+.event-detail-panel h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.event-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.event-detail-panel p {
+  color: var(--st-text-muted);
 }
 
 .eyebrow {
@@ -1391,6 +1604,7 @@
   }
 
   .performer-grid,
+.event-grid,
   .producer-grid,
   .venue-grid,
   .following-grid,
@@ -1404,6 +1618,14 @@
 
   .appearance-date-time-grid {
     grid-template-columns: repeat(2, minmax(11rem, 1fr));
+  }
+
+  .event-date-time-grid {
+    grid-template-columns: repeat(2, minmax(11rem, 1fr));
+  }
+
+  .event-location-grid {
+    grid-template-columns: minmax(0, 1fr) 7rem;
   }
 }
 

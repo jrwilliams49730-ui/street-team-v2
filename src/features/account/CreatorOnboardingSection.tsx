@@ -32,6 +32,7 @@ import {
   uploadProfileImage,
   type ProfileImageType,
 } from '../profile-images/profileImages'
+import EventManagementSection from './EventManagementSection'
 import CreateVenueForm from '../venues/CreateVenueForm'
 import {
   fetchOwnedVenues,
@@ -561,6 +562,14 @@ function CreatorOnboardingSection({
         <PerformerAppearancesManager
           ownerUserId={ownerUserId}
           performerId={profile.id}
+        />
+      ) : null}
+
+      {profile.profileType === 'producer' || profile.profileType === 'venue' ? (
+        <EventManagementSection
+          organizerProfileId={profile.id}
+          organizerType={profile.profileType}
+          ownerUserId={ownerUserId}
         />
       ) : null}
     </section>
