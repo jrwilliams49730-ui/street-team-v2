@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
-import CreatePerformerForm from '../performers/CreatePerformerForm'
-import CreateProducerForm from '../producers/CreateProducerForm'
-import CreateVenueForm from '../venues/CreateVenueForm'
+import {
+  accountTypeOptions,
+  formatAccountType,
+  normalizeAccountType,
+  type AccountType,
+} from './accountTypes'
 import { useAuth } from './auth-context'
+import CreatorOnboardingSection from './CreatorOnboardingSection'
 import FollowingSection from './FollowingSection'
 import MyProfilesSection from './MyProfilesSection'
 
@@ -17,6 +21,7 @@ function AccountPage() {
   const { isLoading, session } = useAuth()
   const [mode, setMode] = useState<AuthMode>('create')
   const [displayName, setDisplayName] = useState('')
+  const [accountType, setAccountType] = useState<AccountType | ''>('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState<Message | null>(null)
@@ -37,12 +42,21 @@ function AccountPage() {
 
     try {
       if (isCreateMode) {
+        if (!accountType) {
+          setMessage({
+            type: 'error',
+            text: 'Choose an account type before creating your account.',
+          })
+          return
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
               display_name: displayName.trim(),
+              account_type: accountType,
             },
           },
         })
@@ -118,12 +132,17 @@ function AccountPage() {
   }
 
   if (session) {
+    const signedInAccountType = normalizeAccountType(
+      session.user.user_metadata?.account_type,
+    )
+
     return (
       <section className="account-page">
         <div className="account-card">
           <div className="section-heading">
             <h2>You are signed in.</h2>
             <p>{session.user.email ?? 'Signed in'}</p>
+            <p>Account type: {formatAccountType(signedInAccountType)}</p>
           </div>
 
           {message ? (
@@ -142,9 +161,10 @@ function AccountPage() {
 
         <FollowingSection ownerUserId={session.user.id} />
         <MyProfilesSection ownerUserId={session.user.id} />
-        <CreatePerformerForm ownerUserId={session.user.id} />
-        <CreateProducerForm ownerUserId={session.user.id} />
-        <CreateVenueForm ownerUserId={session.user.id} />
+        <CreatorOnboardingSection
+          accountType={signedInAccountType}
+          ownerUserId={session.user.id}
+        />
       </section>
     )
   }
@@ -180,15 +200,37 @@ function AccountPage() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           {isCreateMode ? (
-            <label>
-              <span>Display name</span>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                required
-              />
-            </label>
+            <>
+              <label>
+                <span>Display name</span>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  required
+                />
+              </label>
+
+              <fieldset className="account-type-field">
+                <legend>Account type</legend>
+
+                <div className="account-type-options">
+                  {accountTypeOptions.map((option) => (
+                    <label key={option.value}>
+                      <input
+                        type="radio"
+                        name="accountType"
+                        value={option.value}
+                        checked={accountType === option.value}
+                        required
+                        onChange={() => setAccountType(option.value)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </>
           ) : null}
 
           <label>

@@ -441,6 +441,58 @@
   font-weight: 700;
 }
 
+.account-type-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.6rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.account-type-field legend {
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.account-type-options {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.account-type-options label {
+  position: relative;
+  display: flex;
+  min-height: 3rem;
+  justify-content: center;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  color: var(--st-text-muted);
+  background: rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+}
+
+.account-type-options input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.account-type-options label:has(input:checked) {
+  border-color: var(--st-border-strong);
+  color: var(--st-text);
+  background: var(--st-accent-soft);
+}
+
+.account-type-options label:focus-within {
+  outline: 2px solid var(--st-accent-hover);
+  outline-offset: 3px;
+}
+
 .auth-form input {
   width: 100%;
   border: 1px solid var(--st-border);
