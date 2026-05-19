@@ -47,9 +47,20 @@ function App() {
     <main className="app-shell">
       <div className="app-frame">
         <header className="app-header">
-          <h1>Street Team</h1>
-          <p>Live entertainment, powered by the crowd.</p>
-          <AccountStatusBadge />
+          <div className="brand-lockup">
+            <h1 className="brand-title">
+              <img
+                src="/assets/header-logo.png"
+                alt="Street Team"
+                className="brand-logo"
+              />
+            </h1>
+
+            <div className="brand-meta">
+              <p>Turn your fans into promoters.</p>
+              <AccountStatusBadge />
+            </div>
+          </div>
         </header>
 
         <nav className="tab-nav" aria-label="Creator and fan network">
