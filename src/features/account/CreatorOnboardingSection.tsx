@@ -40,6 +40,7 @@ import {
   type Venue,
 } from '../venues/venues'
 import { formatAccountType, type AccountType } from './accountTypes'
+import PerformerAppearancesManager from './PerformerAppearancesManager'
 
 type CreatorOnboardingSectionProps = {
   accountType: AccountType
@@ -555,6 +556,13 @@ function CreatorOnboardingSection({
           </div>
         </div>
       )}
+
+      {profile.profileType === 'performer' ? (
+        <PerformerAppearancesManager
+          ownerUserId={ownerUserId}
+          performerId={profile.id}
+        />
+      ) : null}
     </section>
   )
 }

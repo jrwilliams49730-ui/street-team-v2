@@ -75,6 +75,11 @@
 .creator-management-body,
 .creator-featured-media-heading h3,
 .creator-featured-media-heading p,
+.appearance-management-heading h3,
+.appearance-management-heading p,
+.appearance-card h4,
+.appearance-card p,
+.appearance-list > p,
 .featured-media-choice legend,
 .featured-media-helper,
 .performer-card h3,
@@ -809,20 +814,100 @@
   background: rgba(0, 0, 0, 0.18);
 }
 
+.appearance-management {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
 .creator-featured-media-heading {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
+.appearance-management-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .creator-featured-media-heading h3,
+.appearance-management-heading h3,
 .featured-media-section h3 {
   font-size: 1rem;
   font-weight: 700;
 }
 
-.creator-featured-media-heading p {
+.creator-featured-media-heading p,
+.appearance-management-heading p {
   color: var(--st-text-muted);
+}
+
+.appearance-form {
+  padding-top: 0.1rem;
+}
+
+.appearance-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.appearance-list > p {
+  color: var(--st-text-muted);
+}
+
+.appearance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.appearance-edit-card {
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.appearance-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.appearance-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.appearance-card h4 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.appearance-card p {
+  color: var(--st-text-subtle);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.appearance-notes {
+  color: var(--st-text-muted);
+  white-space: pre-wrap;
+}
+
+.appearance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
 .featured-media-player {
@@ -987,6 +1072,10 @@
 .form-grid {
   display: grid;
   gap: 1rem;
+}
+
+.appearance-date-time-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .directory-state-card {
@@ -1311,6 +1400,10 @@
 
   .form-grid {
     grid-template-columns: 1fr 7rem;
+  }
+
+  .appearance-date-time-grid {
+    grid-template-columns: repeat(2, minmax(11rem, 1fr));
   }
 }
 

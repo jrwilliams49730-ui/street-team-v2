@@ -6,6 +6,7 @@ import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import FeaturedMediaPlayer from './FeaturedMediaPlayer'
 import { canRenderFeaturedMedia } from './featuredMediaLinks'
 import { fetchPerformerBySlug, type Performer } from './performers'
+import PublicPerformerAppearances from './PublicPerformerAppearances'
 
 function PerformerProfile() {
   const { slug } = useParams()
@@ -141,10 +142,7 @@ function PerformerProfile() {
         </section>
       ) : null}
 
-      <section className="upcoming-shows">
-        <h3>Upcoming shows</h3>
-        <p>Upcoming shows will appear here.</p>
-      </section>
+      <PublicPerformerAppearances performerId={performer.id} />
     </section>
   )
 }
