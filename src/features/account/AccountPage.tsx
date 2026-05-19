@@ -4,6 +4,7 @@ import CreatePerformerForm from '../performers/CreatePerformerForm'
 import CreateProducerForm from '../producers/CreateProducerForm'
 import CreateVenueForm from '../venues/CreateVenueForm'
 import { useAuth } from './auth-context'
+import MyProfilesSection from './MyProfilesSection'
 
 type AuthMode = 'create' | 'login'
 type Message = {
@@ -138,6 +139,7 @@ function AccountPage() {
           </button>
         </div>
 
+        <MyProfilesSection ownerUserId={session.user.id} />
         <CreatePerformerForm ownerUserId={session.user.id} />
         <CreateProducerForm ownerUserId={session.user.id} />
         <CreateVenueForm ownerUserId={session.user.id} />

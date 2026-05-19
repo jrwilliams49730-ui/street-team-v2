@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import {
   fetchPerformers,
   type Performer,
@@ -118,9 +119,12 @@ function FeaturedProducersSection() {
               to={`/producers/${producer.slug}`}
               className="featured-card"
             >
-              <div className="featured-avatar is-producer" aria-hidden="true">
-                {producer.initials}
-              </div>
+              <ProfileImageAvatar
+                className="featured-avatar is-producer"
+                imageUrl={producer.imageUrl}
+                initials={producer.initials}
+                name={producer.name}
+              />
 
               <div className="featured-card-copy">
                 <h4>{producer.name}</h4>
@@ -204,12 +208,12 @@ function FeaturedPerformersSection() {
               to={`/performers/${performer.slug}`}
               className="featured-card"
             >
-              <div
+              <ProfileImageAvatar
                 className="featured-avatar is-performer"
-                aria-hidden="true"
-              >
-                {performer.initials}
-              </div>
+                imageUrl={performer.imageUrl}
+                initials={performer.initials}
+                name={performer.name}
+              />
 
               <div className="featured-card-copy">
                 <h4>{performer.name}</h4>
@@ -291,9 +295,12 @@ function FeaturedVenuesSection() {
               to={`/venues/${venue.slug}`}
               className="featured-card"
             >
-              <div className="featured-avatar is-venue" aria-hidden="true">
-                {venue.initials}
-              </div>
+              <ProfileImageAvatar
+                className="featured-avatar is-venue"
+                imageUrl={venue.imageUrl}
+                initials={venue.initials}
+                name={venue.name}
+              />
 
               <div className="featured-card-copy">
                 <h4>{venue.name}</h4>

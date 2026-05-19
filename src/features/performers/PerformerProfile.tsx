@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import {
   fetchPerformerBySlug,
   formatFollowerCount,
@@ -90,9 +91,12 @@ function PerformerProfile() {
 
       <article className="profile-card">
         <div className="profile-hero">
-          <div className="performer-avatar profile-avatar" aria-hidden="true">
-            {performer.initials}
-          </div>
+          <ProfileImageAvatar
+            className="performer-avatar profile-avatar"
+            imageUrl={performer.imageUrl}
+            initials={performer.initials}
+            name={performer.name}
+          />
 
           <div className="profile-copy">
             <p className="eyebrow">{performer.category}</p>

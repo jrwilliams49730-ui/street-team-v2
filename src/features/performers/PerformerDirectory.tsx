@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import {
   fetchPerformers,
   formatFollowerCount,
@@ -65,9 +66,12 @@ function PerformerDirectory() {
               className="performer-card"
             >
               <div className="performer-card-header">
-                <div className="performer-avatar" aria-hidden="true">
-                  {performer.initials}
-                </div>
+                <ProfileImageAvatar
+                  className="performer-avatar"
+                  imageUrl={performer.imageUrl}
+                  initials={performer.initials}
+                  name={performer.name}
+                />
 
                 <div>
                   <h3>{performer.name}</h3>

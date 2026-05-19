@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import { fetchVenues, formatFollowerCount, type Venue } from './venues'
 
 function VenueDirectory() {
@@ -61,9 +62,12 @@ function VenueDirectory() {
               className="venue-card"
             >
               <div className="venue-card-header">
-                <div className="venue-avatar" aria-hidden="true">
-                  {venue.initials}
-                </div>
+                <ProfileImageAvatar
+                  className="venue-avatar"
+                  imageUrl={venue.imageUrl}
+                  initials={venue.initials}
+                  name={venue.name}
+                />
 
                 <div>
                   <h3>{venue.name}</h3>

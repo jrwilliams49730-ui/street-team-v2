@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import {
   fetchProducerBySlug,
   formatFollowerCount,
@@ -90,9 +91,12 @@ function ProducerProfile() {
 
       <article className="profile-card">
         <div className="profile-hero">
-          <div className="producer-avatar profile-avatar" aria-hidden="true">
-            {producer.initials}
-          </div>
+          <ProfileImageAvatar
+            className="producer-avatar profile-avatar"
+            imageUrl={producer.imageUrl}
+            initials={producer.initials}
+            name={producer.name}
+          />
 
           <div className="profile-copy">
             <p className="eyebrow">{producer.category}</p>

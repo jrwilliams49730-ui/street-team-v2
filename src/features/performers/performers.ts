@@ -88,6 +88,20 @@ export async function fetchPerformers(limit?: number) {
   return ((data ?? []) as PerformerRow[]).map(mapPerformerRow)
 }
 
+export async function fetchOwnedPerformers(ownerUserId: string) {
+  const { data, error } = await supabase
+    .from('performers')
+    .select(performerSelect)
+    .eq('owner_user_id', ownerUserId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as PerformerRow[]).map(mapPerformerRow)
+}
+
 export async function fetchPerformerBySlug(slug: string) {
   const { data, error } = await supabase
     .from('performers')
@@ -117,6 +131,26 @@ export async function createPerformerProfile(input: CreatePerformerInput) {
       bio: cleanOptionalText(input.bio),
       image_url: null,
     })
+    .select(performerSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapPerformerRow(data as PerformerRow)
+}
+
+export async function updatePerformerImageUrl(
+  ownerUserId: string,
+  profileId: string,
+  imageUrl: string,
+) {
+  const { data, error } = await supabase
+    .from('performers')
+    .update({ image_url: imageUrl })
+    .eq('id', profileId)
+    .eq('owner_user_id', ownerUserId)
     .select(performerSelect)
     .single()
 

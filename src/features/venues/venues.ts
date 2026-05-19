@@ -88,6 +88,20 @@ export async function fetchVenues(limit?: number) {
   return ((data ?? []) as VenueRow[]).map(mapVenueRow)
 }
 
+export async function fetchOwnedVenues(ownerUserId: string) {
+  const { data, error } = await supabase
+    .from('venues')
+    .select(venueSelect)
+    .eq('owner_user_id', ownerUserId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as VenueRow[]).map(mapVenueRow)
+}
+
 export async function fetchVenueBySlug(slug: string) {
   const { data, error } = await supabase
     .from('venues')
@@ -117,6 +131,26 @@ export async function createVenueProfile(input: CreateVenueInput) {
       description: cleanOptionalText(input.description),
       image_url: null,
     })
+    .select(venueSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapVenueRow(data as VenueRow)
+}
+
+export async function updateVenueImageUrl(
+  ownerUserId: string,
+  profileId: string,
+  imageUrl: string,
+) {
+  const { data, error } = await supabase
+    .from('venues')
+    .update({ image_url: imageUrl })
+    .eq('id', profileId)
+    .eq('owner_user_id', ownerUserId)
     .select(venueSelect)
     .single()
 

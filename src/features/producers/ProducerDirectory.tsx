@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import {
   fetchProducers,
   formatFollowerCount,
@@ -67,9 +68,12 @@ function ProducerDirectory() {
               className="producer-card"
             >
               <div className="producer-card-header">
-                <div className="producer-avatar" aria-hidden="true">
-                  {producer.initials}
-                </div>
+                <ProfileImageAvatar
+                  className="producer-avatar"
+                  imageUrl={producer.imageUrl}
+                  initials={producer.initials}
+                  name={producer.name}
+                />
 
                 <div>
                   <h3>{producer.name}</h3>

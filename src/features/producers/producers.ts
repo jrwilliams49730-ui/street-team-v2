@@ -88,6 +88,20 @@ export async function fetchProducers(limit?: number) {
   return ((data ?? []) as ProducerRow[]).map(mapProducerRow)
 }
 
+export async function fetchOwnedProducers(ownerUserId: string) {
+  const { data, error } = await supabase
+    .from('producers')
+    .select(producerSelect)
+    .eq('owner_user_id', ownerUserId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as ProducerRow[]).map(mapProducerRow)
+}
+
 export async function fetchProducerBySlug(slug: string) {
   const { data, error } = await supabase
     .from('producers')
@@ -117,6 +131,26 @@ export async function createProducerProfile(input: CreateProducerInput) {
       bio: cleanOptionalText(input.bio),
       image_url: null,
     })
+    .select(producerSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapProducerRow(data as ProducerRow)
+}
+
+export async function updateProducerImageUrl(
+  ownerUserId: string,
+  profileId: string,
+  imageUrl: string,
+) {
+  const { data, error } = await supabase
+    .from('producers')
+    .update({ image_url: imageUrl })
+    .eq('id', profileId)
+    .eq('owner_user_id', ownerUserId)
     .select(producerSelect)
     .single()
 

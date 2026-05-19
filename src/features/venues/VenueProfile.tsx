@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import { fetchVenueBySlug, formatFollowerCount, type Venue } from './venues'
 
 function VenueProfile() {
@@ -86,9 +87,12 @@ function VenueProfile() {
 
       <article className="profile-card">
         <div className="profile-hero">
-          <div className="venue-avatar profile-avatar" aria-hidden="true">
-            {venue.initials}
-          </div>
+          <ProfileImageAvatar
+            className="venue-avatar profile-avatar"
+            imageUrl={venue.imageUrl}
+            initials={venue.initials}
+            name={venue.name}
+          />
 
           <div className="profile-copy">
             <p className="eyebrow">{venue.category}</p>
