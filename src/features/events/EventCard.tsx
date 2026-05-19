@@ -16,6 +16,17 @@ function EventCard({ event }: EventCardProps) {
 
   return (
     <Link to={`/events/${event.slug}`} className="event-card">
+      {event.eventImageUrl ? (
+        <div className="event-card-image-frame">
+          <img
+            src={event.eventImageUrl}
+            alt=""
+            className="event-card-image"
+            loading="lazy"
+          />
+        </div>
+      ) : null}
+
       <div className="event-card-main">
         <div className="event-card-copy">
           {event.category ? <p className="eyebrow">{event.category}</p> : null}

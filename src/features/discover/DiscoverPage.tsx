@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import {
+  fetchUpcomingPublishedEvents,
+  formatEventDate,
+  formatEventLocation,
+  formatEventTime,
+  type StreetTeamEvent,
+} from '../events/events'
 import { formatFollowerLabel } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import {
@@ -314,6 +321,101 @@ function FeaturedVenuesSection() {
   )
 }
 
+function UpcomingEventsSection() {
+  const [events, setEvents] = useState<StreetTeamEvent[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadUpcomingEvents() {
+      try {
+        const nextEvents = await fetchUpcomingPublishedEvents(3)
+
+        if (isMounted) {
+          setEvents(nextEvents)
+          setStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadUpcomingEvents()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  return (
+    <section className="featured-section">
+      <div className="featured-section-header">
+        <h3>Upcoming Events</h3>
+      </div>
+
+      {status === 'loading' ? (
+        <p className="featured-empty-state">Loading upcoming events...</p>
+      ) : null}
+
+      {status === 'error' ? (
+        <p className="featured-empty-state">Upcoming events could not load.</p>
+      ) : null}
+
+      {status === 'ready' && events.length === 0 ? (
+        <p className="featured-empty-state">No upcoming events posted yet.</p>
+      ) : null}
+
+      {status === 'ready' && events.length > 0 ? (
+        <div className="featured-grid">
+          {events.map((event) => {
+            const location = formatEventLocation(event)
+
+            return (
+              <Link
+                key={event.id}
+                to={`/events/${event.slug}`}
+                className="featured-card featured-event-card"
+              >
+                {event.eventImageUrl ? (
+                  <div className="featured-event-image-frame">
+                    <img
+                      src={event.eventImageUrl}
+                      alt=""
+                      className="featured-event-image"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="featured-card-copy">
+                  <h4>{event.title}</h4>
+                  <p>
+                    {formatEventDate(event.eventDate)}
+                    {event.startTime
+                      ? ` at ${formatEventTime(event.startTime)}`
+                      : ''}
+                  </p>
+                  <p>{event.venueName}</p>
+                  {location ? <span>{location}</span> : null}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      ) : null}
+
+      <Link to="/events" className="view-all-link">
+        View all events
+      </Link>
+    </section>
+  )
+}
+
 function DiscoverPage() {
   return (
     <section className="discover-page">
@@ -327,6 +429,7 @@ function DiscoverPage() {
       </header>
 
       <FeaturedPerformersSection />
+      <UpcomingEventsSection />
       <FeaturedProducersSection />
       <FeaturedVenuesSection />
 

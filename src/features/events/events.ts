@@ -89,6 +89,8 @@ export type CreateEventInput = EventFormInput & {
   ownerUserId: string
 }
 
+export type UpdateEventInput = EventFormInput
+
 const eventSelect =
   'id, owner_user_id, organizer_type, producer_id, organizer_venue_id, venue_id, title, slug, category, description, event_date, doors_time, start_time, end_time, event_timezone, venue_name, address_line_1, address_line_2, city, state, postal_code, country, latitude, longitude, event_image_url, status, created_at, updated_at'
 
@@ -123,6 +125,28 @@ export async function fetchPublishedEvents(limit?: number) {
     .from('events')
     .select(eventSelect)
     .eq('status', 'published')
+    .order('event_date', { ascending: true })
+    .order('start_time', { ascending: true, nullsFirst: false })
+
+  if (limit) {
+    query = query.limit(limit)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as EventRow[]).map(mapEventRow)
+}
+
+export async function fetchUpcomingPublishedEvents(limit?: number) {
+  let query = supabase
+    .from('events')
+    .select(eventSelect)
+    .eq('status', 'published')
+    .gte('event_date', getTodayDateString())
     .order('event_date', { ascending: true })
     .order('start_time', { ascending: true, nullsFirst: false })
 
@@ -225,6 +249,90 @@ export async function createEvent(input: CreateEventInput) {
   }
 
   return mapEventRow(data as EventRow)
+}
+
+export async function updateEvent(
+  ownerUserId: string,
+  eventId: string,
+  input: UpdateEventInput,
+) {
+  const { data, error } = await supabase
+    .from('events')
+    .update({
+      address_line_1: cleanOptionalText(input.addressLine1),
+      address_line_2: cleanOptionalText(input.addressLine2),
+      category: cleanOptionalText(input.category),
+      city: cleanRequiredText(input.city),
+      country: cleanOptionalText(input.country) ?? 'USA',
+      description: cleanOptionalText(input.description),
+      doors_time: cleanOptionalText(input.doorsTime),
+      end_time: cleanOptionalText(input.endTime),
+      event_date: cleanRequiredText(input.eventDate),
+      postal_code: cleanOptionalText(input.postalCode),
+      start_time: cleanOptionalText(input.startTime),
+      state: cleanRequiredText(input.state),
+      status: input.status,
+      title: cleanRequiredText(input.title),
+      venue_name: cleanRequiredText(input.venueName),
+    })
+    .eq('id', eventId)
+    .eq('owner_user_id', ownerUserId)
+    .select(eventSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapEventRow(data as EventRow)
+}
+
+export async function updateEventImageUrl(
+  ownerUserId: string,
+  eventId: string,
+  eventImageUrl: string,
+) {
+  const { data, error } = await supabase
+    .from('events')
+    .update({ event_image_url: eventImageUrl })
+    .eq('id', eventId)
+    .eq('owner_user_id', ownerUserId)
+    .select(eventSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapEventRow(data as EventRow)
+}
+
+export async function cancelEvent(ownerUserId: string, eventId: string) {
+  const { data, error } = await supabase
+    .from('events')
+    .update({ status: 'cancelled' })
+    .eq('id', eventId)
+    .eq('owner_user_id', ownerUserId)
+    .select(eventSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapEventRow(data as EventRow)
+}
+
+export async function deleteEvent(ownerUserId: string, eventId: string) {
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', eventId)
+    .eq('owner_user_id', ownerUserId)
+
+  if (error) {
+    throw error
+  }
 }
 
 export function formatEventDate(eventDate: string) {
@@ -330,4 +438,13 @@ function cleanOptionalText(value: string) {
 
 function cleanRequiredText(value: string) {
   return value.trim()
+}
+
+function getTodayDateString() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }

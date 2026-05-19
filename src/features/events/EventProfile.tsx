@@ -107,6 +107,16 @@ function EventProfile() {
       </Link>
 
       <article className="profile-card event-profile-card">
+        {event.eventImageUrl ? (
+          <div className="event-profile-image-frame">
+            <img
+              src={event.eventImageUrl}
+              alt=""
+              className="event-profile-image"
+            />
+          </div>
+        ) : null}
+
         <div className="profile-copy">
           {event.category ? <p className="eyebrow">{event.category}</p> : null}
           <h2>{event.title}</h2>
