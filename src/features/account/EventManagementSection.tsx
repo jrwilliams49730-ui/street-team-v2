@@ -5,6 +5,7 @@ import {
   type FormEvent,
 } from 'react'
 import { Link } from 'react-router-dom'
+import EventTicketManager from './EventTicketManager'
 import { uploadEventImage } from '../events/eventImages'
 import {
   createEventLineupEntry,
@@ -89,6 +90,7 @@ function EventManagementSection({
   const [editFlyerFile, setEditFlyerFile] = useState<File | null>(null)
   const [editFileInputKey, setEditFileInputKey] = useState(0)
   const [lineupEventId, setLineupEventId] = useState<string | null>(null)
+  const [ticketEventId, setTicketEventId] = useState<string | null>(null)
   const [message, setMessage] = useState<EventMessage | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [savingEventId, setSavingEventId] = useState<string | null>(null)
@@ -336,6 +338,9 @@ function EventManagementSection({
       setLineupEventId((currentId) =>
         currentId === event.id ? null : currentId,
       )
+      setTicketEventId((currentId) =>
+        currentId === event.id ? null : currentId,
+      )
       setMessage({
         type: 'success',
         text: 'Event deleted.',
@@ -429,9 +434,15 @@ function EventManagementSection({
                   isCancelling={cancellingEventId === event.id}
                   isDeleting={deletingEventId === event.id}
                   isLineupOpen={lineupEventId === event.id}
+                  isTicketsOpen={ticketEventId === event.id}
                   onCancelEvent={handleCancelEvent}
                   onDeleteEvent={handleDeleteEvent}
                   onEditEvent={handleEditStart}
+                  onToggleTickets={() =>
+                    setTicketEventId((currentId) =>
+                      currentId === event.id ? null : event.id,
+                    )
+                  }
                   onToggleLineup={() =>
                     setLineupEventId((currentId) =>
                       currentId === event.id ? null : event.id,
@@ -702,9 +713,11 @@ type OwnedEventCardProps = {
   isCancelling: boolean
   isDeleting: boolean
   isLineupOpen: boolean
+  isTicketsOpen: boolean
   onCancelEvent: (event: StreetTeamEvent) => void
   onDeleteEvent: (event: StreetTeamEvent) => void
   onEditEvent: (event: StreetTeamEvent) => void
+  onToggleTickets: () => void
   onToggleLineup: () => void
 }
 
@@ -713,9 +726,11 @@ function OwnedEventCard({
   isCancelling,
   isDeleting,
   isLineupOpen,
+  isTicketsOpen,
   onCancelEvent,
   onDeleteEvent,
   onEditEvent,
+  onToggleTickets,
   onToggleLineup,
 }: OwnedEventCardProps) {
   const location = formatEventLocation(event)
@@ -762,6 +777,14 @@ function OwnedEventCard({
         <button
           type="button"
           className="secondary-action-button"
+          onClick={onToggleTickets}
+        >
+          {isTicketsOpen ? 'Close Tickets' : 'Manage Tickets'}
+        </button>
+
+        <button
+          type="button"
+          className="secondary-action-button"
           onClick={() => onEditEvent(event)}
         >
           Edit Event
@@ -789,6 +812,7 @@ function OwnedEventCard({
       </div>
 
       {isLineupOpen ? <EventLineupManager eventId={event.id} /> : null}
+      {isTicketsOpen ? <EventTicketManager eventId={event.id} /> : null}
     </article>
   )
 }

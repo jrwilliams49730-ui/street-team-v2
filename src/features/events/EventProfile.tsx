@@ -8,6 +8,7 @@ import {
   type StreetTeamEvent,
 } from './events'
 import EventLineupSection from './EventLineupSection'
+import EventTicketsSection from './EventTicketsSection'
 
 function EventProfile() {
   const { slug } = useParams()
@@ -148,6 +149,7 @@ function EventProfile() {
         </div>
       </section>
 
+      <EventTicketsSection eventId={event.id} />
       <EventLineupSection eventId={event.id} />
     </section>
   )
