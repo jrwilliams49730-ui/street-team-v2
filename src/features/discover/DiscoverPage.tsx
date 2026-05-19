@@ -6,36 +6,7 @@ import {
   type Performer,
 } from '../performers/performers'
 import { fetchProducers, type Producer } from '../producers/producers'
-import { venues } from '../venues/venues'
-
-type FeaturedItem = {
-  name: string
-  slug: string
-  category: string
-  location: string
-  initials: string
-  followerCount: number
-}
-
-type FeaturedSection = {
-  title: string
-  viewAllLabel: string
-  viewAllPath: string
-  profileBasePath: string
-  accentClass: string
-  items: FeaturedItem[]
-}
-
-const mockFeaturedSections: FeaturedSection[] = [
-  {
-    title: 'Featured venues',
-    viewAllLabel: 'View all venues',
-    viewAllPath: '/venues',
-    profileBasePath: '/venues',
-    accentClass: 'is-venue',
-    items: venues.slice(0, 3),
-  },
-]
+import { fetchVenues, type Venue } from '../venues/venues'
 
 function formatFollowerCount(count: number) {
   return new Intl.NumberFormat('en-US').format(count)
@@ -261,6 +232,90 @@ function FeaturedPerformersSection() {
   )
 }
 
+function FeaturedVenuesSection() {
+  const [venues, setVenues] = useState<Venue[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadFeaturedVenues() {
+      try {
+        const nextVenues = await fetchVenues(3)
+
+        if (isMounted) {
+          setVenues(nextVenues)
+          setStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadFeaturedVenues()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  return (
+    <section className="featured-section">
+      <div className="featured-section-header">
+        <h3>Featured venues</h3>
+      </div>
+
+      {status === 'loading' ? (
+        <p className="featured-empty-state">Loading featured venues...</p>
+      ) : null}
+
+      {status === 'error' ? (
+        <p className="featured-empty-state">Featured venues could not load.</p>
+      ) : null}
+
+      {status === 'ready' && venues.length === 0 ? (
+        <p className="featured-empty-state">
+          Featured venues will appear here once profiles are created.
+        </p>
+      ) : null}
+
+      {status === 'ready' && venues.length > 0 ? (
+        <div className="featured-grid">
+          {venues.map((venue) => (
+            <Link
+              key={venue.id}
+              to={`/venues/${venue.slug}`}
+              className="featured-card"
+            >
+              <div className="featured-avatar is-venue" aria-hidden="true">
+                {venue.initials}
+              </div>
+
+              <div className="featured-card-copy">
+                <h4>{venue.name}</h4>
+                <p>
+                  {venue.category} | {venue.location}
+                </p>
+                <span>
+                  {formatFollowerCount(venue.followerCount)} followers
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      <Link to="/venues" className="view-all-link">
+        View all venues
+      </Link>
+    </section>
+  )
+}
+
 function DiscoverPage() {
   return (
     <section className="discover-page">
@@ -275,45 +330,7 @@ function DiscoverPage() {
 
       <FeaturedPerformersSection />
       <FeaturedProducersSection />
-
-      {mockFeaturedSections.map((section) => (
-        <section key={section.title} className="featured-section">
-          <div className="featured-section-header">
-            <h3>{section.title}</h3>
-          </div>
-
-          <div className="featured-grid">
-            {section.items.map((item) => (
-              <Link
-                key={item.slug}
-                to={`${section.profileBasePath}/${item.slug}`}
-                className="featured-card"
-              >
-                <div
-                  className={`featured-avatar ${section.accentClass}`}
-                  aria-hidden="true"
-                >
-                  {item.initials}
-                </div>
-
-                <div className="featured-card-copy">
-                  <h4>{item.name}</h4>
-                  <p>
-                    {item.category} | {item.location}
-                  </p>
-                  <span>
-                    {formatFollowerCount(item.followerCount)} followers
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <Link to={section.viewAllPath} className="view-all-link">
-            {section.viewAllLabel}
-          </Link>
-        </section>
-      ))}
+      <FeaturedVenuesSection />
 
       <SupabaseStatusCard />
     </section>

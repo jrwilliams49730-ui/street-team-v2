@@ -1,4 +1,21 @@
+import { supabase } from '../../lib/supabase'
+
+export type VenueRow = {
+  id: string
+  owner_user_id: string
+  name: string
+  slug: string
+  venue_type: string
+  city: string | null
+  state: string | null
+  description: string | null
+  image_url: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type Venue = {
+  id: string
   name: string
   slug: string
   category: string
@@ -6,64 +23,156 @@ export type Venue = {
   initials: string
   shortDescription: string
   description: string
+  imageUrl: string | null
   followerCount: number
 }
 
-export const venues: Venue[] = [
-  {
-    name: 'The Backroom Laughs',
-    slug: 'the-backroom-laughs',
-    category: 'Comedy Club',
-    location: 'Philadelphia, PA',
-    initials: 'BL',
-    shortDescription:
-      'A tight comedy room known for weekend showcases and surprise drop-ins.',
-    description:
-      'The Backroom Laughs is a Philadelphia comedy club with an intimate stage, weekend showcases, and a reputation for surprise drop-ins from comics passing through town.',
-    followerCount: 15420,
-  },
-  {
-    name: 'Copper Yard Brewing',
-    slug: 'copper-yard-brewing',
-    category: 'Brewery & Live Event Space',
-    location: 'Asheville, NC',
-    initials: 'CY',
-    shortDescription:
-      'A brewery taproom hosting acoustic sets, comedy nights, and patio events.',
-    description:
-      'Copper Yard Brewing is an Asheville brewery and live event space hosting acoustic sets, comedy nights, patio markets, and community gatherings around a warm taproom stage.',
-    followerCount: 21890,
-  },
-  {
-    name: 'Signal Hall',
-    slug: 'signal-hall',
-    category: 'Music Venue',
-    location: 'Portland, OR',
-    initials: 'SH',
-    shortDescription:
-      'A mid-sized music room built for touring bands and local release shows.',
-    description:
-      'Signal Hall is a Portland music venue built for touring bands, local release shows, and high-energy bills with strong sound, clean sightlines, and a loyal neighborhood crowd.',
-    followerCount: 38670,
-  },
-  {
-    name: 'Civic Garden Stage',
-    slug: 'civic-garden-stage',
-    category: 'Theater & Festival Space',
-    location: 'Santa Fe, NM',
-    initials: 'CG',
-    shortDescription:
-      'An outdoor theater and festival space for concerts, arts nights, and seasonal series.',
-    description:
-      'Civic Garden Stage is a Santa Fe outdoor theater and festival space used for concerts, arts nights, seasonal series, and community productions under the desert sky.',
-    followerCount: 17230,
-  },
-]
+export type CreateVenueInput = {
+  ownerUserId: string
+  name: string
+  venueType: string
+  city: string
+  state: string
+  description: string
+}
 
-export function findVenueBySlug(slug?: string) {
-  return venues.find((venue) => venue.slug === slug)
+const venueSelect =
+  'id, owner_user_id, name, slug, venue_type, city, state, description, image_url, created_at, updated_at'
+
+export function generateVenueSlug(name: string) {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || 'venue'
 }
 
 export function formatFollowerCount(count: number) {
   return new Intl.NumberFormat('en-US').format(count)
+}
+
+export function isDuplicateSlugError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const maybeError = error as { code?: string; message?: string }
+
+  return (
+    maybeError.code === '23505' ||
+    maybeError.message?.toLowerCase().includes('duplicate key') === true ||
+    maybeError.message?.toLowerCase().includes('unique') === true
+  )
+}
+
+export async function fetchVenues(limit?: number) {
+  let query = supabase
+    .from('venues')
+    .select(venueSelect)
+    .order('created_at', { ascending: false })
+
+  if (limit) {
+    query = query.limit(limit)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as VenueRow[]).map(mapVenueRow)
+}
+
+export async function fetchVenueBySlug(slug: string) {
+  const { data, error } = await supabase
+    .from('venues')
+    .select(venueSelect)
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data ? mapVenueRow(data as VenueRow) : null
+}
+
+export async function createVenueProfile(input: CreateVenueInput) {
+  const slug = generateVenueSlug(input.name)
+
+  const { data, error } = await supabase
+    .from('venues')
+    .insert({
+      owner_user_id: input.ownerUserId,
+      name: input.name.trim(),
+      slug,
+      venue_type: input.venueType.trim(),
+      city: cleanOptionalText(input.city),
+      state: cleanOptionalText(input.state),
+      description: cleanOptionalText(input.description),
+      image_url: null,
+    })
+    .select(venueSelect)
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return mapVenueRow(data as VenueRow)
+}
+
+function mapVenueRow(row: VenueRow): Venue {
+  const description =
+    row.description?.trim() || 'This venue has not added a description yet.'
+
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    category: row.venue_type,
+    location: formatLocation(row.city, row.state),
+    initials: getInitials(row.name),
+    shortDescription: createShortDescription(description),
+    description,
+    imageUrl: row.image_url,
+    followerCount: 0,
+  }
+}
+
+function cleanOptionalText(value: string) {
+  const trimmed = value.trim()
+
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function formatLocation(city: string | null, state: string | null) {
+  const locationParts = [city, state]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+
+  return locationParts.length > 0 ? locationParts.join(', ') : 'Location TBD'
+}
+
+function getInitials(name: string) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
+  return initials || 'ST'
+}
+
+function createShortDescription(description: string) {
+  return description.length > 120
+    ? `${description.slice(0, 117).trim()}...`
+    : description
 }

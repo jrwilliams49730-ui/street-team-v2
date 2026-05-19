@@ -1,11 +1,72 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { findVenueBySlug, formatFollowerCount } from './venues'
+import { fetchVenueBySlug, formatFollowerCount, type Venue } from './venues'
 
 function VenueProfile() {
   const { slug } = useParams()
-  const venue = findVenueBySlug(slug)
+  const [venue, setVenue] = useState<Venue | null>(null)
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'not-found' | 'error'
+  >('loading')
 
-  if (!venue) {
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadVenue() {
+      if (!slug) {
+        setStatus('not-found')
+        return
+      }
+
+      try {
+        const nextVenue = await fetchVenueBySlug(slug)
+
+        if (!isMounted) {
+          return
+        }
+
+        if (nextVenue) {
+          setVenue(nextVenue)
+          setStatus('ready')
+        } else {
+          setStatus('not-found')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadVenue()
+
+    return () => {
+      isMounted = false
+    }
+  }, [slug])
+
+  if (status === 'loading') {
+    return (
+      <section className="content-card empty-state">
+        <h2>Loading venue...</h2>
+        <p>Getting the latest venue profile.</p>
+      </section>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <section className="content-card empty-state">
+        <h2>Venue profile could not load</h2>
+        <p>Please try again in a moment.</p>
+        <Link to="/venues" className="back-link">
+          Back to venues
+        </Link>
+      </section>
+    )
+  }
+
+  if (status === 'not-found' || !venue) {
     return (
       <section className="content-card empty-state">
         <h2>Venue not found</h2>

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import CreatePerformerForm from '../performers/CreatePerformerForm'
 import CreateProducerForm from '../producers/CreateProducerForm'
+import CreateVenueForm from '../venues/CreateVenueForm'
 import { useAuth } from './auth-context'
 
 type AuthMode = 'create' | 'login'
@@ -139,6 +140,7 @@ function AccountPage() {
 
         <CreatePerformerForm ownerUserId={session.user.id} />
         <CreateProducerForm ownerUserId={session.user.id} />
+        <CreateVenueForm ownerUserId={session.user.id} />
       </section>
     )
   }
