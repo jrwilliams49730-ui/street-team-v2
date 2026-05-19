@@ -7,6 +7,7 @@ import {
   formatOrganizerType,
   type StreetTeamEvent,
 } from './events'
+import EventLineupSection from './EventLineupSection'
 
 function EventProfile() {
   const { slug } = useParams()
@@ -146,6 +147,8 @@ function EventProfile() {
           ))}
         </div>
       </section>
+
+      <EventLineupSection eventId={event.id} />
     </section>
   )
 }

@@ -7,6 +7,15 @@ import {
 import { Link } from 'react-router-dom'
 import { uploadEventImage } from '../events/eventImages'
 import {
+  createEventLineupEntry,
+  deleteEventLineupEntry,
+  fetchEventLineup,
+  isDuplicateLineupPerformerError,
+  sortEventLineup,
+  updateEventLineupEntry,
+  type EventLineupEntry,
+} from '../events/eventLineups'
+import {
   cancelEvent,
   createEvent,
   deleteEvent,
@@ -23,6 +32,11 @@ import {
   type EventStatus,
   type StreetTeamEvent,
 } from '../events/events'
+import {
+  fetchPerformers,
+  type Performer,
+} from '../performers/performers'
+import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 
 type EventManagementSectionProps = {
   organizerProfileId: string
@@ -74,6 +88,7 @@ function EventManagementSection({
     useState<EventFormState>(emptyEventForm)
   const [editFlyerFile, setEditFlyerFile] = useState<File | null>(null)
   const [editFileInputKey, setEditFileInputKey] = useState(0)
+  const [lineupEventId, setLineupEventId] = useState<string | null>(null)
   const [message, setMessage] = useState<EventMessage | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [savingEventId, setSavingEventId] = useState<string | null>(null)
@@ -318,6 +333,9 @@ function EventManagementSection({
       setEditingEventId((currentId) =>
         currentId === event.id ? null : currentId,
       )
+      setLineupEventId((currentId) =>
+        currentId === event.id ? null : currentId,
+      )
       setMessage({
         type: 'success',
         text: 'Event deleted.',
@@ -410,9 +428,15 @@ function EventManagementSection({
                   event={event}
                   isCancelling={cancellingEventId === event.id}
                   isDeleting={deletingEventId === event.id}
+                  isLineupOpen={lineupEventId === event.id}
                   onCancelEvent={handleCancelEvent}
                   onDeleteEvent={handleDeleteEvent}
                   onEditEvent={handleEditStart}
+                  onToggleLineup={() =>
+                    setLineupEventId((currentId) =>
+                      currentId === event.id ? null : event.id,
+                    )
+                  }
                 />
               ),
             )
@@ -677,18 +701,22 @@ type OwnedEventCardProps = {
   event: StreetTeamEvent
   isCancelling: boolean
   isDeleting: boolean
+  isLineupOpen: boolean
   onCancelEvent: (event: StreetTeamEvent) => void
   onDeleteEvent: (event: StreetTeamEvent) => void
   onEditEvent: (event: StreetTeamEvent) => void
+  onToggleLineup: () => void
 }
 
 function OwnedEventCard({
   event,
   isCancelling,
   isDeleting,
+  isLineupOpen,
   onCancelEvent,
   onDeleteEvent,
   onEditEvent,
+  onToggleLineup,
 }: OwnedEventCardProps) {
   const location = formatEventLocation(event)
 
@@ -726,6 +754,14 @@ function OwnedEventCard({
         <button
           type="button"
           className="secondary-action-button"
+          onClick={onToggleLineup}
+        >
+          {isLineupOpen ? 'Close Lineup' : 'Manage Lineup'}
+        </button>
+
+        <button
+          type="button"
+          className="secondary-action-button"
           onClick={() => onEditEvent(event)}
         >
           Edit Event
@@ -751,6 +787,8 @@ function OwnedEventCard({
           {isDeleting ? 'Deleting...' : 'Delete Event'}
         </button>
       </div>
+
+      {isLineupOpen ? <EventLineupManager eventId={event.id} /> : null}
     </article>
   )
 }
@@ -833,6 +871,395 @@ function OwnedEventEditCard({
         </button>
       </div>
     </article>
+  )
+}
+
+type LineupFormState = {
+  displayOrder: string
+  lineupRole: string
+  performerId: string
+}
+
+type LineupMessage = {
+  type: 'success' | 'error'
+  text: string
+}
+
+const emptyLineupForm: LineupFormState = {
+  displayOrder: '0',
+  lineupRole: '',
+  performerId: '',
+}
+
+function EventLineupManager({ eventId }: { eventId: string }) {
+  const [availablePerformers, setAvailablePerformers] = useState<Performer[]>(
+    [],
+  )
+  const [lineup, setLineup] = useState<EventLineupEntry[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  )
+  const [formState, setFormState] = useState<LineupFormState>(emptyLineupForm)
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
+  const [editFormState, setEditFormState] =
+    useState<Omit<LineupFormState, 'displayOrder' | 'performerId'>>({
+      lineupRole: '',
+    })
+  const [message, setMessage] = useState<LineupMessage | null>(null)
+  const [isAdding, setIsAdding] = useState(false)
+  const [savingEntryId, setSavingEntryId] = useState<string | null>(null)
+  const [removingEntryId, setRemovingEntryId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadLineupManager() {
+      setStatus('loading')
+
+      try {
+        const [performers, nextLineup] = await Promise.all([
+          fetchPerformers(),
+          fetchEventLineup(eventId),
+        ])
+
+        if (isMounted) {
+          setAvailablePerformers(
+            performers.sort((first, second) =>
+              first.name.localeCompare(second.name),
+            ),
+          )
+          setLineup(nextLineup)
+          setStatus('ready')
+        }
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadLineupManager()
+
+    return () => {
+      isMounted = false
+    }
+  }, [eventId])
+
+  async function handleAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!formState.performerId) {
+      setMessage({
+        type: 'error',
+        text: 'Choose a performer before adding them to the lineup.',
+      })
+      return
+    }
+
+    if (
+      lineup.some((entry) => entry.performerId === formState.performerId)
+    ) {
+      setMessage({
+        type: 'error',
+        text: 'That performer is already attached to this event.',
+      })
+      return
+    }
+
+    setIsAdding(true)
+    setMessage(null)
+
+    try {
+      const nextEntry = await createEventLineupEntry({
+        displayOrder: formState.displayOrder,
+        eventId,
+        lineupRole: formState.lineupRole,
+        performerId: formState.performerId,
+      })
+
+      setLineup((currentLineup) =>
+        sortEventLineup([...currentLineup, nextEntry]),
+      )
+      setFormState(emptyLineupForm)
+      setMessage({
+        type: 'success',
+        text: 'Performer added to lineup.',
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: isDuplicateLineupPerformerError(error)
+          ? 'That performer is already attached to this event.'
+          : error instanceof Error
+            ? error.message
+            : 'Performer could not be added. Please try again.',
+      })
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  function handleEditStart(entry: EventLineupEntry) {
+    setEditingEntryId(entry.id)
+    setEditFormState({
+      lineupRole: entry.lineupRole,
+    })
+    setMessage(null)
+  }
+
+  function handleEditCancel() {
+    setEditingEntryId(null)
+    setEditFormState({
+      lineupRole: '',
+    })
+    setMessage(null)
+  }
+
+  async function handleEditSave(
+    event: FormEvent<HTMLFormElement>,
+    entry: EventLineupEntry,
+  ) {
+    event.preventDefault()
+    setSavingEntryId(entry.id)
+    setMessage(null)
+
+    try {
+      const nextEntry = await updateEventLineupEntry(eventId, entry.id, {
+        displayOrder: String(entry.displayOrder),
+        lineupRole: editFormState.lineupRole,
+      })
+
+      setLineup((currentLineup) =>
+        sortEventLineup(
+          currentLineup.map((currentEntry) =>
+            currentEntry.id === entry.id ? nextEntry : currentEntry,
+          ),
+        ),
+      )
+      setEditingEntryId(null)
+      setMessage({
+        type: 'success',
+        text: 'Lineup entry updated.',
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Lineup entry could not be updated. Please try again.',
+      })
+    } finally {
+      setSavingEntryId(null)
+    }
+  }
+
+  async function handleRemove(entry: EventLineupEntry) {
+    const shouldRemove = window.confirm(
+      `Remove ${entry.performer?.name ?? 'this performer'} from the lineup?`,
+    )
+
+    if (!shouldRemove) {
+      return
+    }
+
+    setRemovingEntryId(entry.id)
+    setMessage(null)
+
+    try {
+      await deleteEventLineupEntry(eventId, entry.id)
+      setLineup((currentLineup) =>
+        currentLineup.filter((currentEntry) => currentEntry.id !== entry.id),
+      )
+      setMessage({
+        type: 'success',
+        text: 'Performer removed from lineup.',
+      })
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Performer could not be removed. Please try again.',
+      })
+    } finally {
+      setRemovingEntryId(null)
+    }
+  }
+
+  return (
+    <div className="event-lineup-manager">
+      <header className="event-lineup-heading">
+        <h4>Lineup</h4>
+        <p>Add performers attached to this official event.</p>
+      </header>
+
+      {status === 'loading' ? <p>Loading lineup...</p> : null}
+      {status === 'error' ? <p>Lineup could not be loaded.</p> : null}
+
+      {status === 'ready' ? (
+        <>
+          <form className="event-lineup-form" onSubmit={handleAdd}>
+            <label>
+              <span>Performer</span>
+              <select
+                value={formState.performerId}
+                onChange={(event) =>
+                  setFormState((currentState) => ({
+                    ...currentState,
+                    performerId: event.target.value,
+                  }))
+                }
+              >
+                <option value="">Choose a performer</option>
+                {availablePerformers.map((performer) => (
+                  <option key={performer.id} value={performer.id}>
+                    {performer.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Lineup role</span>
+              <input
+                type="text"
+                value={formState.lineupRole}
+                placeholder="Headliner, Host, DJ..."
+                onChange={(event) =>
+                  setFormState((currentState) => ({
+                    ...currentState,
+                    lineupRole: event.target.value,
+                  }))
+                }
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="auth-submit-button"
+              disabled={isAdding}
+            >
+              {isAdding ? 'Adding performer...' : 'Add Performer'}
+            </button>
+          </form>
+
+          {message ? (
+            <p className={`auth-message ${message.type}`}>{message.text}</p>
+          ) : null}
+
+          {lineup.length === 0 ? <p>No performers added yet.</p> : null}
+
+          {lineup.length > 0 ? (
+            <div className="lineup-list">
+              {lineup.map((entry) =>
+                editingEntryId === entry.id ? (
+                  <form
+                    key={entry.id}
+                    className="lineup-card lineup-edit-card"
+                    onSubmit={(event) => handleEditSave(event, entry)}
+                  >
+                    <LineupPerformerSummary entry={entry} />
+
+                    <label>
+                      <span>Lineup role</span>
+                      <input
+                        type="text"
+                        value={editFormState.lineupRole}
+                        onChange={(event) =>
+                          setEditFormState({
+                            lineupRole: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+
+                    <div className="owned-event-actions">
+                      <button
+                        type="submit"
+                        className="auth-submit-button"
+                        disabled={savingEntryId === entry.id}
+                      >
+                        {savingEntryId === entry.id
+                          ? 'Saving...'
+                          : 'Save Lineup'}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="secondary-action-button"
+                        disabled={savingEntryId === entry.id}
+                        onClick={handleEditCancel}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <article key={entry.id} className="lineup-card">
+                    <LineupPerformerSummary entry={entry} />
+
+                    <div className="owned-event-actions">
+                      <button
+                        type="button"
+                        className="secondary-action-button"
+                        onClick={() => handleEditStart(entry)}
+                      >
+                        Edit Lineup
+                      </button>
+
+                      <button
+                        type="button"
+                        className="secondary-action-button"
+                        disabled={removingEntryId === entry.id}
+                        onClick={() => {
+                          void handleRemove(entry)
+                        }}
+                      >
+                        {removingEntryId === entry.id
+                          ? 'Removing...'
+                          : 'Remove'}
+                      </button>
+                    </div>
+                  </article>
+                ),
+              )}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+function LineupPerformerSummary({ entry }: { entry: EventLineupEntry }) {
+  if (!entry.performer) {
+    return (
+      <div className="lineup-copy">
+        <h4>Performer unavailable</h4>
+      </div>
+    )
+  }
+
+  return (
+    <div className="lineup-main">
+      <ProfileImageAvatar
+        className="lineup-avatar performer-avatar"
+        imageUrl={entry.performer.imageUrl}
+        initials={entry.performer.initials}
+        name={entry.performer.name}
+      />
+
+      <div className="lineup-copy">
+        <h4>{entry.performer.name}</h4>
+        <p>{entry.performer.category}</p>
+        {entry.lineupRole ? <span>{entry.lineupRole}</span> : null}
+        <Link to={`/performers/${entry.performer.slug}`}>
+          View performer profile
+        </Link>
+      </div>
+    </div>
   )
 }
 

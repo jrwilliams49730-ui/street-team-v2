@@ -163,6 +163,27 @@ export async function fetchUpcomingPublishedEvents(limit?: number) {
   return ((data ?? []) as EventRow[]).map(mapEventRow)
 }
 
+export async function fetchUpcomingPublishedEventsByIds(eventIds: string[]) {
+  if (eventIds.length === 0) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('events')
+    .select(eventSelect)
+    .in('id', eventIds)
+    .eq('status', 'published')
+    .gte('event_date', getTodayDateString())
+    .order('event_date', { ascending: true })
+    .order('start_time', { ascending: true, nullsFirst: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as EventRow[]).map(mapEventRow)
+}
+
 export async function fetchPublishedEventBySlug(slug: string) {
   const { data, error } = await supabase
     .from('events')

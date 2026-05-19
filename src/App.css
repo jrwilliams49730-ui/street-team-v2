@@ -66,10 +66,18 @@
 .event-image-field,
 .event-image-field p,
 .event-image-field span,
+.event-lineup-heading h4,
+.event-lineup-heading p,
 .event-status-field legend,
+.lineup-card h4,
+.lineup-card p,
+.lineup-card span,
 .owned-event-card h4,
 .owned-event-card p,
 .owned-events-list > p,
+.official-event-card h4,
+.official-event-card p,
+.official-event-card span,
 .backend-status-card p,
 .section-heading h2,
 .section-heading p,
@@ -610,6 +618,12 @@
   outline-offset: 3px;
 }
 
+.event-lineup-form select:focus,
+.event-lineup-form input:focus {
+  outline: 2px solid var(--st-accent-hover);
+  outline-offset: 3px;
+}
+
 .featured-media-options label:focus-within {
   outline: 2px solid var(--st-accent-hover);
   outline-offset: 3px;
@@ -1058,6 +1072,142 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
+}
+
+.event-lineup-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.event-lineup-manager > p {
+  color: var(--st-text-muted);
+}
+
+.event-lineup-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.event-lineup-heading h4,
+.lineup-card h4,
+.official-event-card h4 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.event-lineup-heading p {
+  color: var(--st-text-muted);
+}
+
+.event-lineup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.event-lineup-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.event-lineup-form input,
+.event-lineup-form select,
+.lineup-edit-card input {
+  width: 100%;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  color: var(--st-text);
+  background: rgba(0, 0, 0, 0.26);
+  font: inherit;
+}
+
+.lineup-list,
+.official-events-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.lineup-card,
+.official-event-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.2);
+  text-decoration: none;
+}
+
+.lineup-card:hover,
+.official-event-card:hover {
+  border-color: var(--st-border-strong);
+}
+
+.lineup-card:focus-visible,
+.official-event-card:focus-visible {
+  outline: 2px solid var(--st-accent-hover);
+  outline-offset: 3px;
+}
+
+.lineup-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.lineup-avatar {
+  width: 3.25rem;
+  height: 3.25rem;
+}
+
+.lineup-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.lineup-card p,
+.official-event-card p {
+  color: var(--st-text-subtle);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.lineup-card span,
+.official-event-card span {
+  color: var(--st-accent-hover);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.lineup-copy a {
+  width: fit-content;
+  color: var(--st-text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lineup-copy a:hover {
+  color: var(--st-accent-hover);
+}
+
+.lineup-edit-card {
+  align-items: stretch;
 }
 
 .event-status-badge {
@@ -1688,6 +1838,11 @@
   font-weight: 650;
 }
 
+.official-events-section h3 {
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
 .empty-state {
   align-items: flex-start;
 }
@@ -1729,6 +1884,7 @@
   .event-location-grid {
     grid-template-columns: minmax(0, 1fr) 7rem;
   }
+
 }
 
 @media (min-width: 46rem) {

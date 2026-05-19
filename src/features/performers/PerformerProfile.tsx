@@ -6,6 +6,7 @@ import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import FeaturedMediaPlayer from './FeaturedMediaPlayer'
 import { canRenderFeaturedMedia } from './featuredMediaLinks'
 import { fetchPerformerBySlug, type Performer } from './performers'
+import PerformerOfficialEvents from './PerformerOfficialEvents'
 import PublicPerformerAppearances from './PublicPerformerAppearances'
 
 function PerformerProfile() {
@@ -142,6 +143,7 @@ function PerformerProfile() {
         </section>
       ) : null}
 
+      <PerformerOfficialEvents performerId={performer.id} />
       <PublicPerformerAppearances performerId={performer.id} />
     </section>
   )
