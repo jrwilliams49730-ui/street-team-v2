@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase'
+import { fetchFollowerCounts } from '../follows/follows'
 
 export type VenueRow = {
   id: string
@@ -51,10 +52,6 @@ export function generateVenueSlug(name: string) {
   return slug || 'venue'
 }
 
-export function formatFollowerCount(count: number) {
-  return new Intl.NumberFormat('en-US').format(count)
-}
-
 export function isDuplicateSlugError(error: unknown) {
   if (!error || typeof error !== 'object') {
     return false
@@ -85,7 +82,7 @@ export async function fetchVenues(limit?: number) {
     throw error
   }
 
-  return ((data ?? []) as VenueRow[]).map(mapVenueRow)
+  return withFollowerCounts(((data ?? []) as VenueRow[]).map(mapVenueRow))
 }
 
 export async function fetchOwnedVenues(ownerUserId: string) {
@@ -99,7 +96,7 @@ export async function fetchOwnedVenues(ownerUserId: string) {
     throw error
   }
 
-  return ((data ?? []) as VenueRow[]).map(mapVenueRow)
+  return withFollowerCounts(((data ?? []) as VenueRow[]).map(mapVenueRow))
 }
 
 export async function fetchVenueBySlug(slug: string) {
@@ -113,7 +110,13 @@ export async function fetchVenueBySlug(slug: string) {
     throw error
   }
 
-  return data ? mapVenueRow(data as VenueRow) : null
+  if (!data) {
+    return null
+  }
+
+  const [venue] = await withFollowerCounts([mapVenueRow(data as VenueRow)])
+
+  return venue
 }
 
 export async function createVenueProfile(input: CreateVenueInput) {
@@ -177,6 +180,18 @@ function mapVenueRow(row: VenueRow): Venue {
     imageUrl: row.image_url,
     followerCount: 0,
   }
+}
+
+async function withFollowerCounts(venues: Venue[]) {
+  const followerCounts = await fetchFollowerCounts(
+    'venue',
+    venues.map((venue) => venue.id),
+  )
+
+  return venues.map((venue) => ({
+    ...venue,
+    followerCount: followerCounts.get(venue.id) ?? 0,
+  }))
 }
 
 function cleanOptionalText(value: string) {

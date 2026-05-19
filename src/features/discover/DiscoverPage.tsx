@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { formatFollowerLabel } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import {
   fetchPerformers,
@@ -8,10 +9,6 @@ import {
 } from '../performers/performers'
 import { fetchProducers, type Producer } from '../producers/producers'
 import { fetchVenues, type Venue } from '../venues/venues'
-
-function formatFollowerCount(count: number) {
-  return new Intl.NumberFormat('en-US').format(count)
-}
 
 function SupabaseStatusCard() {
   const [status, setStatus] = useState<'checking' | 'connected' | 'failed'>(
@@ -131,9 +128,7 @@ function FeaturedProducersSection() {
                 <p>
                   {producer.category} | {producer.location}
                 </p>
-                <span>
-                  {formatFollowerCount(producer.followerCount)} followers
-                </span>
+                <span>{formatFollowerLabel(producer.followerCount)}</span>
               </div>
             </Link>
           ))}
@@ -220,9 +215,7 @@ function FeaturedPerformersSection() {
                 <p>
                   {performer.category} | {performer.location}
                 </p>
-                <span>
-                  {formatFollowerCount(performer.followerCount)} followers
-                </span>
+                <span>{formatFollowerLabel(performer.followerCount)}</span>
               </div>
             </Link>
           ))}
@@ -307,9 +300,7 @@ function FeaturedVenuesSection() {
                 <p>
                   {venue.category} | {venue.location}
                 </p>
-                <span>
-                  {formatFollowerCount(venue.followerCount)} followers
-                </span>
+                <span>{formatFollowerLabel(venue.followerCount)}</span>
               </div>
             </Link>
           ))}

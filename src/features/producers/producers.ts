@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase'
+import { fetchFollowerCounts } from '../follows/follows'
 
 export type ProducerRow = {
   id: string
@@ -51,10 +52,6 @@ export function generateProducerSlug(name: string) {
   return slug || 'producer'
 }
 
-export function formatFollowerCount(count: number) {
-  return new Intl.NumberFormat('en-US').format(count)
-}
-
 export function isDuplicateSlugError(error: unknown) {
   if (!error || typeof error !== 'object') {
     return false
@@ -85,7 +82,7 @@ export async function fetchProducers(limit?: number) {
     throw error
   }
 
-  return ((data ?? []) as ProducerRow[]).map(mapProducerRow)
+  return withFollowerCounts(((data ?? []) as ProducerRow[]).map(mapProducerRow))
 }
 
 export async function fetchOwnedProducers(ownerUserId: string) {
@@ -99,7 +96,7 @@ export async function fetchOwnedProducers(ownerUserId: string) {
     throw error
   }
 
-  return ((data ?? []) as ProducerRow[]).map(mapProducerRow)
+  return withFollowerCounts(((data ?? []) as ProducerRow[]).map(mapProducerRow))
 }
 
 export async function fetchProducerBySlug(slug: string) {
@@ -113,7 +110,15 @@ export async function fetchProducerBySlug(slug: string) {
     throw error
   }
 
-  return data ? mapProducerRow(data as ProducerRow) : null
+  if (!data) {
+    return null
+  }
+
+  const [producer] = await withFollowerCounts([
+    mapProducerRow(data as ProducerRow),
+  ])
+
+  return producer
 }
 
 export async function createProducerProfile(input: CreateProducerInput) {
@@ -176,6 +181,18 @@ function mapProducerRow(row: ProducerRow): Producer {
     imageUrl: row.image_url,
     followerCount: 0,
   }
+}
+
+async function withFollowerCounts(producers: Producer[]) {
+  const followerCounts = await fetchFollowerCounts(
+    'producer',
+    producers.map((producer) => producer.id),
+  )
+
+  return producers.map((producer) => ({
+    ...producer,
+    followerCount: followerCounts.get(producer.id) ?? 0,
+  }))
 }
 
 function cleanOptionalText(value: string) {

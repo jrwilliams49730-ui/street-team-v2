@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase'
+import { fetchFollowerCounts } from '../follows/follows'
 
 export type PerformerRow = {
   id: string
@@ -51,10 +52,6 @@ export function generatePerformerSlug(name: string) {
   return slug || 'performer'
 }
 
-export function formatFollowerCount(count: number) {
-  return new Intl.NumberFormat('en-US').format(count)
-}
-
 export function isDuplicateSlugError(error: unknown) {
   if (!error || typeof error !== 'object') {
     return false
@@ -85,7 +82,7 @@ export async function fetchPerformers(limit?: number) {
     throw error
   }
 
-  return ((data ?? []) as PerformerRow[]).map(mapPerformerRow)
+  return withFollowerCounts(((data ?? []) as PerformerRow[]).map(mapPerformerRow))
 }
 
 export async function fetchOwnedPerformers(ownerUserId: string) {
@@ -99,7 +96,7 @@ export async function fetchOwnedPerformers(ownerUserId: string) {
     throw error
   }
 
-  return ((data ?? []) as PerformerRow[]).map(mapPerformerRow)
+  return withFollowerCounts(((data ?? []) as PerformerRow[]).map(mapPerformerRow))
 }
 
 export async function fetchPerformerBySlug(slug: string) {
@@ -113,7 +110,15 @@ export async function fetchPerformerBySlug(slug: string) {
     throw error
   }
 
-  return data ? mapPerformerRow(data as PerformerRow) : null
+  if (!data) {
+    return null
+  }
+
+  const [performer] = await withFollowerCounts([
+    mapPerformerRow(data as PerformerRow),
+  ])
+
+  return performer
 }
 
 export async function createPerformerProfile(input: CreatePerformerInput) {
@@ -176,6 +181,18 @@ function mapPerformerRow(row: PerformerRow): Performer {
     imageUrl: row.image_url,
     followerCount: 0,
   }
+}
+
+async function withFollowerCounts(performers: Performer[]) {
+  const followerCounts = await fetchFollowerCounts(
+    'performer',
+    performers.map((performer) => performer.id),
+  )
+
+  return performers.map((performer) => ({
+    ...performer,
+    followerCount: followerCounts.get(performer.id) ?? 0,
+  }))
 }
 
 function cleanOptionalText(value: string) {

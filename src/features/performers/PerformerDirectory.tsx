@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { formatFollowerLabel } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
-import {
-  fetchPerformers,
-  formatFollowerCount,
-  type Performer,
-} from './performers'
+import { fetchPerformers, type Performer } from './performers'
 
 function PerformerDirectory() {
   const [performers, setPerformers] = useState<Performer[]>([])
@@ -83,7 +80,7 @@ function PerformerDirectory() {
 
               <p className="performer-bio">{performer.shortBio}</p>
               <span className="follower-count">
-                {formatFollowerCount(performer.followerCount)} followers
+                {formatFollowerLabel(performer.followerCount)}
               </span>
             </Link>
           ))}

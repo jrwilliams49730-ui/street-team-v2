@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { formatFollowerLabel } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
-import {
-  fetchProducers,
-  formatFollowerCount,
-  type Producer,
-} from './producers'
+import { fetchProducers, type Producer } from './producers'
 
 function ProducerDirectory() {
   const [producers, setProducers] = useState<Producer[]>([])
@@ -85,7 +82,7 @@ function ProducerDirectory() {
 
               <p className="producer-bio">{producer.shortBio}</p>
               <span className="follower-count">
-                {formatFollowerCount(producer.followerCount)} followers
+                {formatFollowerLabel(producer.followerCount)}
               </span>
             </Link>
           ))}

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import FollowButton from '../follows/FollowButton'
+import { formatFollowerCount, formatFollowerNoun } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
-import { fetchVenueBySlug, formatFollowerCount, type Venue } from './venues'
+import { fetchVenueBySlug, type Venue } from './venues'
 
 function VenueProfile() {
   const { slug } = useParams()
@@ -45,6 +47,12 @@ function VenueProfile() {
       isMounted = false
     }
   }, [slug])
+
+  const updateFollowerCount = useCallback((followerCount: number) => {
+    setVenue((currentVenue) =>
+      currentVenue ? { ...currentVenue, followerCount } : null,
+    )
+  }, [])
 
   if (status === 'loading') {
     return (
@@ -103,14 +111,17 @@ function VenueProfile() {
 
         <div className="profile-meta">
           <strong>{formatFollowerCount(venue.followerCount)}</strong>
-          <span>followers</span>
+          <span>{formatFollowerNoun(venue.followerCount)}</span>
         </div>
 
         <p className="profile-bio">{venue.description}</p>
 
-        <button type="button" className="follow-button">
-          Follow
-        </button>
+        <FollowButton
+          followerCount={venue.followerCount}
+          onFollowerCountChange={updateFollowerCount}
+          targetId={venue.id}
+          targetType="venue"
+        />
       </article>
 
       <section className="upcoming-panel">

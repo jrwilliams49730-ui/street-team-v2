@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { formatFollowerLabel } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
-import { fetchVenues, formatFollowerCount, type Venue } from './venues'
+import { fetchVenues, type Venue } from './venues'
 
 function VenueDirectory() {
   const [venues, setVenues] = useState<Venue[]>([])
@@ -79,7 +80,7 @@ function VenueDirectory() {
 
               <p className="venue-description">{venue.shortDescription}</p>
               <span className="follower-count">
-                {formatFollowerCount(venue.followerCount)} followers
+                {formatFollowerLabel(venue.followerCount)}
               </span>
             </Link>
           ))}

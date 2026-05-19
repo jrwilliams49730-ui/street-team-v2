@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import FollowButton from '../follows/FollowButton'
+import { formatFollowerCount, formatFollowerNoun } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
-import {
-  fetchProducerBySlug,
-  formatFollowerCount,
-  type Producer,
-} from './producers'
+import { fetchProducerBySlug, type Producer } from './producers'
 
 function ProducerProfile() {
   const { slug } = useParams()
@@ -49,6 +47,12 @@ function ProducerProfile() {
       isMounted = false
     }
   }, [slug])
+
+  const updateFollowerCount = useCallback((followerCount: number) => {
+    setProducer((currentProducer) =>
+      currentProducer ? { ...currentProducer, followerCount } : null,
+    )
+  }, [])
 
   if (status === 'loading') {
     return (
@@ -107,14 +111,17 @@ function ProducerProfile() {
 
         <div className="profile-meta">
           <strong>{formatFollowerCount(producer.followerCount)}</strong>
-          <span>followers</span>
+          <span>{formatFollowerNoun(producer.followerCount)}</span>
         </div>
 
         <p className="profile-bio">{producer.bio}</p>
 
-        <button type="button" className="follow-button">
-          Follow
-        </button>
+        <FollowButton
+          followerCount={producer.followerCount}
+          onFollowerCountChange={updateFollowerCount}
+          targetId={producer.id}
+          targetType="producer"
+        />
       </article>
 
       <section className="upcoming-panel">

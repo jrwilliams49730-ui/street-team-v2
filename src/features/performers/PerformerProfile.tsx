@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import FollowButton from '../follows/FollowButton'
+import { formatFollowerCount, formatFollowerNoun } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
-import {
-  fetchPerformerBySlug,
-  formatFollowerCount,
-  type Performer,
-} from './performers'
+import { fetchPerformerBySlug, type Performer } from './performers'
 
 function PerformerProfile() {
   const { slug } = useParams()
@@ -49,6 +47,12 @@ function PerformerProfile() {
       isMounted = false
     }
   }, [slug])
+
+  const updateFollowerCount = useCallback((followerCount: number) => {
+    setPerformer((currentPerformer) =>
+      currentPerformer ? { ...currentPerformer, followerCount } : null,
+    )
+  }, [])
 
   if (status === 'loading') {
     return (
@@ -107,14 +111,17 @@ function PerformerProfile() {
 
         <div className="profile-meta">
           <strong>{formatFollowerCount(performer.followerCount)}</strong>
-          <span>followers</span>
+          <span>{formatFollowerNoun(performer.followerCount)}</span>
         </div>
 
         <p className="profile-bio">{performer.bio}</p>
 
-        <button type="button" className="follow-button">
-          Follow
-        </button>
+        <FollowButton
+          followerCount={performer.followerCount}
+          onFollowerCountChange={updateFollowerCount}
+          targetId={performer.id}
+          targetType="performer"
+        />
       </article>
 
       <section className="upcoming-shows">
