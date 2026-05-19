@@ -37,10 +37,14 @@ type UploadState = {
 }
 
 type MyProfilesSectionProps = {
+  hideWhenEmpty?: boolean
   ownerUserId: string
 }
 
-function MyProfilesSection({ ownerUserId }: MyProfilesSectionProps) {
+function MyProfilesSection({
+  hideWhenEmpty = false,
+  ownerUserId,
+}: MyProfilesSectionProps) {
   const [profiles, setProfiles] = useState<OwnedProfile[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -153,6 +157,13 @@ function MyProfilesSection({ ownerUserId }: MyProfilesSectionProps) {
     }
 
     return updateVenueImageUrl(ownerUserId, profile.id, imageUrl)
+  }
+
+  if (
+    hideWhenEmpty &&
+    (status === 'loading' || (status === 'ready' && profiles.length === 0))
+  ) {
+    return null
   }
 
   return (

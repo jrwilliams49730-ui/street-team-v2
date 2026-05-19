@@ -35,6 +35,31 @@ export async function uploadProfileImage(input: UploadProfileImageInput) {
   return publicUrl
 }
 
+export async function uploadFanProfileImage(file: File, ownerUserId: string) {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please choose an image file.')
+  }
+
+  const extension = getImageExtension(file)
+  const filePath = `${ownerUserId}/fan-profile-${Date.now()}.${extension}`
+  const { error } = await supabase.storage
+    .from(profileImagesBucket)
+    .upload(filePath, file, {
+      contentType: file.type,
+      upsert: false,
+    })
+
+  if (error) {
+    throw error
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(profileImagesBucket).getPublicUrl(filePath)
+
+  return publicUrl
+}
+
 function createProfileImagePath({
   file,
   ownerUserId,

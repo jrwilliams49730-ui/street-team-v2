@@ -9,6 +9,7 @@ import {
 import { useAuth } from './auth-context'
 import CreatorOnboardingSection from './CreatorOnboardingSection'
 import FollowingSection from './FollowingSection'
+import MyFanProfileSection from './MyFanProfileSection'
 import MyProfilesSection from './MyProfilesSection'
 
 type AuthMode = 'create' | 'login'
@@ -159,8 +160,12 @@ function AccountPage() {
           </button>
         </div>
 
+        <MyFanProfileSection ownerUserId={session.user.id} />
         <FollowingSection ownerUserId={session.user.id} />
-        <MyProfilesSection ownerUserId={session.user.id} />
+        <MyProfilesSection
+          hideWhenEmpty={signedInAccountType === 'fan'}
+          ownerUserId={session.user.id}
+        />
         <CreatorOnboardingSection
           accountType={signedInAccountType}
           ownerUserId={session.user.id}

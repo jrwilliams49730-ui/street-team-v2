@@ -61,6 +61,10 @@
 .section-heading h2,
 .section-heading p,
 .directory-state-card p,
+.fan-profile-state,
+.fan-profile-photo-copy h3,
+.fan-profile-summary-copy h3,
+.fan-profile-summary-copy p,
 .following-state,
 .following-card h3,
 .following-card p,
@@ -406,7 +410,8 @@
 }
 
 .auth-mode-switch button,
-.auth-submit-button {
+.auth-submit-button,
+.secondary-action-button {
   border: 0;
   border-radius: 0.75rem;
   font: inherit;
@@ -518,7 +523,8 @@
 .auth-form input:focus,
 .auth-form textarea:focus,
 .auth-mode-switch button:focus-visible,
-.auth-submit-button:focus-visible {
+.auth-submit-button:focus-visible,
+.secondary-action-button:focus-visible {
   outline: 2px solid var(--st-accent-hover);
   outline-offset: 3px;
 }
@@ -551,9 +557,86 @@
   background: linear-gradient(180deg, var(--st-accent-hover), var(--st-accent));
 }
 
-.auth-submit-button:disabled {
+.secondary-action-button {
+  width: fit-content;
+  padding: 0.85rem 1.2rem;
+  color: var(--st-text-muted);
+  background: var(--st-surface-strong);
+  box-shadow: inset 0 0 0 1px var(--st-border);
+}
+
+.auth-submit-button:disabled,
+.secondary-action-button:disabled {
   cursor: not-allowed;
   opacity: 0.68;
+}
+
+.fan-profile-state {
+  color: var(--st-text-muted);
+}
+
+.fan-profile-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.fan-profile-avatar {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 1.25rem;
+  color: var(--st-text);
+  background:
+    linear-gradient(135deg, rgba(239, 39, 34, 0.46), rgba(134, 22, 18, 0.42)),
+    var(--st-surface-strong);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.fan-profile-photo-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.fan-profile-photo-copy h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fan-profile-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.fan-profile-summary-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.fan-profile-summary-copy h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fan-profile-summary-copy p {
+  color: var(--st-text-muted);
+}
+
+.fan-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
 .following-state {
