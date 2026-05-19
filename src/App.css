@@ -82,6 +82,7 @@
 .official-event-card span,
 .ticket-kind-field legend,
 .ticket-placeholder,
+.ticket-claim-form label,
 .ticket-type-card h4,
 .ticket-type-card p,
 .backend-status-card p,
@@ -627,7 +628,8 @@
 .event-lineup-form select:focus,
 .event-lineup-form input:focus,
 .ticket-type-form input:focus,
-.ticket-type-form textarea:focus {
+.ticket-type-form textarea:focus,
+.ticket-claim-form input:focus {
   outline: 2px solid var(--st-accent-hover);
   outline-offset: 3px;
 }
@@ -1170,6 +1172,49 @@
   color: var(--st-text);
   background: rgba(0, 0, 0, 0.26);
   font: inherit;
+}
+
+.ticket-claim-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.ticket-claim-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.ticket-claim-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.ticket-claim-form input {
+  width: 100%;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  color: var(--st-text);
+  background: rgba(0, 0, 0, 0.26);
+  font: inherit;
+}
+
+.ticket-claim-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
 .ticket-type-form textarea {

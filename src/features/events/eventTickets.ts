@@ -26,6 +26,29 @@ export type EventTicketType = {
   updatedAt: string
 }
 
+export type TicketReservationRow = {
+  id: string
+  event_id: string
+  ticket_type_id: string
+  purchaser_user_id: string | null
+  buyer_name: string
+  buyer_email: string
+  quantity: number
+  reservation_status: string
+  ticket_kind_snapshot: string
+  unit_price_cents_snapshot: number
+  total_price_cents_snapshot: number
+  created_at: string
+  updated_at: string
+}
+
+export type ClaimFreeTicketInput = {
+  buyerEmail: string
+  buyerName: string
+  quantity: number
+  ticketTypeId: string
+}
+
 export type SaveEventTicketTypeInput = {
   description: string
   name: string
@@ -117,6 +140,21 @@ export async function deleteEventTicketType(
   if (error) {
     throw error
   }
+}
+
+export async function claimFreeTicket(input: ClaimFreeTicketInput) {
+  const { data, error } = await supabase.rpc('claim_free_ticket', {
+    p_buyer_email: input.buyerEmail,
+    p_buyer_name: input.buyerName,
+    p_quantity: input.quantity,
+    p_ticket_type_id: input.ticketTypeId,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data as TicketReservationRow
 }
 
 export function formatTicketPrice(priceCents: number) {
