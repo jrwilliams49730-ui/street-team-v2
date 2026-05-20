@@ -1005,6 +1005,12 @@
   gap: 0.7rem;
 }
 
+.event-management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
 .creator-featured-media {
   display: flex;
   flex-direction: column;

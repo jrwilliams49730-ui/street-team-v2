@@ -85,6 +85,7 @@ function EventManagementSection({
   const [formState, setFormState] = useState<EventFormState>(emptyEventForm)
   const [flyerFile, setFlyerFile] = useState<File | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
   const [editFormState, setEditFormState] =
     useState<EventFormState>(emptyEventForm)
@@ -155,6 +156,7 @@ function EventManagementSection({
       setFormState(emptyEventForm)
       setFlyerFile(null)
       setFileInputKey((currentKey) => currentKey + 1)
+      setIsCreateFormOpen(false)
       setStatus('ready')
       setMessage({
         eventSlug: nextEvent.slug,
@@ -173,6 +175,7 @@ function EventManagementSection({
         setFormState(emptyEventForm)
         setFlyerFile(null)
         setFileInputKey((currentKey) => currentKey + 1)
+        setIsCreateFormOpen(false)
         setStatus('ready')
         setMessage({
           eventSlug: eventWithoutFlyer.slug,
@@ -196,6 +199,13 @@ function EventManagementSection({
     } finally {
       setIsCreating(false)
     }
+  }
+
+  function handleCreateFormCancel() {
+    setIsCreateFormOpen(false)
+    setFormState(emptyEventForm)
+    setFlyerFile(null)
+    setFileInputKey((currentKey) => currentKey + 1)
   }
 
   function handleEditStart(event: StreetTeamEvent) {
@@ -383,18 +393,41 @@ function EventManagementSection({
         <p>Create official Street Team events for your account.</p>
       </header>
 
-      <EventForm
-        fileInputKey={fileInputKey}
-        flyerFile={flyerFile}
-        formState={formState}
-        includeCancelledStatus={false}
-        isSubmitting={isCreating}
-        onFileChange={setFlyerFile}
-        onFormChange={setFormState}
-        onSubmit={handleCreate}
-        submitText="Create Event"
-        submittingText="Creating event..."
-      />
+      <div className="event-management-actions">
+        {isCreateFormOpen ? (
+          <button
+            type="button"
+            className="secondary-action-button"
+            disabled={isCreating}
+            onClick={handleCreateFormCancel}
+          >
+            Cancel
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="auth-submit-button"
+            onClick={() => setIsCreateFormOpen(true)}
+          >
+            Create New Event
+          </button>
+        )}
+      </div>
+
+      {isCreateFormOpen ? (
+        <EventForm
+          fileInputKey={fileInputKey}
+          flyerFile={flyerFile}
+          formState={formState}
+          includeCancelledStatus={false}
+          isSubmitting={isCreating}
+          onFileChange={setFlyerFile}
+          onFormChange={setFormState}
+          onSubmit={handleCreate}
+          submitText="Create Event"
+          submittingText="Creating event..."
+        />
+      ) : null}
 
       {message ? (
         <p className={`auth-message ${message.type}`}>
