@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type TouchEvent } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { Link } from 'react-router-dom'
 import {
   formatEventDate,
@@ -20,6 +21,8 @@ type MyTicketsSectionProps = {
 }
 
 type IndividualTicketLoadStatus = 'idle' | 'loading' | 'ready' | 'error'
+
+const ticketQrLogoSrc = '/assets/notification-icon.png'
 
 function MyTicketsSection({ ownerUserId }: MyTicketsSectionProps) {
   const [tickets, setTickets] = useState<MyTicket[]>([])
@@ -337,6 +340,9 @@ function TicketDetailView({
   const currentTicketStatusLabel = currentIndividualTicket
     ? formatIndividualTicketStatus(currentIndividualTicket.ticketStatus)
     : null
+  const currentTicketQrValue = currentIndividualTicket
+    ? `street-team-ticket:${currentIndividualTicket.qrToken}`
+    : null
   const showTicketControls = individualTickets.length > 1
   const canMoveToPreviousTicket = selectedTicketIndex > 0
   const canMoveToNextTicket =
@@ -444,11 +450,31 @@ function TicketDetailView({
           ) : null}
         </div>
 
-        <div className="my-ticket-qr-zone">
-          <p>
-            QR ticket code for this ticket will appear here once scanning is
-            added.
-          </p>
+        <div
+          className={`my-ticket-qr-zone${
+            currentIndividualTicket?.ticketStatus === 'void' ? ' is-void' : ''
+          }`}
+        >
+          {currentTicketQrValue ? (
+            <QRCodeSVG
+              value={currentTicketQrValue}
+              title="Street Team ticket QR code"
+              size={204}
+              level="H"
+              marginSize={4}
+              bgColor="#ffffff"
+              fgColor="#15110f"
+              className="my-ticket-qr-code"
+              imageSettings={{
+                src: ticketQrLogoSrc,
+                height: 28,
+                width: 28,
+                excavate: true,
+              }}
+            />
+          ) : (
+            <p>Loading ticket QR...</p>
+          )}
         </div>
 
         {showTicketControls ? (
