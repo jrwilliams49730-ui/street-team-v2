@@ -14,7 +14,11 @@ type ReservationRow = {
   buyer_email: string | null
   quantity: number
   reservation_status: string
+  processing_fee_cents_snapshot: number
+  street_team_fee_cents_snapshot: number
+  ticket_subtotal_cents_snapshot: number
   ticket_kind_snapshot: string
+  total_price_cents_snapshot: number
   unit_price_cents_snapshot: number
   expires_at: string | null
 }
@@ -99,7 +103,7 @@ Deno.serve(async (request) => {
   const { data: reservation, error: reservationError } = await supabase
     .from('ticket_reservations')
     .select(
-      'id,event_id,ticket_type_id,buyer_email,quantity,reservation_status,ticket_kind_snapshot,unit_price_cents_snapshot,expires_at',
+      'id,event_id,ticket_type_id,buyer_email,quantity,reservation_status,processing_fee_cents_snapshot,street_team_fee_cents_snapshot,ticket_kind_snapshot,ticket_subtotal_cents_snapshot,total_price_cents_snapshot,unit_price_cents_snapshot,expires_at',
     )
     .eq('id', reservationId.trim())
     .maybeSingle<ReservationRow>()
@@ -127,10 +131,44 @@ Deno.serve(async (request) => {
   if (
     !Number.isInteger(reservation.quantity) ||
     reservation.quantity <= 0 ||
+    !Number.isInteger(reservation.processing_fee_cents_snapshot) ||
+    reservation.processing_fee_cents_snapshot < 0 ||
+    !Number.isInteger(reservation.street_team_fee_cents_snapshot) ||
+    reservation.street_team_fee_cents_snapshot < 0 ||
+    !Number.isInteger(reservation.ticket_subtotal_cents_snapshot) ||
+    reservation.ticket_subtotal_cents_snapshot < 0 ||
+    !Number.isInteger(reservation.total_price_cents_snapshot) ||
+    reservation.total_price_cents_snapshot <= 0 ||
     !Number.isInteger(reservation.unit_price_cents_snapshot) ||
     reservation.unit_price_cents_snapshot <= 0
   ) {
     return errorResponse('Reservation pricing or quantity is invalid.', 409, 'invalid_reservation_pricing')
+  }
+
+  const feeBreakdownTotal =
+    reservation.ticket_subtotal_cents_snapshot +
+    reservation.street_team_fee_cents_snapshot +
+    reservation.processing_fee_cents_snapshot
+
+  if (feeBreakdownTotal !== reservation.total_price_cents_snapshot) {
+    return errorResponse(
+      'Reservation fee breakdown does not match reservation total.',
+      409,
+      'reservation_fee_breakdown_mismatch',
+    )
+  }
+
+  const lineItemTotal =
+    reservation.unit_price_cents_snapshot * reservation.quantity +
+    100 * reservation.quantity +
+    reservation.processing_fee_cents_snapshot
+
+  if (lineItemTotal !== reservation.total_price_cents_snapshot) {
+    return errorResponse(
+      'Reservation line item total does not match reservation total.',
+      409,
+      'reservation_line_item_total_mismatch',
+    )
   }
 
   const { data: event, error: eventError } = await supabase
@@ -178,22 +216,47 @@ Deno.serve(async (request) => {
 
   try {
     const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${event.title} - ${ticketType.name}`,
+          },
+          unit_amount: reservation.unit_price_cents_snapshot,
+        },
+        quantity: reservation.quantity,
+      },
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'Street Team Service Fee',
+          },
+          unit_amount: 100,
+        },
+        quantity: reservation.quantity,
+      },
+    ]
+
+    if (reservation.processing_fee_cents_snapshot > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'Payment Processing Fee',
+          },
+          unit_amount: reservation.processing_fee_cents_snapshot,
+        },
+        quantity: 1,
+      })
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer_email: reservation.buyer_email ?? undefined,
       client_reference_id: reservation.id,
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `${event.title} - ${ticketType.name}`,
-            },
-            unit_amount: reservation.unit_price_cents_snapshot,
-          },
-          quantity: reservation.quantity,
-        },
-      ],
+      line_items: lineItems,
       success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/checkout/cancelled?reservation_id=${reservation.id}`,
       metadata,
