@@ -80,6 +80,12 @@
 .event-lineup-heading p,
 .event-ticket-heading h4,
 .event-ticket-heading p,
+.event-scanner-heading h4,
+.event-scanner-heading p,
+.event-scanner-status,
+.event-scanner-result,
+.event-scanner-result p,
+.event-scanner-result-details,
 .event-status-field legend,
 .lineup-card h4,
 .lineup-card p,
@@ -692,6 +698,7 @@
 
 .event-lineup-form select:focus,
 .event-lineup-form input:focus,
+.event-scanner-manual-form input:focus,
 .ticket-type-form input:focus,
 .ticket-type-form textarea:focus,
 .ticket-claim-form input:focus {
@@ -1154,7 +1161,8 @@
   gap: 0.7rem;
 }
 
-.event-lineup-manager {
+.event-lineup-manager,
+.event-ticket-scanner {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -1174,7 +1182,8 @@
   background: rgba(0, 0, 0, 0.18);
 }
 
-.event-lineup-manager > p {
+.event-lineup-manager > p,
+.event-ticket-scanner > p {
   color: var(--st-text-muted);
 }
 
@@ -1182,7 +1191,130 @@
   color: var(--st-text-muted);
 }
 
-.event-lineup-heading {
+.event-scanner-camera {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  aspect-ratio: 4 / 3;
+  background: #070605;
+}
+
+.event-scanner-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.event-scanner-frame {
+  position: absolute;
+  inset: 14%;
+  border: 2px solid rgba(255, 255, 255, 0.84);
+  border-radius: 0.9rem;
+  box-shadow:
+    0 0 0 999px rgba(0, 0, 0, 0.22),
+    0 0 1.4rem rgba(239, 39, 34, 0.22);
+  pointer-events: none;
+}
+
+.event-scanner-status {
+  width: fit-content;
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  color: var(--st-text-muted);
+  background: var(--st-surface-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.event-scanner-status.is-scanning {
+  border-color: rgba(143, 163, 106, 0.4);
+  color: var(--st-text);
+  background: rgba(143, 163, 106, 0.14);
+}
+
+.event-scanner-status.is-error,
+.event-scanner-status.is-unsupported {
+  border-color: rgba(255, 90, 79, 0.34);
+  color: #ffd2cc;
+  background: rgba(239, 39, 34, 0.1);
+}
+
+.event-scanner-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.event-scanner-result strong {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.event-scanner-result.is-success {
+  border-color: rgba(143, 163, 106, 0.44);
+  background: rgba(143, 163, 106, 0.14);
+}
+
+.event-scanner-result.is-success strong {
+  color: #d9ffc3;
+}
+
+.event-scanner-result.is-warning {
+  border-color: rgba(210, 154, 70, 0.48);
+  background: rgba(210, 154, 70, 0.14);
+}
+
+.event-scanner-result.is-warning strong {
+  color: #ffd99c;
+}
+
+.event-scanner-result.is-error {
+  border-color: rgba(255, 90, 79, 0.38);
+  background: rgba(239, 39, 34, 0.12);
+}
+
+.event-scanner-result.is-error strong {
+  color: #ffd2cc;
+}
+
+.event-scanner-result-details {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.event-scanner-result-details div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.event-scanner-result-details dt {
+  color: var(--st-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.event-scanner-result-details dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--st-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.event-lineup-heading,
+.event-scanner-heading {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -1195,6 +1327,7 @@
 }
 
 .event-lineup-heading h4,
+.event-scanner-heading h4,
 .event-ticket-heading h4,
 .lineup-card h4,
 .ticket-type-card h4,
@@ -1204,11 +1337,13 @@
 }
 
 .event-lineup-heading p,
+.event-scanner-heading p,
 .event-ticket-heading p {
   color: var(--st-text-muted);
 }
 
 .event-lineup-form,
+.event-scanner-manual-form,
 .ticket-type-form {
   display: flex;
   flex-direction: column;
@@ -1216,6 +1351,7 @@
 }
 
 .event-lineup-form label,
+.event-scanner-manual-form label,
 .ticket-type-form label {
   display: flex;
   flex-direction: column;
@@ -1227,6 +1363,7 @@
 
 .event-lineup-form input,
 .event-lineup-form select,
+.event-scanner-manual-form input,
 .lineup-edit-card input,
 .ticket-type-form input,
 .ticket-type-form textarea {

@@ -7,6 +7,12 @@ export type TicketReservationStatus =
   | 'cancelled'
   | 'expired'
 export type IndividualTicketStatus = 'issued' | 'checked_in' | 'void'
+export type TicketCheckInOutcome =
+  | 'checked_in'
+  | 'already_checked_in'
+  | 'void'
+  | 'invalid'
+  | 'forbidden'
 
 export type EventTicketTypeRow = {
   id: string
@@ -61,6 +67,19 @@ export type IndividualTicket = {
   updatedAt: string
 }
 
+export type TicketCheckInResult = {
+  outcome: TicketCheckInOutcome
+  message: string
+  ticketId: string | null
+  ticketNumber: number | null
+  ticketStatus: IndividualTicketStatus | null
+  checkedInAt: string | null
+  eventTitle: string | null
+  ticketTypeName: string | null
+  buyerName: string | null
+  buyerEmail: string | null
+}
+
 export type TicketReservationRow = {
   id: string
   event_id: string
@@ -88,6 +107,19 @@ export type IndividualTicketRow = {
   checked_in_at: string | null
   created_at: string
   updated_at: string
+}
+
+export type TicketCheckInResultRow = {
+  outcome: string
+  message: string
+  ticket_id: string | null
+  ticket_number: number | null
+  ticket_status: string | null
+  checked_in_at: string | null
+  event_title: string | null
+  ticket_type_name: string | null
+  buyer_name: string | null
+  buyer_email: string | null
 }
 
 export type ClaimFreeTicketInput = {
@@ -276,6 +308,37 @@ export async function fetchIndividualTicketsForReservation(
   return ((data ?? []) as IndividualTicketRow[]).map(mapIndividualTicketRow)
 }
 
+export async function checkInTicketByQr(qrValue: string) {
+  const { data, error } = await supabase.rpc('check_in_ticket_by_qr', {
+    p_qr_value: qrValue,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const resultRows = Array.isArray(data)
+    ? (data as TicketCheckInResultRow[])
+    : data
+      ? [data as TicketCheckInResultRow]
+      : []
+
+  return mapTicketCheckInResultRow(
+    resultRows[0] ?? {
+      buyer_email: null,
+      buyer_name: null,
+      checked_in_at: null,
+      event_title: null,
+      message: 'Ticket check-in did not return a result.',
+      outcome: 'invalid',
+      ticket_id: null,
+      ticket_number: null,
+      ticket_status: null,
+      ticket_type_name: null,
+    },
+  )
+}
+
 export function formatTicketPrice(priceCents: number) {
   return new Intl.NumberFormat(undefined, {
     currency: 'USD',
@@ -362,6 +425,25 @@ function mapIndividualTicketRow(row: IndividualTicketRow): IndividualTicket {
   }
 }
 
+function mapTicketCheckInResultRow(
+  row: TicketCheckInResultRow,
+): TicketCheckInResult {
+  return {
+    buyerEmail: row.buyer_email,
+    buyerName: row.buyer_name,
+    checkedInAt: row.checked_in_at,
+    eventTitle: row.event_title,
+    message: row.message,
+    outcome: normalizeTicketCheckInOutcome(row.outcome),
+    ticketId: row.ticket_id,
+    ticketNumber: row.ticket_number,
+    ticketStatus: row.ticket_status
+      ? normalizeIndividualTicketStatus(row.ticket_status)
+      : null,
+    ticketTypeName: row.ticket_type_name,
+  }
+}
+
 function normalizeTicketKind(value: string): TicketKind {
   return value === 'paid' ? 'paid' : 'free'
 }
@@ -380,6 +462,19 @@ function normalizeIndividualTicketStatus(value: string): IndividualTicketStatus 
   }
 
   return 'issued'
+}
+
+function normalizeTicketCheckInOutcome(value: string): TicketCheckInOutcome {
+  if (
+    value === 'checked_in' ||
+    value === 'already_checked_in' ||
+    value === 'void' ||
+    value === 'forbidden'
+  ) {
+    return value
+  }
+
+  return 'invalid'
 }
 
 function cleanOptionalText(value: string) {
