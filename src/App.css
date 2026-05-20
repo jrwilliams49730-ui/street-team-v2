@@ -1678,6 +1678,35 @@
   gap: 0.7rem;
 }
 
+.ticket-reservation-summary {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+.ticket-reservation-summary div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ticket-reservation-summary dt {
+  color: var(--st-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ticket-reservation-summary dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--st-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .ticket-type-form textarea {
   min-height: 6rem;
   resize: vertical;

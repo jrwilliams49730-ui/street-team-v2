@@ -147,6 +147,8 @@ export type ClaimFreeTicketInput = {
   ticketTypeId: string
 }
 
+export type CreatePaidTicketReservationInput = ClaimFreeTicketInput
+
 export type SaveEventTicketTypeInput = {
   description: string
   name: string
@@ -293,6 +295,23 @@ export async function claimFreeTicket(input: ClaimFreeTicketInput) {
   }
 
   return data as TicketReservationRow
+}
+
+export async function createPaidTicketReservation(
+  input: CreatePaidTicketReservationInput,
+) {
+  const { data, error } = await supabase.rpc('create_paid_ticket_reservation', {
+    p_buyer_email: input.buyerEmail,
+    p_buyer_name: input.buyerName,
+    p_quantity: input.quantity,
+    p_ticket_type_id: input.ticketTypeId,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return mapTicketReservationRow(data as TicketReservationRow)
 }
 
 export async function fetchTicketReservationsForUser(userId: string) {

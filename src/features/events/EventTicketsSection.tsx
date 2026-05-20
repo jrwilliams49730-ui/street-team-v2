@@ -4,10 +4,12 @@ import { useAuth } from '../account/auth-context'
 import { fetchUserProfile } from '../account/userProfile'
 import {
   claimFreeTicket,
+  createPaidTicketReservation,
   fetchPublicEventTicketTypes,
   formatTicketKind,
   formatTicketPrice,
   type EventTicketType,
+  type TicketReservation,
 } from './eventTickets'
 
 type EventTicketsSectionProps = {
@@ -21,10 +23,18 @@ type ClaimFormState = {
 }
 
 type ClaimMessage = {
+  reservation?: TicketReservationSummary
   showMyTicketsLink?: boolean
   ticketTypeId: string
   type: 'success' | 'error'
   text: string
+}
+
+type TicketReservationSummary = {
+  buyerEmail: string
+  quantity: number
+  ticketTypeName: string
+  totalPriceCents: number
 }
 
 const emptyClaimForm: ClaimFormState = {
@@ -49,6 +59,8 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
   const [claimingTicketTypeId, setClaimingTicketTypeId] = useState<
     string | null
   >(null)
+  const [paidReservationTicketTypeId, setPaidReservationTicketTypeId] =
+    useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -110,6 +122,16 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
   }, [session])
 
   function openClaimForm(ticketTypeId: string) {
+    setActiveTicketTypeId(ticketTypeId)
+    setClaimForm({
+      buyerEmail: defaultBuyerEmail,
+      buyerName: defaultBuyerName,
+      quantity: '1',
+    })
+    setClaimMessage(null)
+  }
+
+  function openPaidReservationForm(ticketTypeId: string) {
     setActiveTicketTypeId(ticketTypeId)
     setClaimForm({
       buyerEmail: defaultBuyerEmail,
@@ -201,6 +223,86 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
       })
     } finally {
       setClaimingTicketTypeId(null)
+    }
+  }
+
+  async function handlePaidReservationSubmit(
+    event: FormEvent<HTMLFormElement>,
+    ticketType: EventTicketType,
+  ) {
+    event.preventDefault()
+
+    const quantity = parseTicketQuantity(claimForm.quantity)
+
+    if (!quantity) {
+      setClaimMessage({
+        ticketTypeId: ticketType.id,
+        text: 'Enter a valid whole-number ticket quantity from 1 to 4.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (quantity > 4) {
+      setClaimMessage({
+        ticketTypeId: ticketType.id,
+        text: 'You can reserve a maximum of 4 paid tickets at a time.',
+        type: 'error',
+      })
+      return
+    }
+
+    const buyerName = claimForm.buyerName.trim()
+    const buyerEmail = claimForm.buyerEmail.trim()
+
+    if (!buyerName) {
+      setClaimMessage({
+        ticketTypeId: ticketType.id,
+        text: 'Buyer name is required.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (!buyerEmail || buyerEmail.indexOf('@') <= 0) {
+      setClaimMessage({
+        ticketTypeId: ticketType.id,
+        text: 'A valid buyer email is required.',
+        type: 'error',
+      })
+      return
+    }
+
+    setPaidReservationTicketTypeId(ticketType.id)
+    setClaimMessage(null)
+
+    try {
+      const reservation = await createPaidTicketReservation({
+        buyerEmail,
+        buyerName,
+        quantity,
+        ticketTypeId: ticketType.id,
+      })
+
+      setActiveTicketTypeId(null)
+      setClaimForm(emptyClaimForm)
+      setClaimMessage({
+        reservation: getPaidReservationSummary(ticketType, reservation),
+        ticketTypeId: ticketType.id,
+        text: 'Your ticket reservation is ready. Stripe checkout comes next.',
+        type: 'success',
+      })
+    } catch (error) {
+      setClaimMessage({
+        ticketTypeId: ticketType.id,
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Paid ticket reservation could not be created. Please try again.',
+        type: 'error',
+      })
+    } finally {
+      setPaidReservationTicketTypeId(null)
     }
   }
 
@@ -344,9 +446,102 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
                     )}
                   </div>
                 ) : (
-                  <p className="ticket-placeholder">
-                    Paid checkout coming next.
-                  </p>
+                  <div className="ticket-claim-area">
+                    {claimMessage?.ticketTypeId === ticketType.id ? (
+                      <TicketMessageCard message={claimMessage} />
+                    ) : null}
+
+                    {activeTicketTypeId === ticketType.id ? (
+                      <form
+                        className="ticket-claim-form"
+                        onSubmit={(event) =>
+                          handlePaidReservationSubmit(event, ticketType)
+                        }
+                      >
+                        <label>
+                          <span>Ticket quantity</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={4}
+                            step={1}
+                            value={claimForm.quantity}
+                            onChange={(event) =>
+                              setClaimForm((currentForm) => ({
+                                ...currentForm,
+                                quantity: event.target.value,
+                              }))
+                            }
+                            required
+                          />
+                          <small>Maximum 4 tickets per order.</small>
+                        </label>
+
+                        <label>
+                          <span>Buyer name</span>
+                          <input
+                            type="text"
+                            value={claimForm.buyerName}
+                            onChange={(event) =>
+                              setClaimForm((currentForm) => ({
+                                ...currentForm,
+                                buyerName: event.target.value,
+                              }))
+                            }
+                            required
+                          />
+                        </label>
+
+                        <label>
+                          <span>Buyer email</span>
+                          <input
+                            type="email"
+                            value={claimForm.buyerEmail}
+                            onChange={(event) =>
+                              setClaimForm((currentForm) => ({
+                                ...currentForm,
+                                buyerEmail: event.target.value,
+                              }))
+                            }
+                            required
+                          />
+                        </label>
+
+                        <div className="ticket-claim-actions">
+                          <button
+                            type="submit"
+                            className="auth-submit-button"
+                            disabled={
+                              paidReservationTicketTypeId === ticketType.id
+                            }
+                          >
+                            {paidReservationTicketTypeId === ticketType.id
+                              ? 'Preparing reservation...'
+                              : 'Reserve Tickets'}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="secondary-action-button"
+                            disabled={
+                              paidReservationTicketTypeId === ticketType.id
+                            }
+                            onClick={closeClaimForm}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        className="auth-submit-button"
+                        onClick={() => openPaidReservationForm(ticketType.id)}
+                      >
+                        Buy Tickets
+                      </button>
+                    )}
+                  </div>
                 )}
               </article>
             ))}
@@ -355,6 +550,51 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
       ) : null}
     </section>
   )
+}
+
+function TicketMessageCard({ message }: { message: ClaimMessage }) {
+  return (
+    <div className={`auth-message ${message.type}`}>
+      <p>{message.text}</p>
+      {message.showMyTicketsLink ? (
+        <p>
+          <Link to="/account?tab=my-tickets">View tickets in your Account.</Link>
+        </p>
+      ) : null}
+      {message.reservation ? (
+        <dl className="ticket-reservation-summary">
+          <div>
+            <dt>Ticket type</dt>
+            <dd>{message.reservation.ticketTypeName}</dd>
+          </div>
+          <div>
+            <dt>Quantity</dt>
+            <dd>{message.reservation.quantity}</dd>
+          </div>
+          <div>
+            <dt>Buyer email</dt>
+            <dd>{message.reservation.buyerEmail}</dd>
+          </div>
+          <div>
+            <dt>Total</dt>
+            <dd>{formatTicketPrice(message.reservation.totalPriceCents)}</dd>
+          </div>
+        </dl>
+      ) : null}
+    </div>
+  )
+}
+
+function getPaidReservationSummary(
+  ticketType: EventTicketType,
+  reservation: TicketReservation,
+): TicketReservationSummary {
+  return {
+    buyerEmail: reservation.buyerEmail,
+    quantity: reservation.quantity,
+    ticketTypeName: ticketType.name,
+    totalPriceCents: reservation.totalPriceCentsSnapshot,
+  }
 }
 
 function parseTicketQuantity(value: string) {
