@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -8,25 +9,40 @@ import {
 import type { IScannerControls } from '@zxing/browser'
 import {
   checkInTicketByQr,
+  fetchEventCheckInTickets,
+  fetchEventTicketCheckInSummary,
+  type EventCheckInTicket,
+  type EventTicketCheckInSummary,
+  type IndividualTicketStatus,
   type TicketCheckInOutcome,
   type TicketCheckInResult,
 } from '../events/eventTickets'
 import {
   formatEventDate,
+  formatEventLocation,
   formatEventTime,
   type StreetTeamEvent,
 } from '../events/events'
 
 type EventTicketScannerProps = {
   event: StreetTeamEvent
+  onBack: () => void
 }
 
+type CheckInTab = 'scan' | 'attendees'
+type AttendeeStatusFilter = 'all' | IndividualTicketStatus
+type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 type ScannerStatus =
   | 'starting'
   | 'scanning'
   | 'paused'
   | 'unsupported'
   | 'error'
+
+type ListMessage = {
+  type: 'success' | 'error'
+  text: string
+}
 
 const scannerStatusCopy: Record<ScannerStatus, string> = {
   error: 'Camera scanner could not be started.',
@@ -36,7 +52,285 @@ const scannerStatusCopy: Record<ScannerStatus, string> = {
   unsupported: 'Camera scanning is not supported in this browser.',
 }
 
-function EventTicketScanner({ event }: EventTicketScannerProps) {
+const attendeeFilterOptions: Array<{
+  label: string
+  value: AttendeeStatusFilter
+}> = [
+  { label: 'All', value: 'all' },
+  { label: 'Not Checked In', value: 'issued' },
+  { label: 'Checked In', value: 'checked_in' },
+  { label: 'Void', value: 'void' },
+]
+
+function EventTicketScanner({ event, onBack }: EventTicketScannerProps) {
+  const [activeTab, setActiveTab] = useState<CheckInTab>('scan')
+  const [summary, setSummary] = useState<EventTicketCheckInSummary | null>(
+    null,
+  )
+  const [summaryStatus, setSummaryStatus] = useState<LoadStatus>('idle')
+  const [attendeeTickets, setAttendeeTickets] = useState<
+    EventCheckInTicket[]
+  >([])
+  const [attendeeStatus, setAttendeeStatus] = useState<LoadStatus>('idle')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] =
+    useState<AttendeeStatusFilter>('all')
+  const [manualCheckingTicketId, setManualCheckingTicketId] = useState<
+    string | null
+  >(null)
+  const [listMessage, setListMessage] = useState<ListMessage | null>(null)
+
+  const loadSummary = useCallback(async () => {
+    await Promise.resolve()
+    setSummaryStatus('loading')
+
+    try {
+      const nextSummary = await fetchEventTicketCheckInSummary(event.id)
+      setSummary(nextSummary)
+      setSummaryStatus('ready')
+    } catch {
+      setSummary(null)
+      setSummaryStatus('error')
+    }
+  }, [event.id])
+
+  const loadAttendees = useCallback(async () => {
+    await Promise.resolve()
+    setAttendeeStatus('loading')
+
+    try {
+      const nextTickets = await fetchEventCheckInTickets(event.id)
+      setAttendeeTickets(nextTickets)
+      setAttendeeStatus('ready')
+    } catch {
+      setAttendeeTickets([])
+      setAttendeeStatus('error')
+    }
+  }, [event.id])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadSummary()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadSummary])
+
+  useEffect(() => {
+    if (activeTab === 'attendees' && attendeeStatus === 'idle') {
+      const timeoutId = window.setTimeout(() => {
+        void loadAttendees()
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
+    }
+  }, [activeTab, attendeeStatus, loadAttendees])
+
+  const refreshAfterCheckIn = useCallback(
+    (result: TicketCheckInResult) => {
+      if (result.outcome !== 'checked_in') {
+        return
+      }
+
+      void loadSummary()
+
+      if (result.ticketId) {
+        setAttendeeTickets((currentTickets) =>
+          currentTickets.map((ticket) =>
+            ticket.ticketId === result.ticketId
+              ? {
+                  ...ticket,
+                  checkedInAt: result.checkedInAt,
+                  ticketStatus: result.ticketStatus ?? 'checked_in',
+                }
+              : ticket,
+          ),
+        )
+      }
+
+      if (attendeeStatus === 'ready') {
+        void loadAttendees()
+      }
+    },
+    [attendeeStatus, loadAttendees, loadSummary],
+  )
+
+  async function handleManualListCheckIn(ticket: EventCheckInTicket) {
+    setManualCheckingTicketId(ticket.ticketId)
+    setListMessage(null)
+
+    try {
+      const result = await checkInTicketByQr(
+        `street-team-ticket:${ticket.qrToken}`,
+      )
+
+      if (result.outcome === 'checked_in') {
+        refreshAfterCheckIn(result)
+        setListMessage({
+          type: 'success',
+          text: result.message,
+        })
+      } else {
+        setListMessage({
+          type: 'error',
+          text: result.message,
+        })
+      }
+    } catch (error) {
+      setListMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Ticket check-in could not be completed.',
+      })
+    } finally {
+      setManualCheckingTicketId(null)
+    }
+  }
+
+  const filteredTickets = useMemo(
+    () =>
+      attendeeTickets.filter((ticket) => {
+        const normalizedSearch = searchQuery.trim().toLowerCase()
+        const matchesStatus =
+          statusFilter === 'all' || ticket.ticketStatus === statusFilter
+
+        if (!matchesStatus) {
+          return false
+        }
+
+        if (!normalizedSearch) {
+          return true
+        }
+
+        return [
+          ticket.buyerName,
+          ticket.buyerEmail,
+          ticket.ticketTypeName,
+        ].some((value) => value.toLowerCase().includes(normalizedSearch))
+      }),
+    [attendeeTickets, searchQuery, statusFilter],
+  )
+  const eventLocation = formatEventLocation(event)
+  const eventTime = event.startTime
+    ? ` at ${formatEventTime(event.startTime)}`
+    : ''
+
+  return (
+    <section className="event-check-in-dashboard">
+      <header className="event-check-in-hero">
+        <button
+          type="button"
+          className="secondary-action-button"
+          onClick={onBack}
+        >
+          Back to My Events
+        </button>
+
+        <div className="event-check-in-title">
+          <span>Door check-in</span>
+          <h3>{event.title}</h3>
+          <p>
+            {formatEventDate(event.eventDate)}
+            {eventTime}
+          </p>
+          <p>
+            {[event.venueName, eventLocation].filter(Boolean).join(' | ')}
+          </p>
+        </div>
+      </header>
+
+      <CheckInSummaryCards status={summaryStatus} summary={summary} />
+
+      <div className="event-check-in-tabs" role="tablist">
+        <button
+          type="button"
+          className={activeTab === 'scan' ? 'is-active' : ''}
+          onClick={() => setActiveTab('scan')}
+        >
+          Scan
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'attendees' ? 'is-active' : ''}
+          onClick={() => setActiveTab('attendees')}
+        >
+          Attendee List
+        </button>
+      </div>
+
+      {activeTab === 'scan' ? (
+        <ScanTab onCheckInResult={refreshAfterCheckIn} />
+      ) : (
+        <AttendeeListTab
+          filteredTickets={filteredTickets}
+          listMessage={listMessage}
+          manualCheckingTicketId={manualCheckingTicketId}
+          onManualCheckIn={handleManualListCheckIn}
+          onRefresh={loadAttendees}
+          onSearchChange={setSearchQuery}
+          onStatusFilterChange={setStatusFilter}
+          searchQuery={searchQuery}
+          status={attendeeStatus}
+          statusFilter={statusFilter}
+          totalTickets={attendeeTickets.length}
+        />
+      )}
+    </section>
+  )
+}
+
+function CheckInSummaryCards({
+  status,
+  summary,
+}: {
+  status: LoadStatus
+  summary: EventTicketCheckInSummary | null
+}) {
+  const summaryItems = [
+    {
+      label: 'Total Issued',
+      value: summary?.totalTickets ?? 0,
+    },
+    {
+      label: 'Checked In',
+      value: summary?.checkedInTickets ?? 0,
+    },
+    {
+      label: 'Not Checked In',
+      value: summary?.notCheckedInTickets ?? 0,
+    },
+    {
+      label: 'Void',
+      value: summary?.voidTickets ?? 0,
+    },
+  ]
+
+  return (
+    <section className="event-check-in-summary" aria-label="Check-in summary">
+      {summaryItems.map((item) => (
+        <article key={item.label} className="event-check-in-summary-card">
+          <span>{item.label}</span>
+          <strong>
+            {status === 'loading' || status === 'idle' ? '--' : item.value}
+          </strong>
+        </article>
+      ))}
+      {status === 'error' ? (
+        <p className="event-check-in-state">
+          Check-in counts could not be loaded.
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function ScanTab({
+  onCheckInResult,
+}: {
+  onCheckInResult: (result: TicketCheckInResult) => void
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
   const isProcessingRef = useRef(false)
@@ -81,6 +375,7 @@ function EventTicketScanner({ event }: EventTicketScannerProps) {
       try {
         const nextResult = await checkInTicketByQr(cleanQrValue)
         setScanResult(nextResult)
+        onCheckInResult(nextResult)
       } catch (error) {
         setScanResult(
           createInvalidResult(
@@ -94,7 +389,7 @@ function EventTicketScanner({ event }: EventTicketScannerProps) {
         setIsProcessing(false)
       }
     },
-    [stopCamera],
+    [onCheckInResult, stopCamera],
   )
 
   useEffect(() => {
@@ -191,17 +486,11 @@ function EventTicketScanner({ event }: EventTicketScannerProps) {
     setScannerRunId((currentRunId) => currentRunId + 1)
   }
 
-  const eventTime = event.startTime
-    ? ` at ${formatEventTime(event.startTime)}`
-    : ''
   return (
-    <div className="event-ticket-scanner">
+    <section className="event-check-in-panel event-check-in-scan-panel">
       <header className="event-scanner-heading">
         <h4>Scan Tickets</h4>
-        <p>
-          {event.title} · {formatEventDate(event.eventDate)}
-          {eventTime}
-        </p>
+        <p>Use the camera scanner or paste a QR value manually.</p>
       </header>
 
       <div className="event-scanner-camera">
@@ -265,7 +554,152 @@ function EventTicketScanner({ event }: EventTicketScannerProps) {
           {isProcessing ? 'Checking...' : 'Check Ticket'}
         </button>
       </form>
-    </div>
+    </section>
+  )
+}
+
+function AttendeeListTab({
+  filteredTickets,
+  listMessage,
+  manualCheckingTicketId,
+  onManualCheckIn,
+  onRefresh,
+  onSearchChange,
+  onStatusFilterChange,
+  searchQuery,
+  status,
+  statusFilter,
+  totalTickets,
+}: {
+  filteredTickets: EventCheckInTicket[]
+  listMessage: ListMessage | null
+  manualCheckingTicketId: string | null
+  onManualCheckIn: (ticket: EventCheckInTicket) => void
+  onRefresh: () => void
+  onSearchChange: (value: string) => void
+  onStatusFilterChange: (value: AttendeeStatusFilter) => void
+  searchQuery: string
+  status: LoadStatus
+  statusFilter: AttendeeStatusFilter
+  totalTickets: number
+}) {
+  return (
+    <section className="event-check-in-panel attendee-list-panel">
+      <header className="event-scanner-heading">
+        <h4>Attendee List</h4>
+        <p>
+          {status === 'ready'
+            ? `${filteredTickets.length} of ${totalTickets} tickets shown`
+            : 'Loading attendee tickets...'}
+        </p>
+      </header>
+
+      <div className="attendee-list-controls">
+        <label>
+          <span>Search attendees</span>
+          <input
+            type="search"
+            value={searchQuery}
+            placeholder="Name, email, or ticket type"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </label>
+
+        <div className="attendee-filter-tabs" aria-label="Attendee filters">
+          {attendeeFilterOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={statusFilter === option.value ? 'is-active' : ''}
+              onClick={() => onStatusFilterChange(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className="secondary-action-button"
+          onClick={onRefresh}
+        >
+          Refresh List
+        </button>
+      </div>
+
+      {listMessage ? (
+        <p className={`auth-message ${listMessage.type}`}>
+          {listMessage.text}
+        </p>
+      ) : null}
+
+      {status === 'error' ? (
+        <p className="event-check-in-state">
+          Attendee tickets could not be loaded.
+        </p>
+      ) : null}
+
+      {status === 'loading' || status === 'idle' ? (
+        <p className="event-check-in-state">Loading attendee tickets...</p>
+      ) : null}
+
+      {status === 'ready' && filteredTickets.length === 0 ? (
+        <p className="event-check-in-state">No tickets match this view.</p>
+      ) : null}
+
+      {status === 'ready' && filteredTickets.length > 0 ? (
+        <div className="attendee-ticket-list">
+          {filteredTickets.map((ticket) => (
+            <AttendeeTicketCard
+              key={ticket.ticketId}
+              isChecking={manualCheckingTicketId === ticket.ticketId}
+              onManualCheckIn={onManualCheckIn}
+              ticket={ticket}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function AttendeeTicketCard({
+  isChecking,
+  onManualCheckIn,
+  ticket,
+}: {
+  isChecking: boolean
+  onManualCheckIn: (ticket: EventCheckInTicket) => void
+  ticket: EventCheckInTicket
+}) {
+  return (
+    <article className="attendee-ticket-card">
+      <div className="attendee-ticket-copy">
+        <div className="attendee-ticket-heading">
+          <h4>{ticket.buyerName}</h4>
+          <span className={`attendee-status-badge is-${ticket.ticketStatus}`}>
+            {formatAttendeeTicketStatus(ticket.ticketStatus)}
+          </span>
+        </div>
+        <p>{ticket.buyerEmail}</p>
+        <p>{ticket.ticketTypeName}</p>
+        <p>Ticket #{ticket.ticketNumber}</p>
+        {ticket.checkedInAt ? (
+          <p>Checked in {formatCheckedInTime(ticket.checkedInAt)}</p>
+        ) : null}
+      </div>
+
+      {ticket.ticketStatus === 'issued' ? (
+        <button
+          type="button"
+          className="auth-submit-button"
+          disabled={isChecking}
+          onClick={() => onManualCheckIn(ticket)}
+        >
+          {isChecking ? 'Checking In...' : 'Check In'}
+        </button>
+      ) : null}
+    </article>
   )
 }
 
@@ -283,12 +717,6 @@ function TicketScanResultCard({
 
       {hasResultDetails(result) ? (
         <dl className="event-scanner-result-details">
-          {result.eventTitle ? (
-            <div>
-              <dt>Event</dt>
-              <dd>{result.eventTitle}</dd>
-            </div>
-          ) : null}
           {result.ticketTypeName ? (
             <div>
               <dt>Ticket type</dt>
@@ -374,13 +802,24 @@ function getResultLabel(outcome: TicketCheckInOutcome) {
 
 function hasResultDetails(result: TicketCheckInResult) {
   return Boolean(
-    result.eventTitle ||
-      result.ticketTypeName ||
+    result.ticketTypeName ||
       result.ticketNumber ||
       result.buyerName ||
       result.buyerEmail ||
       result.checkedInAt,
   )
+}
+
+function formatAttendeeTicketStatus(status: IndividualTicketStatus) {
+  if (status === 'checked_in') {
+    return 'Checked In'
+  }
+
+  if (status === 'void') {
+    return 'Void'
+  }
+
+  return 'Not Checked In'
 }
 
 function formatCheckedInTime(value: string) {

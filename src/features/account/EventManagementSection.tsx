@@ -93,7 +93,7 @@ function EventManagementSection({
   const [editFileInputKey, setEditFileInputKey] = useState(0)
   const [lineupEventId, setLineupEventId] = useState<string | null>(null)
   const [ticketEventId, setTicketEventId] = useState<string | null>(null)
-  const [scannerEventId, setScannerEventId] = useState<string | null>(null)
+  const [checkInEventId, setCheckInEventId] = useState<string | null>(null)
   const [message, setMessage] = useState<EventMessage | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [savingEventId, setSavingEventId] = useState<string | null>(null)
@@ -210,7 +210,7 @@ function EventManagementSection({
 
   function handleEditStart(event: StreetTeamEvent) {
     setEditingEventId(event.id)
-    setScannerEventId((currentId) =>
+    setCheckInEventId((currentId) =>
       currentId === event.id ? null : currentId,
     )
     setEditFormState(getFormStateFromEvent(event))
@@ -356,7 +356,7 @@ function EventManagementSection({
       setTicketEventId((currentId) =>
         currentId === event.id ? null : currentId,
       )
-      setScannerEventId((currentId) =>
+      setCheckInEventId((currentId) =>
         currentId === event.id ? null : currentId,
       )
       setMessage({
@@ -384,6 +384,18 @@ function EventManagementSection({
     })
 
     return updateEventImageUrl(ownerUserId, event.id, publicUrl)
+  }
+
+  const activeCheckInEvent =
+    events.find((event) => event.id === checkInEventId) ?? null
+
+  if (activeCheckInEvent) {
+    return (
+      <EventTicketScanner
+        event={activeCheckInEvent}
+        onBack={() => setCheckInEventId(null)}
+      />
+    )
   }
 
   return (
@@ -475,16 +487,11 @@ function EventManagementSection({
                   isCancelling={cancellingEventId === event.id}
                   isDeleting={deletingEventId === event.id}
                   isLineupOpen={lineupEventId === event.id}
-                  isScannerOpen={scannerEventId === event.id}
                   isTicketsOpen={ticketEventId === event.id}
                   onCancelEvent={handleCancelEvent}
                   onDeleteEvent={handleDeleteEvent}
                   onEditEvent={handleEditStart}
-                  onToggleScanner={() =>
-                    setScannerEventId((currentId) =>
-                      currentId === event.id ? null : event.id,
-                    )
-                  }
+                  onOpenScanner={() => setCheckInEventId(event.id)}
                   onToggleTickets={() =>
                     setTicketEventId((currentId) =>
                       currentId === event.id ? null : event.id,
@@ -760,12 +767,11 @@ type OwnedEventCardProps = {
   isCancelling: boolean
   isDeleting: boolean
   isLineupOpen: boolean
-  isScannerOpen: boolean
   isTicketsOpen: boolean
   onCancelEvent: (event: StreetTeamEvent) => void
   onDeleteEvent: (event: StreetTeamEvent) => void
   onEditEvent: (event: StreetTeamEvent) => void
-  onToggleScanner: () => void
+  onOpenScanner: () => void
   onToggleTickets: () => void
   onToggleLineup: () => void
 }
@@ -775,12 +781,11 @@ function OwnedEventCard({
   isCancelling,
   isDeleting,
   isLineupOpen,
-  isScannerOpen,
   isTicketsOpen,
   onCancelEvent,
   onDeleteEvent,
   onEditEvent,
-  onToggleScanner,
+  onOpenScanner,
   onToggleTickets,
   onToggleLineup,
 }: OwnedEventCardProps) {
@@ -820,9 +825,9 @@ function OwnedEventCard({
         <button
           type="button"
           className="secondary-action-button"
-          onClick={onToggleScanner}
+          onClick={onOpenScanner}
         >
-          {isScannerOpen ? 'Close Scanner' : 'Scan Tickets'}
+          Scan Tickets
         </button>
 
         <button
@@ -871,7 +876,6 @@ function OwnedEventCard({
       </div>
 
       {isLineupOpen ? <EventLineupManager eventId={event.id} /> : null}
-      {isScannerOpen ? <EventTicketScanner event={event} /> : null}
       {isTicketsOpen ? <EventTicketManager eventId={event.id} /> : null}
     </article>
   )

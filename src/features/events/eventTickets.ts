@@ -80,6 +80,24 @@ export type TicketCheckInResult = {
   buyerEmail: string | null
 }
 
+export type EventTicketCheckInSummary = {
+  totalTickets: number
+  checkedInTickets: number
+  notCheckedInTickets: number
+  voidTickets: number
+}
+
+export type EventCheckInTicket = {
+  buyerEmail: string
+  buyerName: string
+  checkedInAt: string | null
+  qrToken: string
+  ticketId: string
+  ticketNumber: number
+  ticketStatus: IndividualTicketStatus
+  ticketTypeName: string
+}
+
 export type TicketReservationRow = {
   id: string
   event_id: string
@@ -308,6 +326,93 @@ export async function fetchIndividualTicketsForReservation(
   return ((data ?? []) as IndividualTicketRow[]).map(mapIndividualTicketRow)
 }
 
+export async function fetchEventTicketCheckInSummary(eventId: string) {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('ticket_status')
+    .eq('event_id', eventId)
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as Pick<IndividualTicketRow, 'ticket_status'>[]).reduce(
+    (summary, row) => {
+      const ticketStatus = normalizeIndividualTicketStatus(row.ticket_status)
+
+      if (ticketStatus === 'checked_in') {
+        summary.checkedInTickets += 1
+      } else if (ticketStatus === 'void') {
+        summary.voidTickets += 1
+      } else {
+        summary.notCheckedInTickets += 1
+      }
+
+      summary.totalTickets += 1
+
+      return summary
+    },
+    {
+      checkedInTickets: 0,
+      notCheckedInTickets: 0,
+      totalTickets: 0,
+      voidTickets: 0,
+    } satisfies EventTicketCheckInSummary,
+  )
+}
+
+export async function fetchEventCheckInTickets(eventId: string) {
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(individualTicketSelect)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true })
+    .order('ticket_number', { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  const tickets = ((data ?? []) as IndividualTicketRow[]).map(
+    mapIndividualTicketRow,
+  )
+
+  if (tickets.length === 0) {
+    return []
+  }
+
+  const [reservations, ticketTypes] = await Promise.all([
+    fetchTicketReservationsByIds(
+      tickets.map((ticket) => ticket.reservationId),
+    ),
+    fetchEventTicketTypesByIds(
+      tickets.map((ticket) => ticket.ticketTypeId),
+    ),
+  ])
+  const reservationsById = new Map(
+    reservations.map((reservation) => [reservation.id, reservation]),
+  )
+  const ticketTypesById = new Map(
+    ticketTypes.map((ticketType) => [ticketType.id, ticketType]),
+  )
+
+  return tickets.map((ticket) => {
+    const reservation = reservationsById.get(ticket.reservationId)
+    const ticketType = ticketTypesById.get(ticket.ticketTypeId)
+
+    return {
+      buyerEmail: reservation?.buyerEmail ?? '',
+      buyerName: reservation?.buyerName ?? 'Unknown buyer',
+      checkedInAt: ticket.checkedInAt,
+      qrToken: ticket.qrToken,
+      ticketId: ticket.id,
+      ticketNumber: ticket.ticketNumber,
+      ticketStatus: ticket.ticketStatus,
+      ticketTypeName: ticketType?.name ?? 'Ticket type unavailable',
+    }
+  })
+}
+
 export async function checkInTicketByQr(qrValue: string) {
   const { data, error } = await supabase.rpc('check_in_ticket_by_qr', {
     p_qr_value: qrValue,
@@ -337,6 +442,25 @@ export async function checkInTicketByQr(qrValue: string) {
       ticket_type_name: null,
     },
   )
+}
+
+async function fetchTicketReservationsByIds(reservationIds: string[]) {
+  const uniqueReservationIds = [...new Set(reservationIds)]
+
+  if (uniqueReservationIds.length === 0) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('ticket_reservations')
+    .select(ticketReservationSelect)
+    .in('id', uniqueReservationIds)
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as TicketReservationRow[]).map(mapTicketReservationRow)
 }
 
 export function formatTicketPrice(priceCents: number) {
