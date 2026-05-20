@@ -149,6 +149,11 @@ export type ClaimFreeTicketInput = {
 
 export type CreatePaidTicketReservationInput = ClaimFreeTicketInput
 
+export type CreateCheckoutSessionResponse = {
+  sessionId: string
+  url: string
+}
+
 export type SaveEventTicketTypeInput = {
   description: string
   name: string
@@ -312,6 +317,33 @@ export async function createPaidTicketReservation(
   }
 
   return mapTicketReservationRow(data as TicketReservationRow)
+}
+
+export async function createCheckoutSessionForReservation(
+  reservationId: string,
+) {
+  const { data, error } =
+    await supabase.functions.invoke<CreateCheckoutSessionResponse>(
+      'create-checkout-session',
+      {
+        body: {
+          reservationId,
+        },
+      },
+    )
+
+  if (error) {
+    throw new Error(
+      (await getFunctionErrorMessage(error)) ??
+        'We could not start checkout. Please try again.',
+    )
+  }
+
+  if (!data?.url) {
+    throw new Error('We could not start checkout. Please try again.')
+  }
+
+  return data
 }
 
 export async function fetchTicketReservationsForUser(userId: string) {
@@ -618,6 +650,54 @@ function normalizeTicketCheckInOutcome(value: string): TicketCheckInOutcome {
   }
 
   return 'invalid'
+}
+
+async function getFunctionErrorMessage(error: unknown) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'context' in error &&
+    error.context instanceof Response
+  ) {
+    try {
+      const body = (await error.context.clone().json()) as unknown
+      const message = extractFunctionErrorMessage(body)
+
+      if (message) {
+        return message
+      }
+    } catch {
+      // Fall through to the standard client error message below.
+    }
+  }
+
+  return error instanceof Error ? error.message : null
+}
+
+function extractFunctionErrorMessage(body: unknown) {
+  if (typeof body === 'string' && body.trim()) {
+    return body
+  }
+
+  if (!body || typeof body !== 'object') {
+    return null
+  }
+
+  if ('message' in body && typeof body.message === 'string') {
+    return body.message
+  }
+
+  if (
+    'error' in body &&
+    body.error &&
+    typeof body.error === 'object' &&
+    'message' in body.error &&
+    typeof body.error.message === 'string'
+  ) {
+    return body.error.message
+  }
+
+  return null
 }
 
 function cleanOptionalText(value: string) {

@@ -1,6 +1,10 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import AccountPage from './features/account/AccountPage'
 import { useAuth } from './features/account/auth-context'
+import {
+  CheckoutCancelledPage,
+  CheckoutSuccessPage,
+} from './features/checkout/CheckoutReturnPages'
 import DiscoverPage from './features/discover/DiscoverPage'
 import EventDirectory from './features/events/EventDirectory'
 import EventProfile from './features/events/EventProfile'
@@ -97,6 +101,11 @@ function App() {
           <Route
             path="/my-tickets"
             element={<Navigate to="/account?tab=my-tickets" replace />}
+          />
+          <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
+          <Route
+            path="/checkout/cancelled"
+            element={<CheckoutCancelledPage />}
           />
           <Route path="/account" element={<AccountPage />} />
         </Routes>

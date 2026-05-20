@@ -4,12 +4,12 @@ import { useAuth } from '../account/auth-context'
 import { fetchUserProfile } from '../account/userProfile'
 import {
   claimFreeTicket,
+  createCheckoutSessionForReservation,
   createPaidTicketReservation,
   fetchPublicEventTicketTypes,
   formatTicketKind,
   formatTicketPrice,
   type EventTicketType,
-  type TicketReservation,
 } from './eventTickets'
 
 type EventTicketsSectionProps = {
@@ -23,18 +23,10 @@ type ClaimFormState = {
 }
 
 type ClaimMessage = {
-  reservation?: TicketReservationSummary
   showMyTicketsLink?: boolean
   ticketTypeId: string
   type: 'success' | 'error'
   text: string
-}
-
-type TicketReservationSummary = {
-  buyerEmail: string
-  quantity: number
-  ticketTypeName: string
-  totalPriceCents: number
 }
 
 const emptyClaimForm: ClaimFormState = {
@@ -274,7 +266,13 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
     }
 
     setPaidReservationTicketTypeId(ticketType.id)
-    setClaimMessage(null)
+    setClaimMessage({
+      ticketTypeId: ticketType.id,
+      text: 'Preparing secure checkout...',
+      type: 'success',
+    })
+
+    let shouldResetSubmitting = true
 
     try {
       const reservation = await createPaidTicketReservation({
@@ -283,15 +281,12 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
         quantity,
         ticketTypeId: ticketType.id,
       })
+      const checkoutSession = await createCheckoutSessionForReservation(
+        reservation.id,
+      )
 
-      setActiveTicketTypeId(null)
-      setClaimForm(emptyClaimForm)
-      setClaimMessage({
-        reservation: getPaidReservationSummary(ticketType, reservation),
-        ticketTypeId: ticketType.id,
-        text: 'Your ticket reservation is ready. Stripe checkout comes next.',
-        type: 'success',
-      })
+      shouldResetSubmitting = false
+      window.location.href = checkoutSession.url
     } catch (error) {
       setClaimMessage({
         ticketTypeId: ticketType.id,
@@ -302,7 +297,9 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
         type: 'error',
       })
     } finally {
-      setPaidReservationTicketTypeId(null)
+      if (shouldResetSubmitting) {
+        setPaidReservationTicketTypeId(null)
+      }
     }
   }
 
@@ -516,8 +513,8 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
                             }
                           >
                             {paidReservationTicketTypeId === ticketType.id
-                              ? 'Preparing reservation...'
-                              : 'Reserve Tickets'}
+                              ? 'Preparing secure checkout...'
+                              : 'Continue to Checkout'}
                           </button>
 
                           <button
@@ -561,40 +558,8 @@ function TicketMessageCard({ message }: { message: ClaimMessage }) {
           <Link to="/account?tab=my-tickets">View tickets in your Account.</Link>
         </p>
       ) : null}
-      {message.reservation ? (
-        <dl className="ticket-reservation-summary">
-          <div>
-            <dt>Ticket type</dt>
-            <dd>{message.reservation.ticketTypeName}</dd>
-          </div>
-          <div>
-            <dt>Quantity</dt>
-            <dd>{message.reservation.quantity}</dd>
-          </div>
-          <div>
-            <dt>Buyer email</dt>
-            <dd>{message.reservation.buyerEmail}</dd>
-          </div>
-          <div>
-            <dt>Total</dt>
-            <dd>{formatTicketPrice(message.reservation.totalPriceCents)}</dd>
-          </div>
-        </dl>
-      ) : null}
     </div>
   )
-}
-
-function getPaidReservationSummary(
-  ticketType: EventTicketType,
-  reservation: TicketReservation,
-): TicketReservationSummary {
-  return {
-    buyerEmail: reservation.buyerEmail,
-    quantity: reservation.quantity,
-    ticketTypeName: ticketType.name,
-    totalPriceCents: reservation.totalPriceCentsSnapshot,
-  }
 }
 
 function parseTicketQuantity(value: string) {
