@@ -12,6 +12,7 @@ type ReservationRow = {
   event_id: string
   ticket_type_id: string
   buyer_email: string | null
+  purchaser_user_id: string | null
   quantity: number
   reservation_status: string
   processing_fee_cents_snapshot: number
@@ -55,6 +56,17 @@ const getRequiredEnv = (name: string) => {
 
   return value
 }
+
+const isValidEmail = (value: string | null) =>
+  Boolean(
+    value?.trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
+  )
+
+const isTicketEmailConfigured = () =>
+  Boolean(
+    Deno.env.get('RESEND_API_KEY') &&
+      (Deno.env.get('TICKET_EMAIL_FROM') ?? Deno.env.get('EMAIL_FROM')),
+  )
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -103,7 +115,7 @@ Deno.serve(async (request) => {
   const { data: reservation, error: reservationError } = await supabase
     .from('ticket_reservations')
     .select(
-      'id,event_id,ticket_type_id,buyer_email,quantity,reservation_status,processing_fee_cents_snapshot,street_team_fee_cents_snapshot,ticket_kind_snapshot,ticket_subtotal_cents_snapshot,total_price_cents_snapshot,unit_price_cents_snapshot,expires_at',
+      'id,event_id,ticket_type_id,buyer_email,purchaser_user_id,quantity,reservation_status,processing_fee_cents_snapshot,street_team_fee_cents_snapshot,ticket_kind_snapshot,ticket_subtotal_cents_snapshot,total_price_cents_snapshot,unit_price_cents_snapshot,expires_at',
     )
     .eq('id', reservationId.trim())
     .maybeSingle<ReservationRow>()
@@ -122,6 +134,10 @@ Deno.serve(async (request) => {
 
   if (reservation.ticket_kind_snapshot !== 'paid') {
     return errorResponse('Reservation is not for a paid ticket.', 409, 'reservation_not_paid')
+  }
+
+  if (!isValidEmail(reservation.buyer_email)) {
+    return errorResponse('A valid buyer email is required.', 409, 'invalid_buyer_email')
   }
 
   if (!reservation.expires_at || new Date(reservation.expires_at).getTime() <= Date.now()) {
@@ -208,6 +224,14 @@ Deno.serve(async (request) => {
     event_id: reservation.event_id,
     ticket_type_id: reservation.ticket_type_id,
   }
+  const isGuestCheckout = !reservation.purchaser_user_id
+
+  console.log('[create-checkout-session] paid reservation ready for Stripe:', {
+    buyerEmail: reservation.buyer_email,
+    isGuestCheckout,
+    metadata,
+    reservationId: reservation.id,
+  })
 
   const stripe = new Stripe(stripeSecretKey, {
     apiVersion: '2026-02-25.clover',
@@ -216,6 +240,14 @@ Deno.serve(async (request) => {
 
   try {
     const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60
+    const ticketEmailStatus = isTicketEmailConfigured()
+      ? 'configured'
+      : 'not_configured'
+    const successUrl =
+      `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}` +
+      `&reservation_id=${encodeURIComponent(reservation.id)}` +
+      `&guest_checkout=${isGuestCheckout ? '1' : '0'}` +
+      `&ticket_email=${ticketEmailStatus}`
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
         price_data: {
@@ -257,7 +289,7 @@ Deno.serve(async (request) => {
       customer_email: reservation.buyer_email ?? undefined,
       client_reference_id: reservation.id,
       line_items: lineItems,
-      success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: successUrl,
       cancel_url: `${appUrl}/checkout/cancelled?reservation_id=${reservation.id}`,
       metadata,
       payment_intent_data: {

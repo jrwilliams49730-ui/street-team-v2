@@ -672,6 +672,8 @@ function AttendeeTicketCard({
   onManualCheckIn: (ticket: EventCheckInTicket) => void
   ticket: EventCheckInTicket
 }) {
+  const emailStatus = getTicketEmailDeliveryStatus(ticket)
+
   return (
     <article className="attendee-ticket-card">
       <div className="attendee-ticket-copy">
@@ -684,6 +686,12 @@ function AttendeeTicketCard({
         <p>{ticket.buyerEmail}</p>
         <p>{ticket.ticketTypeName}</p>
         <p>Ticket #{ticket.ticketNumber}</p>
+        {emailStatus ? (
+          <div className={`ticket-email-status is-${emailStatus.tone}`}>
+            <strong>{emailStatus.label}</strong>
+            {emailStatus.detail ? <span>{emailStatus.detail}</span> : null}
+          </div>
+        ) : null}
         {ticket.checkedInAt ? (
           <p>Checked in {formatCheckedInTime(ticket.checkedInAt)}</p>
         ) : null}
@@ -701,6 +709,34 @@ function AttendeeTicketCard({
       ) : null}
     </article>
   )
+}
+
+function getTicketEmailDeliveryStatus(ticket: EventCheckInTicket) {
+  if (ticket.ticketEmailError) {
+    return {
+      detail: ticket.ticketEmailError,
+      label: 'Ticket email failed',
+      tone: 'error',
+    } as const
+  }
+
+  if (ticket.ticketEmailSentAt) {
+    return {
+      detail: formatCheckedInTime(ticket.ticketEmailSentAt),
+      label: 'Ticket email sent',
+      tone: 'success',
+    } as const
+  }
+
+  if (ticket.ticketEmailLastAttemptedAt) {
+    return {
+      detail: formatCheckedInTime(ticket.ticketEmailLastAttemptedAt),
+      label: 'Ticket email attempted',
+      tone: 'warning',
+    } as const
+  }
+
+  return null
 }
 
 function TicketScanResultCard({

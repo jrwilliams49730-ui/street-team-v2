@@ -176,7 +176,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
       return
     }
 
-    if (!buyerEmail || buyerEmail.indexOf('@') <= 0) {
+    if (!isValidBuyerEmail(buyerEmail)) {
       setClaimMessage({
         ticketTypeId: ticketType.id,
         text: 'A valid buyer email is required.',
@@ -256,7 +256,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
       return
     }
 
-    if (!buyerEmail || buyerEmail.indexOf('@') <= 0) {
+    if (!isValidBuyerEmail(buyerEmail)) {
       setClaimMessage({
         ticketTypeId: ticketType.id,
         text: 'A valid buyer email is required.',
@@ -286,7 +286,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
       )
 
       shouldResetSubmitting = false
-      window.location.href = checkoutSession.url
+      window.location.assign(checkoutSession.url)
     } catch (error) {
       setClaimMessage({
         ticketTypeId: ticketType.id,
@@ -572,6 +572,10 @@ function parseTicketQuantity(value: string) {
   const quantity = Number.parseInt(trimmed, 10)
 
   return quantity >= 1 ? quantity : null
+}
+
+function isValidBuyerEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 export default EventTicketsSection

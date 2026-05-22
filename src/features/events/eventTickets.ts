@@ -48,6 +48,9 @@ export type TicketReservation = {
   quantity: number
   reservationStatus: TicketReservationStatus
   ticketKindSnapshot: TicketKind
+  ticketEmailError: string
+  ticketEmailLastAttemptedAt: string | null
+  ticketEmailSentAt: string | null
   unitPriceCentsSnapshot: number
   totalPriceCentsSnapshot: number
   createdAt: string
@@ -80,6 +83,32 @@ export type TicketCheckInResult = {
   buyerEmail: string | null
 }
 
+export type PublicTicket = {
+  addressLine1: string
+  addressLine2: string
+  buyerEmail: string
+  buyerName: string
+  city: string
+  country: string
+  eventDate: string
+  eventId: string
+  eventSlug: string
+  eventTimezone: string
+  eventTitle: string
+  postalCode: string
+  qrToken: string
+  quantity: number
+  reservationId: string
+  startTime: string
+  state: string
+  ticketId: string
+  ticketNumber: number
+  ticketStatus: IndividualTicketStatus
+  ticketTypeId: string
+  ticketTypeName: string
+  venueName: string
+}
+
 export type EventTicketCheckInSummary = {
   totalTickets: number
   checkedInTickets: number
@@ -92,6 +121,10 @@ export type EventCheckInTicket = {
   buyerName: string
   checkedInAt: string | null
   qrToken: string
+  reservationId: string
+  ticketEmailError: string
+  ticketEmailLastAttemptedAt: string | null
+  ticketEmailSentAt: string | null
   ticketId: string
   ticketNumber: number
   ticketStatus: IndividualTicketStatus
@@ -108,6 +141,9 @@ export type TicketReservationRow = {
   quantity: number
   reservation_status: string
   ticket_kind_snapshot: string
+  ticket_email_error: string | null
+  ticket_email_last_attempted_at: string | null
+  ticket_email_sent_at: string | null
   unit_price_cents_snapshot: number
   total_price_cents_snapshot: number
   created_at: string
@@ -140,6 +176,32 @@ export type TicketCheckInResultRow = {
   buyer_email: string | null
 }
 
+export type PublicTicketRow = {
+  address_line_1: string | null
+  address_line_2: string | null
+  buyer_email: string
+  buyer_name: string
+  city: string
+  country: string | null
+  event_date: string
+  event_id: string
+  event_slug: string
+  event_timezone: string | null
+  event_title: string
+  postal_code: string | null
+  qr_token: string
+  quantity: number
+  reservation_id: string
+  start_time: string | null
+  state: string
+  ticket_id: string
+  ticket_number: number
+  ticket_status: string
+  ticket_type_id: string
+  ticket_type_name: string
+  venue_name: string
+}
+
 export type ClaimFreeTicketInput = {
   buyerEmail: string
   buyerName: string
@@ -170,7 +232,7 @@ const eventTicketTypeSelect =
   'id, event_id, name, description, ticket_kind, price_cents, quantity_total, created_at, updated_at'
 
 const ticketReservationSelect =
-  'id, event_id, ticket_type_id, purchaser_user_id, buyer_name, buyer_email, quantity, reservation_status, ticket_kind_snapshot, unit_price_cents_snapshot, total_price_cents_snapshot, created_at, updated_at'
+  'id, event_id, ticket_type_id, purchaser_user_id, buyer_name, buyer_email, quantity, reservation_status, ticket_kind_snapshot, ticket_email_error, ticket_email_last_attempted_at, ticket_email_sent_at, unit_price_cents_snapshot, total_price_cents_snapshot, created_at, updated_at'
 
 const individualTicketSelect =
   'id, reservation_id, event_id, ticket_type_id, ticket_number, ticket_status, qr_token, checked_in_at, created_at, updated_at'
@@ -377,6 +439,27 @@ export async function fetchIndividualTicketsForReservation(
   return ((data ?? []) as IndividualTicketRow[]).map(mapIndividualTicketRow)
 }
 
+export async function fetchPublicTicketByQrToken(qrToken: string) {
+  const { data, error } = await publicSupabase.rpc(
+    'get_public_ticket_by_qr_token',
+    {
+      p_qr_token: qrToken,
+    },
+  )
+
+  if (error) {
+    throw error
+  }
+
+  const resultRows = Array.isArray(data)
+    ? (data as PublicTicketRow[])
+    : data
+      ? [data as PublicTicketRow]
+      : []
+
+  return resultRows[0] ? mapPublicTicketRow(resultRows[0]) : null
+}
+
 export async function fetchEventTicketCheckInSummary(eventId: string) {
   const { data, error } = await supabase
     .from('tickets')
@@ -456,6 +539,10 @@ export async function fetchEventCheckInTickets(eventId: string) {
       buyerName: reservation?.buyerName ?? 'Unknown buyer',
       checkedInAt: ticket.checkedInAt,
       qrToken: ticket.qrToken,
+      reservationId: ticket.reservationId,
+      ticketEmailError: reservation?.ticketEmailError ?? '',
+      ticketEmailLastAttemptedAt: reservation?.ticketEmailLastAttemptedAt ?? null,
+      ticketEmailSentAt: reservation?.ticketEmailSentAt ?? null,
       ticketId: ticket.id,
       ticketNumber: ticket.ticketNumber,
       ticketStatus: ticket.ticketStatus,
@@ -577,6 +664,9 @@ function mapTicketReservationRow(row: TicketReservationRow): TicketReservation {
     purchaserUserId: row.purchaser_user_id,
     quantity: row.quantity,
     reservationStatus: normalizeReservationStatus(row.reservation_status),
+    ticketEmailError: row.ticket_email_error?.trim() ?? '',
+    ticketEmailLastAttemptedAt: row.ticket_email_last_attempted_at,
+    ticketEmailSentAt: row.ticket_email_sent_at,
     ticketKindSnapshot: normalizeTicketKind(row.ticket_kind_snapshot),
     ticketTypeId: row.ticket_type_id,
     totalPriceCentsSnapshot: row.total_price_cents_snapshot,
@@ -616,6 +706,34 @@ function mapTicketCheckInResultRow(
       ? normalizeIndividualTicketStatus(row.ticket_status)
       : null,
     ticketTypeName: row.ticket_type_name,
+  }
+}
+
+function mapPublicTicketRow(row: PublicTicketRow): PublicTicket {
+  return {
+    addressLine1: row.address_line_1?.trim() ?? '',
+    addressLine2: row.address_line_2?.trim() ?? '',
+    buyerEmail: row.buyer_email,
+    buyerName: row.buyer_name,
+    city: row.city,
+    country: row.country?.trim() ?? '',
+    eventDate: row.event_date,
+    eventId: row.event_id,
+    eventSlug: row.event_slug,
+    eventTimezone: row.event_timezone?.trim() ?? '',
+    eventTitle: row.event_title,
+    postalCode: row.postal_code?.trim() ?? '',
+    qrToken: row.qr_token,
+    quantity: row.quantity,
+    reservationId: row.reservation_id,
+    startTime: row.start_time ?? '',
+    state: row.state,
+    ticketId: row.ticket_id,
+    ticketNumber: row.ticket_number,
+    ticketStatus: normalizeIndividualTicketStatus(row.ticket_status),
+    ticketTypeId: row.ticket_type_id,
+    ticketTypeName: row.ticket_type_name,
+    venueName: row.venue_name,
   }
 }
 

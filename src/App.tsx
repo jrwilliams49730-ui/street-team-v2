@@ -12,6 +12,7 @@ import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
 import ProducerDirectory from './features/producers/ProducerDirectory'
 import ProducerProfile from './features/producers/ProducerProfile'
+import GuestTicketPage from './features/tickets/GuestTicketPage'
 import VenueDirectory from './features/venues/VenueDirectory'
 import VenueProfile from './features/venues/VenueProfile'
 import './App.css'
@@ -98,6 +99,7 @@ function App() {
           <Route path="/venues/:slug" element={<VenueProfile />} />
           <Route path="/events" element={<EventDirectory />} />
           <Route path="/events/:slug" element={<EventProfile />} />
+          <Route path="/tickets/:qrToken" element={<GuestTicketPage />} />
           <Route
             path="/my-tickets"
             element={<Navigate to="/account?tab=my-tickets" replace />}
