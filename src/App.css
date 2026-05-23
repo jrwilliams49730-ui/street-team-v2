@@ -116,7 +116,6 @@
 .ticket-claim-form label,
 .ticket-type-card h4,
 .ticket-type-card p,
-.backend-status-card p,
 .section-heading h2,
 .section-heading p,
 .directory-state-card p,
@@ -462,6 +461,95 @@
   color: var(--st-text-muted);
 }
 
+.discover-browse-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.discover-browse-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.discover-browse-card,
+.discover-search-result {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  padding: 1rem;
+  color: inherit;
+  background: var(--st-surface);
+  text-decoration: none;
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.discover-browse-card:hover,
+.discover-search-result:hover {
+  border-color: var(--st-border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 1.25rem 2.5rem rgba(0, 0, 0, 0.3);
+}
+
+.discover-browse-card strong,
+.discover-search-result strong {
+  color: var(--st-text);
+  font-size: 1rem;
+  font-weight: 780;
+}
+
+.discover-browse-card p,
+.discover-search-result p {
+  color: var(--st-text-muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.discover-search-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.discover-search-field input {
+  width: 100%;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  color: var(--st-text);
+  background: rgba(0, 0, 0, 0.26);
+  font: inherit;
+}
+
+.discover-search-field input:focus {
+  outline: 2px solid var(--st-accent-hover);
+  outline-offset: 3px;
+}
+
+.discover-search-results {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.discover-search-result span {
+  color: var(--st-accent-hover);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .featured-section {
   display: flex;
   flex-direction: column;
@@ -522,6 +610,8 @@
 }
 
 .featured-card:focus-visible,
+.discover-browse-card:focus-visible,
+.discover-search-result:focus-visible,
 .view-all-link:focus-visible {
   outline: 2px solid var(--st-accent-hover);
   outline-offset: 3px;
@@ -613,42 +703,6 @@
   color: var(--st-text-muted);
   background: var(--st-surface);
   font-size: 0.9rem;
-}
-
-.backend-status-card {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--st-border);
-  border-radius: 1rem;
-  background: var(--st-surface);
-  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.24);
-}
-
-.backend-status-card span {
-  width: 0.65rem;
-  height: 0.65rem;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--st-warning);
-  box-shadow: 0 0 0 0.25rem rgba(210, 154, 70, 0.14);
-}
-
-.backend-status-card[data-status='connected'] span {
-  background: var(--st-success);
-  box-shadow: 0 0 0 0.25rem rgba(143, 163, 106, 0.14);
-}
-
-.backend-status-card[data-status='failed'] span {
-  background: var(--st-danger);
-  box-shadow: 0 0 0 0.25rem rgba(255, 90, 79, 0.14);
-}
-
-.backend-status-card p {
-  color: var(--st-text-muted);
-  font-size: 0.9rem;
-  font-weight: 600;
 }
 
 .account-page {
@@ -3500,6 +3554,8 @@
 .event-grid,
   .producer-grid,
   .venue-grid,
+  .discover-browse-grid,
+  .discover-search-results,
   .following-grid,
   .owned-profiles-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,6 +1,9 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import AccountPage from './features/account/AccountPage'
 import { useAuth } from './features/account/auth-context'
+import type { AccountType } from './features/account/accountTypes'
+import { fetchUserProfile } from './features/account/userProfile'
 import {
   CheckoutCancelledPage,
   CheckoutSuccessPage,
@@ -17,32 +20,24 @@ import VenueDirectory from './features/venues/VenueDirectory'
 import VenueProfile from './features/venues/VenueProfile'
 import './App.css'
 
-const navigationSections = [
+type NavigationSection = {
+  key: 'discover' | 'events' | 'account'
+  label: string
+  path: string
+}
+
+const publicNavigationSections = [
   {
+    key: 'discover',
     path: '/discover',
     label: 'Discover',
   },
   {
-    path: '/performers',
-    label: 'Performers',
-  },
-  {
-    path: '/producers',
-    label: 'Producers',
-  },
-  {
-    path: '/venues',
-    label: 'Venues',
-  },
-  {
+    key: 'events',
     path: '/events',
     label: 'Events',
   },
-  {
-    path: '/account',
-    label: 'Account',
-  },
-] as const
+] satisfies NavigationSection[]
 
 function AccountStatusBadge() {
   const { session } = useAuth()
@@ -54,6 +49,44 @@ function AccountStatusBadge() {
 }
 
 function App() {
+  const { session } = useAuth()
+  const location = useLocation()
+  const [accountType, setAccountType] = useState<AccountType>('fan')
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadAccountType() {
+      if (!session) {
+        setAccountType('fan')
+        return
+      }
+
+      try {
+        const profile = await fetchUserProfile(session.user.id)
+
+        if (isMounted) {
+          setAccountType(profile.accountType)
+        }
+      } catch {
+        if (isMounted) {
+          setAccountType('fan')
+        }
+      }
+    }
+
+    void loadAccountType()
+
+    return () => {
+      isMounted = false
+    }
+  }, [session])
+
+  const navigationSections = [
+    ...publicNavigationSections,
+    getAccountNavigationSection(Boolean(session), accountType),
+  ]
+
   return (
     <main className="app-shell">
       <div className="app-frame">
@@ -77,10 +110,14 @@ function App() {
         <nav className="tab-nav" aria-label="Creator and fan network">
           {navigationSections.map((section) => (
             <NavLink
-              key={section.path}
+              key={section.key}
               to={section.path}
               className={({ isActive }) =>
-                `tab-button ${isActive ? 'is-active' : ''}`
+                `tab-button ${
+                  isActive || isNavigationSectionActive(section, location.pathname)
+                    ? 'is-active'
+                    : ''
+                }`
               }
             >
               {section.label}
@@ -114,6 +151,61 @@ function App() {
       </div>
     </main>
   )
+}
+
+function getAccountNavigationSection(
+  isSignedIn: boolean,
+  accountType: AccountType,
+): NavigationSection {
+  if (!isSignedIn) {
+    return {
+      key: 'account',
+      label: 'Login',
+      path: '/account',
+    }
+  }
+
+  if (accountType === 'performer') {
+    return {
+      key: 'account',
+      label: 'My Profile',
+      path: '/account?tab=my-profile',
+    }
+  }
+
+  if (accountType === 'producer' || accountType === 'venue') {
+    return {
+      key: 'account',
+      label: 'Dashboard',
+      path: '/account?tab=my-events',
+    }
+  }
+
+  return {
+    key: 'account',
+    label: 'My Stuff',
+    path: '/account?tab=my-tickets',
+  }
+}
+
+function isNavigationSectionActive(
+  section: NavigationSection,
+  pathname: string,
+) {
+  if (section.key === 'discover') {
+    return (
+      pathname === '/discover' ||
+      pathname.startsWith('/performers') ||
+      pathname.startsWith('/producers') ||
+      pathname.startsWith('/venues')
+    )
+  }
+
+  if (section.key === 'account') {
+    return pathname === '/account' || pathname === '/my-tickets'
+  }
+
+  return pathname.startsWith(section.path)
 }
 
 export default App

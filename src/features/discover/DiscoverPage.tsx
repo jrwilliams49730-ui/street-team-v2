@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import {
   fetchUpcomingPublishedEvents,
   formatEventDate,
@@ -17,48 +16,157 @@ import {
 import { fetchProducers, type Producer } from '../producers/producers'
 import { fetchVenues, type Venue } from '../venues/venues'
 
-function SupabaseStatusCard() {
-  const [status, setStatus] = useState<'checking' | 'connected' | 'failed'>(
-    'checking',
+type DiscoverSearchResult = {
+  detail: string
+  id: string
+  searchText: string
+  title: string
+  to: string
+  type: 'Event' | 'Performer' | 'Producer' | 'Venue'
+}
+
+function DiscoverBrowseSection() {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<DiscoverSearchResult[]>(
+    [],
+  )
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
   )
 
   useEffect(() => {
     let isMounted = true
 
-    async function checkConnection() {
+    async function loadSearchData() {
+      setStatus('loading')
+
       try {
-        const { error } = await supabase.auth.getSession()
+        const [events, performers, producers, venues] = await Promise.all([
+          fetchUpcomingPublishedEvents(),
+          fetchPerformers(),
+          fetchProducers(),
+          fetchVenues(),
+        ])
 
-        if (!isMounted) {
-          return
+        if (isMounted) {
+          setSearchResults([
+            ...events.map(mapEventToSearchResult),
+            ...performers.map(mapPerformerToSearchResult),
+            ...producers.map(mapProducerToSearchResult),
+            ...venues.map(mapVenueToSearchResult),
+          ])
+          setStatus('ready')
         }
-
-        setStatus(error ? 'failed' : 'connected')
       } catch {
         if (isMounted) {
-          setStatus('failed')
+          setStatus('error')
         }
       }
     }
 
-    void checkConnection()
+    void loadSearchData()
 
     return () => {
       isMounted = false
     }
   }, [])
 
-  const statusText = {
-    checking: 'Checking Supabase connection...',
-    connected: 'Supabase connected.',
-    failed: 'Supabase connection failed.',
-  }[status]
+  const filteredResults = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+
+    if (!query) {
+      return []
+    }
+
+    return searchResults
+      .filter((result) => result.searchText.includes(query))
+      .slice(0, 8)
+  }, [searchResults, searchTerm])
 
   return (
-    <aside className="backend-status-card" data-status={status}>
-      <span aria-hidden="true" />
-      <p>{statusText}</p>
-    </aside>
+    <section className="discover-browse-section">
+      <header className="featured-section-header">
+        <h3>Browse Street Team</h3>
+      </header>
+
+      <div className="discover-browse-grid">
+        <DiscoverBrowseCard
+          detail="Upcoming shows, radius search, and ticket options."
+          label="Events"
+          to="/events"
+        />
+        <DiscoverBrowseCard
+          detail="Artists, comedians, DJs, hosts, and featured media."
+          label="Performers"
+          to="/performers"
+        />
+        <DiscoverBrowseCard
+          detail="Rooms, clubs, theaters, and event spaces."
+          label="Venues"
+          to="/venues"
+        />
+        <DiscoverBrowseCard
+          detail="Promoters, collectives, and event producers."
+          label="Producers"
+          to="/producers"
+        />
+      </div>
+
+      <label className="discover-search-field">
+        <span>Search events, performers, venues, or producers</span>
+        <input
+          type="search"
+          value={searchTerm}
+          placeholder="Search Street Team"
+          onChange={(event) => setSearchTerm(event.target.value)}
+        />
+      </label>
+
+      {status === 'loading' && searchTerm.trim() ? (
+        <p className="featured-empty-state">Loading search...</p>
+      ) : null}
+
+      {status === 'error' && searchTerm.trim() ? (
+        <p className="featured-empty-state">Search could not load.</p>
+      ) : null}
+
+      {status === 'ready' && searchTerm.trim() && filteredResults.length === 0 ? (
+        <p className="featured-empty-state">No matches found.</p>
+      ) : null}
+
+      {filteredResults.length > 0 ? (
+        <div className="discover-search-results">
+          {filteredResults.map((result) => (
+            <Link
+              key={`${result.type}-${result.id}`}
+              to={result.to}
+              className="discover-search-result"
+            >
+              <span>{result.type}</span>
+              <strong>{result.title}</strong>
+              <p>{result.detail}</p>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function DiscoverBrowseCard({
+  detail,
+  label,
+  to,
+}: {
+  detail: string
+  label: string
+  to: string
+}) {
+  return (
+    <Link to={to} className="discover-browse-card">
+      <strong>{label}</strong>
+      <p>{detail}</p>
+    </Link>
   )
 }
 
@@ -416,6 +524,85 @@ function UpcomingEventsSection() {
   )
 }
 
+function mapEventToSearchResult(event: StreetTeamEvent): DiscoverSearchResult {
+  const location = formatEventLocation(event)
+  const detailParts = [
+    formatEventDate(event.eventDate),
+    event.venueName,
+    location,
+  ].filter(Boolean)
+
+  return {
+    detail: detailParts.join(' | '),
+    id: event.id,
+    searchText: formatSearchText([
+      event.title,
+      event.category,
+      event.venueName,
+      event.city,
+      event.state,
+      location,
+    ]),
+    title: event.title,
+    to: `/events/${event.slug}`,
+    type: 'Event',
+  }
+}
+
+function mapPerformerToSearchResult(
+  performer: Performer,
+): DiscoverSearchResult {
+  return {
+    detail: [performer.category, performer.location].filter(Boolean).join(' | '),
+    id: performer.id,
+    searchText: formatSearchText([
+      performer.name,
+      performer.category,
+      performer.location,
+      performer.shortBio,
+    ]),
+    title: performer.name,
+    to: `/performers/${performer.slug}`,
+    type: 'Performer',
+  }
+}
+
+function mapProducerToSearchResult(producer: Producer): DiscoverSearchResult {
+  return {
+    detail: [producer.category, producer.location].filter(Boolean).join(' | '),
+    id: producer.id,
+    searchText: formatSearchText([
+      producer.name,
+      producer.category,
+      producer.location,
+      producer.shortBio,
+    ]),
+    title: producer.name,
+    to: `/producers/${producer.slug}`,
+    type: 'Producer',
+  }
+}
+
+function mapVenueToSearchResult(venue: Venue): DiscoverSearchResult {
+  return {
+    detail: [venue.category, venue.location].filter(Boolean).join(' | '),
+    id: venue.id,
+    searchText: formatSearchText([
+      venue.name,
+      venue.category,
+      venue.location,
+      venue.shortDescription,
+    ]),
+    title: venue.name,
+    to: `/venues/${venue.slug}`,
+    type: 'Venue',
+  }
+}
+
+function formatSearchText(parts: string[]) {
+  return parts.join(' ').toLowerCase()
+}
+
 function DiscoverPage() {
   return (
     <section className="discover-page">
@@ -428,12 +615,11 @@ function DiscoverPage() {
         </p>
       </header>
 
+      <DiscoverBrowseSection />
       <FeaturedPerformersSection />
       <UpcomingEventsSection />
       <FeaturedProducersSection />
       <FeaturedVenuesSection />
-
-      <SupabaseStatusCard />
     </section>
   )
 }
