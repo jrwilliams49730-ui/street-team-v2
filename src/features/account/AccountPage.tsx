@@ -1,6 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import {
+  checkCurrentUserIsAdmin,
+  clearRememberedAdminExit,
+  shouldSkipAdminAutoRoute,
+} from '../admin/admin'
 import {
   accountTypeOptions,
   formatAccountType,
@@ -23,6 +28,7 @@ type Message = {
   type: 'success' | 'error'
   text: string
 }
+type AdminRedirectStatus = 'idle' | 'checking' | 'not-admin' | 'redirecting'
 
 const fanTabs: AccountTab[] = [
   { id: 'my-profile', label: 'My Profile' },
@@ -44,6 +50,7 @@ const creatorEventTabs: AccountTab[] = [
 
 function AccountPage() {
   const { isLoading, session } = useAuth()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [mode, setMode] = useState<AuthMode>('create')
   const [displayName, setDisplayName] = useState('')
@@ -57,8 +64,57 @@ function AccountPage() {
   const [accountTypeStatus, setAccountTypeStatus] = useState<
     'idle' | 'loading' | 'ready' | 'error'
   >('idle')
+  const [adminRedirectStatus, setAdminRedirectStatus] =
+    useState<AdminRedirectStatus>('idle')
 
   const isCreateMode = mode === 'create'
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function routeAdminAccount() {
+      if (!session) {
+        clearRememberedAdminExit()
+        setAdminRedirectStatus('idle')
+        return
+      }
+
+      if (shouldSkipAdminAutoRoute(session.user.id)) {
+        setAdminRedirectStatus('not-admin')
+        return
+      }
+
+      setAdminRedirectStatus('checking')
+
+      try {
+        const isAdmin = await checkCurrentUserIsAdmin()
+
+        if (!isMounted) {
+          return
+        }
+
+        if (isAdmin) {
+          setAdminRedirectStatus('redirecting')
+          navigate('/admin', { replace: true })
+          return
+        }
+
+        setAdminRedirectStatus('not-admin')
+      } catch (error) {
+        console.error('Admin role check failed during login routing.', error)
+
+        if (isMounted) {
+          setAdminRedirectStatus('not-admin')
+        }
+      }
+    }
+
+    void routeAdminAccount()
+
+    return () => {
+      isMounted = false
+    }
+  }, [navigate, session])
 
   useEffect(() => {
     let isMounted = true
@@ -66,6 +122,11 @@ function AccountPage() {
     async function loadAccountType() {
       if (!session) {
         setSignedInAccountType('fan')
+        setAccountTypeStatus('idle')
+        return
+      }
+
+      if (adminRedirectStatus !== 'not-admin') {
         setAccountTypeStatus('idle')
         return
       }
@@ -92,7 +153,32 @@ function AccountPage() {
     return () => {
       isMounted = false
     }
-  }, [session])
+  }, [adminRedirectStatus, session])
+
+  useEffect(() => {
+    if (
+      !session ||
+      adminRedirectStatus !== 'not-admin' ||
+      accountTypeStatus !== 'ready'
+    ) {
+      return
+    }
+
+    if (searchParams.get('tab')) {
+      return
+    }
+
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.set('tab', getDefaultAccountTab(signedInAccountType))
+    setSearchParams(nextSearchParams, { replace: true })
+  }, [
+    accountTypeStatus,
+    adminRedirectStatus,
+    searchParams,
+    session,
+    setSearchParams,
+    signedInAccountType,
+  ])
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode)
@@ -176,6 +262,7 @@ function AccountPage() {
         text: error.message,
       })
     } else {
+      clearRememberedAdminExit()
       setMessage({
         type: 'success',
         text: 'Logged out successfully.',
@@ -196,6 +283,21 @@ function AccountPage() {
     )
   }
 
+  if (session && adminRedirectStatus !== 'not-admin') {
+    return (
+      <section className="account-page">
+        <div className="account-card">
+          <h2>Checking account access...</h2>
+          <p>
+            {adminRedirectStatus === 'redirecting'
+              ? 'Opening the Admin Panel.'
+              : 'Confirming where to send your account.'}
+          </p>
+        </div>
+      </section>
+    )
+  }
+
   if (session) {
     const hasLoadedAccountType =
       accountTypeStatus === 'ready' || accountTypeStatus === 'error'
@@ -203,7 +305,7 @@ function AccountPage() {
     const requestedTab = searchParams.get('tab')
     const activeTab = accountTabs.some((tab) => tab.id === requestedTab)
       ? (requestedTab as AccountTabId)
-      : accountTabs[0].id
+      : getDefaultAccountTab(signedInAccountType)
 
     function handleTabChange(tabId: AccountTabId) {
       const nextSearchParams = new URLSearchParams(searchParams)
@@ -442,6 +544,18 @@ function getAccountTabs(accountType: AccountType) {
   }
 
   return creatorEventTabs
+}
+
+function getDefaultAccountTab(accountType: AccountType): AccountTabId {
+  if (accountType === 'fan') {
+    return 'my-tickets'
+  }
+
+  if (accountType === 'performer') {
+    return 'my-profile'
+  }
+
+  return 'my-events'
 }
 
 export default AccountPage

@@ -4,6 +4,7 @@ import AccountPage from './features/account/AccountPage'
 import { useAuth } from './features/account/auth-context'
 import type { AccountType } from './features/account/accountTypes'
 import { fetchUserProfile } from './features/account/userProfile'
+import AdminPage from './features/admin/AdminPage'
 import {
   CheckoutCancelledPage,
   CheckoutSuccessPage,
@@ -147,6 +148,7 @@ function App() {
             element={<CheckoutCancelledPage />}
           />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </div>
     </main>
