@@ -1,13 +1,33 @@
 import {
   useEffect,
+  useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
+  type ReactNode,
 } from 'react'
 import { Link } from 'react-router-dom'
-import EventTicketManager from './EventTicketManager'
+import EventTicketManager, {
+  TicketSetupFields,
+} from './EventTicketManager'
 import EventTicketScanner from './EventTicketScanner'
+import {
+  emptyTicketForm,
+  getTicketInput,
+  type TicketFormState,
+} from './ticketSetupForm'
 import { uploadEventImage } from '../events/eventImages'
+import EventDoorSalesManager from './EventDoorSalesManager'
+import {
+  createEventTicketType,
+  fetchEventTicketCheckInSummary,
+  fetchEventTicketTypes,
+  fetchTicketReservationsForEvent,
+  formatTicketPrice,
+  type EventTicketCheckInSummary,
+  type EventTicketType,
+  type TicketReservation,
+} from '../events/eventTickets'
 import {
   createEventLineupEntry,
   deleteEventLineupEntry,
@@ -35,6 +55,14 @@ import {
   type StreetTeamEvent,
 } from '../events/events'
 import {
+  clearGoogleAutocompleteListeners,
+  createPlaceAutocomplete,
+  geocodeAddress,
+  hasGoogleMapsApiKey,
+  loadGoogleMaps,
+  type ParsedGooglePlace,
+} from '../location/googleMaps'
+import {
   fetchPerformers,
   type Performer,
 } from '../performers/performers'
@@ -47,6 +75,11 @@ type EventManagementSectionProps = {
 }
 
 type EventFormState = EventFormInput
+
+const defaultInitialTicketForm: TicketFormState = {
+  ...emptyTicketForm,
+  name: 'General Admission',
+}
 
 type EventMessage = {
   eventSlug?: string
@@ -65,6 +98,10 @@ const emptyEventForm: EventFormState = {
   doorsTime: '',
   endTime: '',
   eventDate: '',
+  formattedAddress: '',
+  googlePlaceId: '',
+  latitude: null,
+  longitude: null,
   postalCode: '',
   startTime: '',
   state: '',
@@ -83,6 +120,10 @@ function EventManagementSection({
     'loading',
   )
   const [formState, setFormState] = useState<EventFormState>(emptyEventForm)
+  const [initialTicketFormState, setInitialTicketFormState] =
+    useState<TicketFormState>(defaultInitialTicketForm)
+  const [shouldCreateInitialTicket, setShouldCreateInitialTicket] =
+    useState(true)
   const [flyerFile, setFlyerFile] = useState<File | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
@@ -91,8 +132,7 @@ function EventManagementSection({
     useState<EventFormState>(emptyEventForm)
   const [editFlyerFile, setEditFlyerFile] = useState<File | null>(null)
   const [editFileInputKey, setEditFileInputKey] = useState(0)
-  const [lineupEventId, setLineupEventId] = useState<string | null>(null)
-  const [ticketEventId, setTicketEventId] = useState<string | null>(null)
+  const [managedEventId, setManagedEventId] = useState<string | null>(null)
   const [checkInEventId, setCheckInEventId] = useState<string | null>(null)
   const [message, setMessage] = useState<EventMessage | null>(null)
   const [isCreating, setIsCreating] = useState(false)
@@ -138,22 +178,65 @@ function EventManagementSection({
     setIsCreating(true)
     setMessage(null)
 
-    let createdEvent: StreetTeamEvent | null = null
+    const parsedInitialTicket = shouldCreateInitialTicket
+      ? getTicketInput(initialTicketFormState)
+      : null
+
+    if (parsedInitialTicket?.type === 'error') {
+      setMessage({
+        type: 'error',
+        text: parsedInitialTicket.message,
+      })
+      setIsCreating(false)
+      return
+    }
 
     try {
-      createdEvent = await createEvent({
-        ...formState,
+      const preparedEvent = await prepareEventInputForSave(formState)
+      const createdEvent = await createEvent({
+        ...preparedEvent.input,
         organizerProfileId,
         organizerType,
         ownerUserId,
       })
 
-      const nextEvent = flyerFile
-        ? await saveEventFlyer(createdEvent, flyerFile)
-        : createdEvent
+      let nextEvent = createdEvent
+      let messageType: EventMessage['type'] = 'success'
+      const createWarnings: string[] = []
+
+      if (parsedInitialTicket?.type === 'success') {
+        try {
+          await createEventTicketType({
+            ...parsedInitialTicket.input,
+            eventId: createdEvent.id,
+          })
+        } catch (error) {
+          messageType = 'error'
+          createWarnings.push(
+            error instanceof Error
+              ? `Ticket setup could not be saved: ${error.message}`
+              : 'Ticket setup could not be saved.',
+          )
+        }
+      }
+
+      if (flyerFile) {
+        try {
+          nextEvent = await saveEventFlyer(createdEvent, flyerFile)
+        } catch (error) {
+          messageType = 'error'
+          createWarnings.push(
+            error instanceof Error
+              ? `Flyer could not be uploaded: ${error.message}`
+              : 'Flyer could not be uploaded.',
+          )
+        }
+      }
 
       setEvents((currentEvents) => [nextEvent, ...currentEvents])
       setFormState(emptyEventForm)
+      setInitialTicketFormState(defaultInitialTicketForm)
+      setShouldCreateInitialTicket(true)
       setFlyerFile(null)
       setFileInputKey((currentKey) => currentKey + 1)
       setIsCreateFormOpen(false)
@@ -161,41 +244,23 @@ function EventManagementSection({
       setMessage({
         eventSlug: nextEvent.slug,
         eventStatus: nextEvent.status,
-        type: 'success',
-        text:
+        type: messageType,
+        text: joinMessage(
           nextEvent.status === 'published'
             ? 'Event published.'
             : 'Event saved as a draft.',
+          [preparedEvent.warning, ...createWarnings].filter(Boolean).join(' '),
+        ),
       })
     } catch (error) {
-      if (createdEvent) {
-        const eventWithoutFlyer = createdEvent
-
-        setEvents((currentEvents) => [eventWithoutFlyer, ...currentEvents])
-        setFormState(emptyEventForm)
-        setFlyerFile(null)
-        setFileInputKey((currentKey) => currentKey + 1)
-        setIsCreateFormOpen(false)
-        setStatus('ready')
-        setMessage({
-          eventSlug: eventWithoutFlyer.slug,
-          eventStatus: eventWithoutFlyer.status,
-          type: 'error',
-          text:
-            error instanceof Error
-              ? `Event was created, but the flyer could not be uploaded: ${error.message}`
-              : 'Event was created, but the flyer could not be uploaded.',
-        })
-      } else {
-        setMessage({
-          type: 'error',
-          text: isDuplicateEventSlugError(error)
-            ? 'An event with that URL already exists. Slightly adjust the event title for now.'
-            : error instanceof Error
-              ? error.message
-              : 'Event could not be created. Please try again.',
-        })
-      }
+      setMessage({
+        type: 'error',
+        text: isDuplicateEventSlugError(error)
+          ? 'An event with that URL already exists. Slightly adjust the event title for now.'
+          : error instanceof Error
+            ? error.message
+            : 'Event could not be created. Please try again.',
+      })
     } finally {
       setIsCreating(false)
     }
@@ -204,11 +269,27 @@ function EventManagementSection({
   function handleCreateFormCancel() {
     setIsCreateFormOpen(false)
     setFormState(emptyEventForm)
+    setInitialTicketFormState(defaultInitialTicketForm)
+    setShouldCreateInitialTicket(true)
     setFlyerFile(null)
     setFileInputKey((currentKey) => currentKey + 1)
   }
 
+  function handleManageToggle(event: StreetTeamEvent) {
+    const isClosingCurrentEvent = managedEventId === event.id
+
+    setManagedEventId(isClosingCurrentEvent ? null : event.id)
+    setEditingEventId(null)
+    setEditFormState(emptyEventForm)
+    setEditFlyerFile(null)
+    setCheckInEventId((currentId) =>
+      currentId === event.id ? null : currentId,
+    )
+    setMessage(null)
+  }
+
   function handleEditStart(event: StreetTeamEvent) {
+    setManagedEventId(event.id)
     setEditingEventId(event.id)
     setCheckInEventId((currentId) =>
       currentId === event.id ? null : currentId,
@@ -237,7 +318,8 @@ function EventManagementSection({
     let updatedEvent: StreetTeamEvent | null = null
 
     try {
-      updatedEvent = await updateEvent(ownerUserId, eventId, editFormState)
+      const preparedEvent = await prepareEventInputForSave(editFormState)
+      updatedEvent = await updateEvent(ownerUserId, eventId, preparedEvent.input)
 
       const nextEvent = editFlyerFile
         ? await saveEventFlyer(updatedEvent, editFlyerFile)
@@ -255,7 +337,7 @@ function EventManagementSection({
         eventSlug: nextEvent.slug,
         eventStatus: nextEvent.status,
         type: 'success',
-        text: 'Event updated.',
+        text: joinMessage('Event updated.', preparedEvent.warning),
       })
     } catch (error) {
       if (updatedEvent) {
@@ -350,10 +432,7 @@ function EventManagementSection({
       setEditingEventId((currentId) =>
         currentId === event.id ? null : currentId,
       )
-      setLineupEventId((currentId) =>
-        currentId === event.id ? null : currentId,
-      )
-      setTicketEventId((currentId) =>
+      setManagedEventId((currentId) =>
         currentId === event.id ? null : currentId,
       )
       setCheckInEventId((currentId) =>
@@ -438,6 +517,14 @@ function EventManagementSection({
           onSubmit={handleCreate}
           submitText="Create Event"
           submittingText="Creating event..."
+          ticketSetupSection={
+            <InitialTicketSetupSection
+              enabled={shouldCreateInitialTicket}
+              formState={initialTicketFormState}
+              onEnabledChange={setShouldCreateInitialTicket}
+              onFormChange={setInitialTicketFormState}
+            />
+          }
         />
       ) : null}
 
@@ -462,49 +549,40 @@ function EventManagementSection({
         ) : null}
 
         {status === 'ready'
-          ? events.map((event) =>
-              editingEventId === event.id ? (
-                <OwnedEventEditCard
-                  key={event.id}
-                  event={event}
-                  fileInputKey={editFileInputKey}
-                  flyerFile={editFlyerFile}
-                  formState={editFormState}
-                  isCancelling={cancellingEventId === event.id}
-                  isDeleting={deletingEventId === event.id}
-                  isSaving={savingEventId === event.id}
-                  onCancelEdit={handleEditCancel}
-                  onCancelEvent={handleCancelEvent}
-                  onDeleteEvent={handleDeleteEvent}
-                  onFileChange={setEditFlyerFile}
-                  onFormChange={setEditFormState}
-                  onSave={handleEditSave}
-                />
-              ) : (
+          ? events.map((event) => {
+              const isManaged = managedEventId === event.id
+
+              return (
                 <OwnedEventCard
                   key={event.id}
                   event={event}
-                  isCancelling={cancellingEventId === event.id}
-                  isDeleting={deletingEventId === event.id}
-                  isLineupOpen={lineupEventId === event.id}
-                  isTicketsOpen={ticketEventId === event.id}
-                  onCancelEvent={handleCancelEvent}
-                  onDeleteEvent={handleDeleteEvent}
-                  onEditEvent={handleEditStart}
-                  onOpenScanner={() => setCheckInEventId(event.id)}
-                  onToggleTickets={() =>
-                    setTicketEventId((currentId) =>
-                      currentId === event.id ? null : event.id,
-                    )
+                  isManaged={isManaged}
+                  managePanel={
+                    isManaged ? (
+                      <OwnedEventManagePanel
+                        event={event}
+                        fileInputKey={editFileInputKey}
+                        flyerFile={editFlyerFile}
+                        formState={editFormState}
+                        isCancelling={cancellingEventId === event.id}
+                        isDeleting={deletingEventId === event.id}
+                        isEditing={editingEventId === event.id}
+                        isSaving={savingEventId === event.id}
+                        onCancelEdit={handleEditCancel}
+                        onCancelEvent={handleCancelEvent}
+                        onDeleteEvent={handleDeleteEvent}
+                        onFileChange={setEditFlyerFile}
+                        onFormChange={setEditFormState}
+                        onOpenScanner={() => setCheckInEventId(event.id)}
+                        onSave={handleEditSave}
+                        onStartEdit={handleEditStart}
+                      />
+                    ) : null
                   }
-                  onToggleLineup={() =>
-                    setLineupEventId((currentId) =>
-                      currentId === event.id ? null : event.id,
-                    )
-                  }
+                  onManageEvent={handleManageToggle}
                 />
-              ),
-            )
+              )
+            })
           : null}
       </div>
     </div>
@@ -523,6 +601,7 @@ type EventFormProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   submitText: string
   submittingText: string
+  ticketSetupSection?: ReactNode
 }
 
 function EventForm({
@@ -537,20 +616,94 @@ function EventForm({
   onSubmit,
   submitText,
   submittingText,
+  ticketSetupSection = null,
 }: EventFormProps) {
+  const locationInputRef = useRef<HTMLInputElement | null>(null)
+  const formStateRef = useRef(formState)
+  const [locationSearchStatus, setLocationSearchStatus] = useState('')
+  const isGoogleMapsConfigured = hasGoogleMapsApiKey()
+
+  useEffect(() => {
+    formStateRef.current = formState
+  }, [formState])
+
+  useEffect(() => {
+    const inputElement = locationInputRef.current
+    let autocomplete: unknown = null
+    let isMounted = true
+
+    if (!inputElement) {
+      return
+    }
+
+    if (!isGoogleMapsConfigured) {
+      return
+    }
+
+    async function initializeAutocomplete() {
+      try {
+        await loadGoogleMaps()
+
+        if (!isMounted || !inputElement) {
+          return
+        }
+
+        autocomplete = createPlaceAutocomplete(inputElement, (place) => {
+          onFormChange(getFormStateFromGooglePlace(formStateRef.current, place))
+          setLocationSearchStatus('Location selected from Google Places.')
+        })
+        setLocationSearchStatus('Start typing a venue name or street address.')
+      } catch (error) {
+        if (isMounted) {
+          setLocationSearchStatus(
+            error instanceof Error
+              ? error.message
+              : 'Google Places could not be loaded.',
+          )
+        }
+      }
+    }
+
+    void initializeAutocomplete()
+
+    return () => {
+      isMounted = false
+
+      if (autocomplete) {
+        clearGoogleAutocompleteListeners(autocomplete)
+      }
+    }
+  }, [isGoogleMapsConfigured, onFormChange])
+
   function updateField<FieldName extends keyof EventFormState>(
     fieldName: FieldName,
     value: EventFormState[FieldName],
   ) {
+    const shouldClearGoogleLocation = isManualLocationField(fieldName)
+
     onFormChange({
       ...formState,
       [fieldName]: value,
+      ...(shouldClearGoogleLocation
+        ? {
+            formattedAddress: '',
+            googlePlaceId: '',
+            latitude: null,
+            longitude: null,
+          }
+        : {}),
     })
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     onFileChange(event.currentTarget.files?.[0] ?? null)
   }
+
+  const locationHelperText =
+    locationSearchStatus ||
+    (!isGoogleMapsConfigured
+      ? 'Google Places is not configured, so use the address fields below.'
+      : '')
 
   return (
     <form className="auth-form event-form" onSubmit={onSubmit}>
@@ -623,6 +776,21 @@ function EventForm({
       </div>
 
       <label>
+        <span>Find venue or address</span>
+        <input
+          ref={locationInputRef}
+          type="text"
+          defaultValue={formatLocationSearchDefault(formState)}
+          placeholder="Start typing a venue, street address, city, or ZIP"
+        />
+        {locationHelperText ? (
+          <small className="location-autocomplete-helper">
+            {locationHelperText}
+          </small>
+        ) : null}
+      </label>
+
+      <label>
         <span>Venue name</span>
         <input
           type="text"
@@ -676,7 +844,7 @@ function EventForm({
         </label>
 
         <label>
-          <span>Postal code</span>
+          <span>ZIP code</span>
           <input
             type="text"
             value={formState.postalCode}
@@ -751,6 +919,8 @@ function EventForm({
         </div>
       </fieldset>
 
+      {ticketSetupSection}
+
       <button
         type="submit"
         className="auth-submit-button"
@@ -762,32 +932,62 @@ function EventForm({
   )
 }
 
+type InitialTicketSetupSectionProps = {
+  enabled: boolean
+  formState: TicketFormState
+  onEnabledChange: (enabled: boolean) => void
+  onFormChange: (formState: TicketFormState) => void
+}
+
+function InitialTicketSetupSection({
+  enabled,
+  formState,
+  onEnabledChange,
+  onFormChange,
+}: InitialTicketSetupSectionProps) {
+  return (
+    <section className="event-ticket-manager event-initial-ticket-setup">
+      <header className="event-ticket-heading">
+        <h4>Tickets</h4>
+        <p>Create the first ticket type for this event.</p>
+      </header>
+
+      <label className="ticket-setup-toggle">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) => onEnabledChange(event.target.checked)}
+        />
+        <span>Create an initial ticket type now</span>
+      </label>
+
+      {enabled ? (
+        <div className="ticket-type-form">
+          <TicketSetupFields
+            formState={formState}
+            onFormChange={onFormChange}
+            radioName="initialTicketKind"
+          />
+        </div>
+      ) : (
+        <p>Tickets can be added later from Box Office.</p>
+      )}
+    </section>
+  )
+}
+
 type OwnedEventCardProps = {
   event: StreetTeamEvent
-  isCancelling: boolean
-  isDeleting: boolean
-  isLineupOpen: boolean
-  isTicketsOpen: boolean
-  onCancelEvent: (event: StreetTeamEvent) => void
-  onDeleteEvent: (event: StreetTeamEvent) => void
-  onEditEvent: (event: StreetTeamEvent) => void
-  onOpenScanner: () => void
-  onToggleTickets: () => void
-  onToggleLineup: () => void
+  isManaged: boolean
+  managePanel: ReactNode
+  onManageEvent: (event: StreetTeamEvent) => void
 }
 
 function OwnedEventCard({
   event,
-  isCancelling,
-  isDeleting,
-  isLineupOpen,
-  isTicketsOpen,
-  onCancelEvent,
-  onDeleteEvent,
-  onEditEvent,
-  onOpenScanner,
-  onToggleTickets,
-  onToggleLineup,
+  isManaged,
+  managePanel,
+  onManageEvent,
 }: OwnedEventCardProps) {
   const location = formatEventLocation(event)
 
@@ -816,68 +1016,162 @@ function OwnedEventCard({
       </div>
 
       <div className="owned-event-actions">
-        {event.status === 'published' ? (
-          <Link to={`/events/${event.slug}`} className="secondary-action-button">
-            View public event
-          </Link>
-        ) : null}
-
         <button
           type="button"
-          className="secondary-action-button"
-          onClick={onOpenScanner}
+          aria-expanded={isManaged}
+          className="auth-submit-button"
+          onClick={() => onManageEvent(event)}
         >
-          Scan Tickets
-        </button>
-
-        <button
-          type="button"
-          className="secondary-action-button"
-          onClick={onToggleLineup}
-        >
-          {isLineupOpen ? 'Close Lineup' : 'Manage Lineup'}
-        </button>
-
-        <button
-          type="button"
-          className="secondary-action-button"
-          onClick={onToggleTickets}
-        >
-          {isTicketsOpen ? 'Close Tickets' : 'Manage Tickets'}
-        </button>
-
-        <button
-          type="button"
-          className="secondary-action-button"
-          onClick={() => onEditEvent(event)}
-        >
-          Edit Event
-        </button>
-
-        {event.status !== 'cancelled' ? (
-          <button
-            type="button"
-            className="secondary-action-button"
-            disabled={isCancelling}
-            onClick={() => onCancelEvent(event)}
-          >
-            {isCancelling ? 'Cancelling...' : 'Cancel Event'}
-          </button>
-        ) : null}
-
-        <button
-          type="button"
-          className="secondary-action-button"
-          disabled={isDeleting}
-          onClick={() => onDeleteEvent(event)}
-        >
-          {isDeleting ? 'Deleting...' : 'Delete Event'}
+          Manage
         </button>
       </div>
 
-      {isLineupOpen ? <EventLineupManager eventId={event.id} /> : null}
-      {isTicketsOpen ? <EventTicketManager eventId={event.id} /> : null}
+      {managePanel}
     </article>
+  )
+}
+
+type OwnedEventManagePanelProps = {
+  event: StreetTeamEvent
+  fileInputKey: number
+  flyerFile: File | null
+  formState: EventFormState
+  isCancelling: boolean
+  isDeleting: boolean
+  isEditing: boolean
+  isSaving: boolean
+  onCancelEdit: () => void
+  onCancelEvent: (event: StreetTeamEvent) => void
+  onDeleteEvent: (event: StreetTeamEvent) => void
+  onFileChange: (file: File | null) => void
+  onFormChange: (formState: EventFormState) => void
+  onOpenScanner: () => void
+  onSave: (event: FormEvent<HTMLFormElement>, eventId: string) => void
+  onStartEdit: (event: StreetTeamEvent) => void
+}
+
+function OwnedEventManagePanel({
+  event,
+  fileInputKey,
+  flyerFile,
+  formState,
+  isCancelling,
+  isDeleting,
+  isEditing,
+  isSaving,
+  onCancelEdit,
+  onCancelEvent,
+  onDeleteEvent,
+  onFileChange,
+  onFormChange,
+  onOpenScanner,
+  onSave,
+  onStartEdit,
+}: OwnedEventManagePanelProps) {
+  return (
+    <section className="event-manage-panel" aria-label={`Manage ${event.title}`}>
+      <div className="event-manage-grid">
+        <section className="event-manage-section">
+          <header className="event-manage-section-heading">
+            <span>Event Setup</span>
+            <h4>Details, media, and lineup</h4>
+            <p>Edit the public event page content and manage performers.</p>
+          </header>
+
+          <div className="event-manage-actions">
+            {event.status === 'published' ? (
+              <Link
+                to={`/events/${event.slug}`}
+                className="secondary-action-button"
+              >
+                View Public Event
+              </Link>
+            ) : null}
+
+            {!isEditing ? (
+              <button
+                type="button"
+                className="secondary-action-button"
+                onClick={() => onStartEdit(event)}
+              >
+                Edit Event Details
+              </button>
+            ) : null}
+          </div>
+
+          {isEditing ? (
+            <OwnedEventEditCard
+              event={event}
+              fileInputKey={fileInputKey}
+              flyerFile={flyerFile}
+              formState={formState}
+              isSaving={isSaving}
+              onCancelEdit={onCancelEdit}
+              onFileChange={onFileChange}
+              onFormChange={onFormChange}
+              onSave={onSave}
+            />
+          ) : null}
+
+          <EventLineupManager eventId={event.id} />
+        </section>
+
+        <section className="event-manage-section event-manage-section-wide">
+          <header className="event-manage-section-heading">
+            <span>Box Office</span>
+            <h4>Tickets, sales, and check-ins</h4>
+            <p>
+              Manage ticket types, start door sales, and open the QR scanner.
+            </p>
+          </header>
+
+          <div className="event-manage-actions">
+            <button
+              type="button"
+              className="auth-submit-button"
+              onClick={onOpenScanner}
+            >
+              Scan Tickets & Check In
+            </button>
+          </div>
+
+          <EventTicketManager eventId={event.id} />
+          <EventDoorSalesManager eventId={event.id} />
+        </section>
+
+        <EventAnalyticsSection eventId={event.id} />
+
+        <section className="event-manage-section event-settings-section">
+          <header className="event-manage-section-heading">
+            <span>Settings</span>
+            <h4>Administrative actions</h4>
+            <p>Cancel or delete this event only when the change is intentional.</p>
+          </header>
+
+          <div className="event-settings-actions">
+            {event.status !== 'cancelled' ? (
+              <button
+                type="button"
+                className="secondary-action-button"
+                disabled={isCancelling || isSaving}
+                onClick={() => onCancelEvent(event)}
+              >
+                {isCancelling ? 'Cancelling...' : 'Cancel Event'}
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              className="secondary-action-button danger-action-button"
+              disabled={isDeleting || isSaving}
+              onClick={() => onDeleteEvent(event)}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Event'}
+            </button>
+          </div>
+        </section>
+      </div>
+    </section>
   )
 }
 
@@ -886,12 +1180,8 @@ type OwnedEventEditCardProps = {
   fileInputKey: number
   flyerFile: File | null
   formState: EventFormState
-  isCancelling: boolean
-  isDeleting: boolean
   isSaving: boolean
   onCancelEdit: () => void
-  onCancelEvent: (event: StreetTeamEvent) => void
-  onDeleteEvent: (event: StreetTeamEvent) => void
   onFileChange: (file: File | null) => void
   onFormChange: (formState: EventFormState) => void
   onSave: (event: FormEvent<HTMLFormElement>, eventId: string) => void
@@ -902,12 +1192,8 @@ function OwnedEventEditCard({
   fileInputKey,
   flyerFile,
   formState,
-  isCancelling,
-  isDeleting,
   isSaving,
   onCancelEdit,
-  onCancelEvent,
-  onDeleteEvent,
   onFileChange,
   onFormChange,
   onSave,
@@ -937,29 +1223,214 @@ function OwnedEventEditCard({
         >
           Cancel
         </button>
-
-        {event.status !== 'cancelled' ? (
-          <button
-            type="button"
-            className="secondary-action-button"
-            disabled={isCancelling || isSaving}
-            onClick={() => onCancelEvent(event)}
-          >
-            {isCancelling ? 'Cancelling...' : 'Cancel Event'}
-          </button>
-        ) : null}
-
-        <button
-          type="button"
-          className="secondary-action-button"
-          disabled={isDeleting || isSaving}
-          onClick={() => onDeleteEvent(event)}
-        >
-          {isDeleting ? 'Deleting...' : 'Delete Event'}
-        </button>
       </div>
     </article>
   )
+}
+
+type EventAnalyticsData = {
+  checkInSummary: EventTicketCheckInSummary
+  confirmedReservations: TicketReservation[]
+  doorTicketCount: number
+  grossCheckoutTotalCents: number
+  onlineTicketCount: number
+  pendingReservationCount: number
+  signedInFanTicketCount: number
+  guestTicketCount: number
+  ticketCapacity: number
+  ticketTypeCount: number
+}
+
+function EventAnalyticsSection({ eventId }: { eventId: string }) {
+  const [analytics, setAnalytics] = useState<EventAnalyticsData | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadAnalytics() {
+      setStatus('loading')
+
+      try {
+        const [ticketTypes, reservations, checkInSummary] = await Promise.all([
+          fetchEventTicketTypes(eventId),
+          fetchTicketReservationsForEvent(eventId),
+          fetchEventTicketCheckInSummary(eventId),
+        ])
+
+        if (!isMounted) {
+          return
+        }
+
+        setAnalytics(
+          buildEventAnalytics(ticketTypes, reservations, checkInSummary),
+        )
+        setStatus('ready')
+      } catch {
+        if (isMounted) {
+          setStatus('error')
+        }
+      }
+    }
+
+    void loadAnalytics()
+
+    return () => {
+      isMounted = false
+    }
+  }, [eventId])
+
+  return (
+    <section className="event-manage-section">
+      <header className="event-manage-section-heading">
+        <span>Analytics</span>
+        <h4>Sales and check-ins</h4>
+        <p>Basic event activity from ticket reservations and QR scans.</p>
+      </header>
+
+      {status === 'loading' ? <p>Loading analytics...</p> : null}
+      {status === 'error' ? (
+        <p>Analytics could not be loaded right now.</p>
+      ) : null}
+
+      {status === 'ready' && analytics ? (
+        <div className="event-analytics-grid">
+          <EventAnalyticsMetric
+            label="Tickets sold"
+            value={analytics.confirmedReservations
+              .reduce((total, reservation) => total + reservation.quantity, 0)
+              .toLocaleString()}
+            detail="Paid and free confirmed tickets"
+          />
+          <EventAnalyticsMetric
+            label="Tickets remaining"
+            value={formatRemainingTickets(analytics)}
+            detail="Based on ticket capacity"
+          />
+          <EventAnalyticsMetric
+            label="Gross checkout total"
+            value={formatTicketPrice(analytics.grossCheckoutTotalCents)}
+            detail="Confirmed paid checkout totals"
+          />
+          <EventAnalyticsMetric
+            label="Check-ins"
+            value={analytics.checkInSummary.checkedInTickets.toLocaleString()}
+            detail={`${analytics.checkInSummary.notCheckedInTickets.toLocaleString()} not checked in`}
+          />
+          <EventAnalyticsMetric
+            label="Guest purchases"
+            value={analytics.guestTicketCount.toLocaleString()}
+            detail="Tickets without a fan account"
+          />
+          <EventAnalyticsMetric
+            label="Signed-in fan purchases"
+            value={analytics.signedInFanTicketCount.toLocaleString()}
+            detail="Tickets tied to fan accounts"
+          />
+          <EventAnalyticsMetric
+            label="Door sales"
+            value={analytics.doorTicketCount.toLocaleString()}
+            detail="Paid box office tickets"
+          />
+          <EventAnalyticsMetric
+            label="Online sales"
+            value={analytics.onlineTicketCount.toLocaleString()}
+            detail="Public checkout tickets"
+          />
+          <EventAnalyticsMetric
+            label="Pending reservations"
+            value={analytics.pendingReservationCount.toLocaleString()}
+            detail="Waiting on payment or completion"
+          />
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function EventAnalyticsMetric({
+  detail,
+  label,
+  value,
+}: {
+  detail: string
+  label: string
+  value: string
+}) {
+  return (
+    <div className="event-analytics-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <p>{detail}</p>
+    </div>
+  )
+}
+
+function buildEventAnalytics(
+  ticketTypes: EventTicketType[],
+  reservations: TicketReservation[],
+  checkInSummary: EventTicketCheckInSummary,
+): EventAnalyticsData {
+  const confirmedReservations = reservations.filter(
+    (reservation) => reservation.reservationStatus === 'confirmed',
+  )
+
+  return {
+    checkInSummary,
+    confirmedReservations,
+    doorTicketCount: sumReservationQuantity(
+      confirmedReservations.filter(
+        (reservation) => reservation.salesChannel === 'door',
+      ),
+    ),
+    grossCheckoutTotalCents: confirmedReservations.reduce(
+      (total, reservation) =>
+        total + Math.max(0, reservation.totalPriceCentsSnapshot),
+      0,
+    ),
+    guestTicketCount: sumReservationQuantity(
+      confirmedReservations.filter(
+        (reservation) => !reservation.purchaserUserId,
+      ),
+    ),
+    onlineTicketCount: sumReservationQuantity(
+      confirmedReservations.filter(
+        (reservation) => reservation.salesChannel === 'online',
+      ),
+    ),
+    pendingReservationCount: reservations.filter(
+      (reservation) => reservation.reservationStatus === 'pending',
+    ).length,
+    signedInFanTicketCount: sumReservationQuantity(
+      confirmedReservations.filter(
+        (reservation) => Boolean(reservation.purchaserUserId),
+      ),
+    ),
+    ticketCapacity: ticketTypes.reduce(
+      (total, ticketType) => total + ticketType.quantityTotal,
+      0,
+    ),
+    ticketTypeCount: ticketTypes.length,
+  }
+}
+
+function sumReservationQuantity(reservations: TicketReservation[]) {
+  return reservations.reduce(
+    (total, reservation) => total + reservation.quantity,
+    0,
+  )
+}
+
+function formatRemainingTickets(analytics: EventAnalyticsData) {
+  if (analytics.ticketTypeCount === 0 || analytics.ticketCapacity <= 0) {
+    return 'Not set'
+  }
+
+  const ticketsSold = sumReservationQuantity(analytics.confirmedReservations)
+
+  return Math.max(analytics.ticketCapacity - ticketsSold, 0).toLocaleString()
 }
 
 type LineupFormState = {
@@ -1362,6 +1833,10 @@ function getFormStateFromEvent(event: StreetTeamEvent): EventFormState {
     doorsTime: event.doorsTime.slice(0, 5),
     endTime: event.endTime.slice(0, 5),
     eventDate: event.eventDate,
+    formattedAddress: event.formattedAddress,
+    googlePlaceId: event.googlePlaceId,
+    latitude: event.latitude,
+    longitude: event.longitude,
     postalCode: event.postalCode,
     startTime: event.startTime.slice(0, 5),
     state: event.state,
@@ -1369,6 +1844,138 @@ function getFormStateFromEvent(event: StreetTeamEvent): EventFormState {
     title: event.title,
     venueName: event.venueName,
   }
+}
+
+async function prepareEventInputForSave(input: EventFormState) {
+  if (hasCoordinates(input)) {
+    return {
+      input,
+      warning: '',
+    }
+  }
+
+  const geocodeAddressText = formatGeocodeAddress(input)
+
+  if (!geocodeAddressText) {
+    return {
+      input: clearGoogleLocation(input),
+      warning: '',
+    }
+  }
+
+  if (!hasGoogleMapsApiKey()) {
+    return {
+      input: clearGoogleLocation(input),
+      warning:
+        'Location was saved, but coordinates were not added because Google Maps is not configured.',
+    }
+  }
+
+  try {
+    const place = await geocodeAddress(geocodeAddressText)
+
+    if (
+      typeof place?.latitude !== 'number' ||
+      typeof place.longitude !== 'number'
+    ) {
+      return {
+        input: clearGoogleLocation(input),
+        warning:
+          'Location was saved, but Google could not find coordinates for that address.',
+      }
+    }
+
+    return {
+      input: getFormStateFromGooglePlace(input, place),
+      warning: '',
+    }
+  } catch {
+    return {
+      input: clearGoogleLocation(input),
+      warning:
+        'Location was saved, but Google could not find coordinates for that address.',
+    }
+  }
+}
+
+function getFormStateFromGooglePlace(
+  currentFormState: EventFormState,
+  place: ParsedGooglePlace,
+): EventFormState {
+  return {
+    ...currentFormState,
+    addressLine1: place.addressLine1 || currentFormState.addressLine1,
+    addressLine2: '',
+    city: place.city || currentFormState.city,
+    country: place.country || currentFormState.country || 'USA',
+    formattedAddress: place.formattedAddress,
+    googlePlaceId: place.googlePlaceId,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    postalCode: place.postalCode || currentFormState.postalCode,
+    state: place.state || currentFormState.state,
+    venueName: place.venueName || currentFormState.venueName,
+  }
+}
+
+function clearGoogleLocation(input: EventFormState): EventFormState {
+  return {
+    ...input,
+    formattedAddress: '',
+    googlePlaceId: '',
+    latitude: null,
+    longitude: null,
+  }
+}
+
+function hasCoordinates(input: EventFormState) {
+  return (
+    typeof input.latitude === 'number' &&
+    Number.isFinite(input.latitude) &&
+    typeof input.longitude === 'number' &&
+    Number.isFinite(input.longitude)
+  )
+}
+
+function formatGeocodeAddress(input: EventFormState) {
+  return [
+    input.venueName,
+    input.addressLine1,
+    input.addressLine2,
+    input.city,
+    input.state,
+    input.postalCode,
+    input.country,
+  ]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(', ')
+}
+
+function formatLocationSearchDefault(input: EventFormState) {
+  return (
+    input.formattedAddress ||
+    [input.venueName, input.addressLine1, input.city, input.state]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(', ')
+  )
+}
+
+function isManualLocationField(fieldName: keyof EventFormState) {
+  return [
+    'addressLine1',
+    'addressLine2',
+    'city',
+    'country',
+    'postalCode',
+    'state',
+    'venueName',
+  ].includes(fieldName)
+}
+
+function joinMessage(message: string, detail: string) {
+  return detail ? `${message} ${detail}` : message
 }
 
 export default EventManagementSection

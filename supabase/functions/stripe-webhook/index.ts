@@ -489,7 +489,10 @@ Deno.serve(async (request) => {
 
   console.log('[stripe-webhook] received event type:', stripeEvent.type)
 
-  if (stripeEvent.type !== 'checkout.session.completed') {
+  if (
+    stripeEvent.type !== 'checkout.session.completed' &&
+    stripeEvent.type !== 'checkout.session.expired'
+  ) {
     return jsonResponse({ received: true, ignored: true })
   }
 
@@ -516,14 +519,50 @@ Deno.serve(async (request) => {
     })
   }
 
-  console.log('[stripe-webhook] fulfilling reservation:', reservationId)
-
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
   })
+
+  if (stripeEvent.type === 'checkout.session.expired') {
+    const { error: expireError } = await supabase
+      .from('ticket_reservations')
+      .update({
+        reservation_status: 'expired',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', reservationId)
+      .eq('reservation_status', 'pending')
+
+    if (expireError) {
+      console.error('[stripe-webhook] failed to expire reservation:', {
+        checkoutSessionId: session.id,
+        message: expireError.message,
+        reservationId,
+      })
+
+      return errorResponse(
+        'Expired ticket reservation update failed.',
+        500,
+        'reservation_expire_failed',
+      )
+    }
+
+    console.log('[stripe-webhook] reservation expired:', {
+      checkoutSessionId: session.id,
+      reservationId,
+    })
+
+    return jsonResponse({
+      received: true,
+      expired: true,
+    })
+  }
+
+  console.log('[stripe-webhook] fulfilling reservation:', reservationId)
+
   const paymentIntentId = getPaymentIntentId(session.payment_intent)
   const { error: fulfillmentError } = await supabase.rpc(
     'confirm_paid_ticket_reservation',

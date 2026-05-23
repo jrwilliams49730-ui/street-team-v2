@@ -8,10 +8,11 @@ import {
 } from './events'
 
 type EventCardProps = {
+  distanceMiles?: number | null
   event: StreetTeamEvent
 }
 
-function EventCard({ event }: EventCardProps) {
+function EventCard({ distanceMiles = null, event }: EventCardProps) {
   const location = formatEventLocation(event)
 
   return (
@@ -45,9 +46,18 @@ function EventCard({ event }: EventCardProps) {
       <div className="event-card-location">
         <p>{event.venueName}</p>
         {location ? <p>{location}</p> : null}
+        {typeof distanceMiles === 'number' ? (
+          <p>{formatDistance(distanceMiles)} away</p>
+        ) : null}
       </div>
     </Link>
   )
+}
+
+function formatDistance(distanceMiles: number) {
+  return distanceMiles < 10
+    ? `${distanceMiles.toFixed(1)} mi`
+    : `${Math.round(distanceMiles)} mi`
 }
 
 export default EventCard

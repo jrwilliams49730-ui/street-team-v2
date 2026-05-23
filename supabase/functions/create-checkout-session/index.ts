@@ -15,6 +15,7 @@ type ReservationRow = {
   purchaser_user_id: string | null
   quantity: number
   reservation_status: string
+  sales_channel: string | null
   processing_fee_cents_snapshot: number
   street_team_fee_cents_snapshot: number
   ticket_subtotal_cents_snapshot: number
@@ -115,7 +116,7 @@ Deno.serve(async (request) => {
   const { data: reservation, error: reservationError } = await supabase
     .from('ticket_reservations')
     .select(
-      'id,event_id,ticket_type_id,buyer_email,purchaser_user_id,quantity,reservation_status,processing_fee_cents_snapshot,street_team_fee_cents_snapshot,ticket_kind_snapshot,ticket_subtotal_cents_snapshot,total_price_cents_snapshot,unit_price_cents_snapshot,expires_at',
+      'id,event_id,ticket_type_id,buyer_email,purchaser_user_id,quantity,reservation_status,sales_channel,processing_fee_cents_snapshot,street_team_fee_cents_snapshot,ticket_kind_snapshot,ticket_subtotal_cents_snapshot,total_price_cents_snapshot,unit_price_cents_snapshot,expires_at',
     )
     .eq('id', reservationId.trim())
     .maybeSingle<ReservationRow>()
@@ -223,11 +224,14 @@ Deno.serve(async (request) => {
     reservation_id: reservation.id,
     event_id: reservation.event_id,
     ticket_type_id: reservation.ticket_type_id,
+    sales_channel: reservation.sales_channel ?? 'online',
   }
   const isGuestCheckout = !reservation.purchaser_user_id
+  const isDoorSale = reservation.sales_channel === 'door'
 
   console.log('[create-checkout-session] paid reservation ready for Stripe:', {
     buyerEmail: reservation.buyer_email,
+    isDoorSale,
     isGuestCheckout,
     metadata,
     reservationId: reservation.id,
@@ -247,6 +251,7 @@ Deno.serve(async (request) => {
       `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}` +
       `&reservation_id=${encodeURIComponent(reservation.id)}` +
       `&guest_checkout=${isGuestCheckout ? '1' : '0'}` +
+      `&door_sale=${isDoorSale ? '1' : '0'}` +
       `&ticket_email=${ticketEmailStatus}`
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
@@ -290,7 +295,9 @@ Deno.serve(async (request) => {
       client_reference_id: reservation.id,
       line_items: lineItems,
       success_url: successUrl,
-      cancel_url: `${appUrl}/checkout/cancelled?reservation_id=${reservation.id}`,
+      cancel_url:
+        `${appUrl}/checkout/cancelled?reservation_id=${reservation.id}` +
+        `&door_sale=${isDoorSale ? '1' : '0'}`,
       metadata,
       payment_intent_data: {
         metadata,

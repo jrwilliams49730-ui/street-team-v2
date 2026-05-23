@@ -4,6 +4,7 @@ import FollowButton from '../follows/FollowButton'
 import { formatFollowerCount, formatFollowerNoun } from '../follows/follows'
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 import FeaturedMediaPlayer from './FeaturedMediaPlayer'
+import PerformerSocialLinks from './PerformerSocialLinks'
 import { canRenderFeaturedMedia } from './featuredMediaLinks'
 import { fetchPerformerBySlug, type Performer } from './performers'
 import PerformerOfficialEvents from './PerformerOfficialEvents'
@@ -119,6 +120,8 @@ function PerformerProfile() {
         </div>
 
         <p className="profile-bio">{performer.bio}</p>
+
+        <PerformerSocialLinks socialLinks={performer.socialLinks} />
 
         <FollowButton
           followerCount={performer.followerCount}

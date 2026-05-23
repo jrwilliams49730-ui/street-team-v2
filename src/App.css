@@ -806,6 +806,27 @@
   font-weight: 700;
 }
 
+.performer-social-fields {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.performer-social-fields legend {
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.performer-social-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
 .account-type-options {
   display: grid;
   gap: 0.55rem;
@@ -1268,6 +1289,12 @@
   gap: 1rem;
 }
 
+.location-autocomplete-helper {
+  color: var(--st-text-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
 .event-image-field {
   display: flex;
   flex-direction: column;
@@ -1350,6 +1377,108 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
+}
+
+.event-manage-panel {
+  border-top: 1px solid var(--st-border);
+  padding-top: 1rem;
+}
+
+.event-manage-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.event-manage-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.event-manage-section > p {
+  color: var(--st-text-muted);
+  font-weight: 650;
+}
+
+.event-manage-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.event-manage-section-heading span {
+  color: var(--st-accent-hover);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.event-manage-section-heading h4 {
+  font-size: 1rem;
+  font-weight: 760;
+}
+
+.event-manage-section-heading p {
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.event-manage-actions,
+.event-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.danger-action-button {
+  border-color: rgba(255, 90, 79, 0.34);
+  color: #ffd2cc;
+  background: rgba(239, 39, 34, 0.1);
+}
+
+.event-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.65rem;
+}
+
+.event-analytics-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.85rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.9rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.event-analytics-card span {
+  color: var(--st-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.event-analytics-card strong {
+  color: var(--st-text);
+  font-size: 1.55rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.event-analytics-card p {
+  color: var(--st-text-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
 }
 
 .event-lineup-manager,
@@ -1508,13 +1637,35 @@
   gap: 0.85rem;
 }
 
+.door-sale-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .event-lineup-manager > p,
 .event-ticket-scanner > p {
   color: var(--st-text-muted);
 }
 
+.door-sale-history > p,
 .event-ticket-manager > p {
   color: var(--st-text-muted);
+}
+
+.ticket-setup-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.ticket-setup-toggle input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--st-accent);
 }
 
 .event-scanner-camera {
@@ -1834,6 +1985,7 @@
 .event-scanner-manual-form input,
 .lineup-edit-card input,
 .ticket-type-form input,
+.ticket-type-form select,
 .ticket-type-form textarea {
   width: 100%;
   border: 1px solid var(--st-border);
@@ -1977,12 +2129,14 @@
 }
 
 .lineup-list,
+.door-sale-list,
 .official-events-list,
 .ticket-type-list {
   display: grid;
   gap: 0.75rem;
 }
 
+.door-sale-card,
 .lineup-card,
 .official-event-card,
 .ticket-type-card {
@@ -1998,6 +2152,7 @@
 }
 
 .lineup-card:hover,
+.door-sale-card:hover,
 .official-event-card:hover {
   border-color: var(--st-border-strong);
 }
@@ -2404,6 +2559,73 @@
 
 .section-heading p {
   color: var(--st-text-muted);
+}
+
+.event-discovery-controls,
+.event-discovery-results,
+.event-result-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.event-discovery-controls {
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1.25rem;
+  background: var(--st-surface);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.26);
+}
+
+.event-radius-field,
+.event-location-search-form,
+.event-location-filter-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.event-radius-field label,
+.event-location-search-form label {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.event-radius-field select,
+.event-location-search-form input {
+  width: 100%;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  color: var(--st-text);
+  background: rgba(0, 0, 0, 0.26);
+  font: inherit;
+}
+
+.event-location-filter-summary p,
+.event-location-message {
+  margin: 0;
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.event-location-message.is-error {
+  color: #ffd2cc;
+}
+
+.event-result-group h3 {
+  margin: 0;
+  padding: 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .performer-grid,
@@ -3145,6 +3367,33 @@
   color: var(--st-text-subtle);
 }
 
+.profile-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.profile-social-link {
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  padding: 0.62rem 0.85rem;
+  color: var(--st-text);
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.profile-social-link:hover {
+  border-color: var(--st-border-strong);
+  background: var(--st-accent-soft);
+}
+
+.profile-social-link:focus-visible {
+  outline: 2px solid var(--st-accent-hover);
+  outline-offset: 3px;
+}
+
 .follow-button {
   width: fit-content;
   border: 0;
@@ -3270,6 +3519,15 @@
 
   .event-location-grid {
     grid-template-columns: minmax(0, 1fr) 7rem;
+  }
+
+  .event-manage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .event-manage-section-wide {
+    grid-column: 1 / -1;
   }
 
 }

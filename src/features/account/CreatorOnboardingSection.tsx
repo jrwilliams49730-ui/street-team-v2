@@ -7,6 +7,8 @@ import {
 import { Link } from 'react-router-dom'
 import CreatePerformerForm from '../performers/CreatePerformerForm'
 import FeaturedMediaPlayer from '../performers/FeaturedMediaPlayer'
+import PerformerSocialLinks from '../performers/PerformerSocialLinks'
+import PerformerSocialLinksFields from '../performers/PerformerSocialLinksFields'
 import {
   canRenderFeaturedMedia,
   isSoundCloudUrl,
@@ -19,6 +21,7 @@ import {
   updatePerformerProfile,
   type FeaturedMediaType,
   type Performer,
+  type PerformerSocialLinks as PerformerSocialLinkValues,
 } from '../performers/performers'
 import CreateProducerForm from '../producers/CreateProducerForm'
 import {
@@ -66,6 +69,7 @@ type CreatorProfile = {
   name: string
   profileType: ProfileImageType
   publicPath: string
+  socialLinks: PerformerSocialLinkValues | null
   state: string
   typeLabel: string
 }
@@ -89,6 +93,8 @@ function CreatorOnboardingSection({
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [body, setBody] = useState('')
+  const [socialLinks, setSocialLinks] =
+    useState<PerformerSocialLinkValues>(getEmptySocialLinks())
   const [featuredMediaType, setFeaturedMediaType] =
     useState<FeaturedMediaType>('video')
   const [featuredMediaUrl, setFeaturedMediaUrl] = useState('')
@@ -105,6 +111,7 @@ function CreatorOnboardingSection({
     setCity(nextProfile.city)
     setState(nextProfile.state)
     setBody(nextProfile.body)
+    setSocialLinks(nextProfile.socialLinks ?? getEmptySocialLinks())
     setFeaturedMediaType(nextProfile.featuredMediaType ?? 'video')
     setFeaturedMediaUrl(nextProfile.featuredMediaUrl ?? '')
   }
@@ -330,6 +337,8 @@ function CreatorOnboardingSection({
         city,
         name,
         state,
+        socialLinks:
+          profile.profileType === 'performer' ? socialLinks : undefined,
       })
 
       syncProfileState(nextProfile)
@@ -499,6 +508,13 @@ function CreatorOnboardingSection({
             </label>
 
             {profile.profileType === 'performer' ? (
+              <PerformerSocialLinksFields
+                socialLinks={socialLinks}
+                onSocialLinksChange={setSocialLinks}
+              />
+            ) : null}
+
+            {profile.profileType === 'performer' ? (
               <FeaturedMediaArea
                 isEditing
                 isSaving={isMediaSaving}
@@ -542,6 +558,10 @@ function CreatorOnboardingSection({
 
           {profile.body ? (
             <p className="creator-management-body">{profile.body}</p>
+          ) : null}
+
+          {profile.profileType === 'performer' && profile.socialLinks ? (
+            <PerformerSocialLinks socialLinks={profile.socialLinks} />
           ) : null}
 
           {profile.profileType === 'performer' ? (
@@ -894,6 +914,7 @@ type CreatorProfileFormState = {
   category: string
   city: string
   name: string
+  socialLinks?: PerformerSocialLinkValues
   state: string
 }
 
@@ -909,6 +930,7 @@ async function updateCreatorProfile(
         city: formState.city,
         name: formState.name,
         performerType: formState.category,
+        socialLinks: formState.socialLinks,
         state: formState.state,
       }),
     )
@@ -953,6 +975,7 @@ function mapPerformerProfile(performer: Performer): CreatorProfile {
     name: performer.name,
     profileType: 'performer',
     publicPath: `/performers/${performer.slug}`,
+    socialLinks: performer.socialLinks,
     state: performer.state,
     typeLabel: 'Performer',
   }
@@ -974,6 +997,7 @@ function mapProducerProfile(producer: Producer): CreatorProfile {
     name: producer.name,
     profileType: 'producer',
     publicPath: `/producers/${producer.slug}`,
+    socialLinks: null,
     state: producer.state,
     typeLabel: 'Producer',
   }
@@ -995,8 +1019,19 @@ function mapVenueProfile(venue: Venue): CreatorProfile {
     name: venue.name,
     profileType: 'venue',
     publicPath: `/venues/${venue.slug}`,
+    socialLinks: null,
     state: venue.state,
     typeLabel: 'Venue',
+  }
+}
+
+function getEmptySocialLinks(): PerformerSocialLinkValues {
+  return {
+    facebook: '',
+    instagram: '',
+    tiktok: '',
+    website: '',
+    youtube: '',
   }
 }
 

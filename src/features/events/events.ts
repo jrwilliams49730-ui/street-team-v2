@@ -26,6 +26,8 @@ export type EventRow = {
   state: string
   postal_code: string | null
   country: string | null
+  formatted_address: string | null
+  google_place_id: string | null
   latitude: number | null
   longitude: number | null
   event_image_url: string | null
@@ -57,6 +59,8 @@ export type StreetTeamEvent = {
   state: string
   postalCode: string
   country: string
+  formattedAddress: string
+  googlePlaceId: string
   latitude: number | null
   longitude: number | null
   eventImageUrl: string | null
@@ -75,6 +79,10 @@ export type EventFormInput = {
   doorsTime: string
   endTime: string
   eventDate: string
+  formattedAddress: string
+  googlePlaceId: string
+  latitude: number | null
+  longitude: number | null
   postalCode: string
   startTime: string
   state: string
@@ -92,7 +100,7 @@ export type CreateEventInput = EventFormInput & {
 export type UpdateEventInput = EventFormInput
 
 const eventSelect =
-  'id, owner_user_id, organizer_type, producer_id, organizer_venue_id, venue_id, title, slug, category, description, event_date, doors_time, start_time, end_time, event_timezone, venue_name, address_line_1, address_line_2, city, state, postal_code, country, latitude, longitude, event_image_url, status, created_at, updated_at'
+  'id, owner_user_id, organizer_type, producer_id, organizer_venue_id, venue_id, title, slug, category, description, event_date, doors_time, start_time, end_time, event_timezone, venue_name, address_line_1, address_line_2, city, state, postal_code, country, formatted_address, google_place_id, latitude, longitude, event_image_url, status, created_at, updated_at'
 
 export function generateEventSlug(title: string) {
   const slug = title
@@ -267,8 +275,10 @@ export async function createEvent(input: CreateEventInput) {
       event_date: cleanRequiredText(input.eventDate),
       event_image_url: null,
       event_timezone: eventTimezone,
-      latitude: null,
-      longitude: null,
+      formatted_address: cleanOptionalText(input.formattedAddress),
+      google_place_id: cleanOptionalText(input.googlePlaceId),
+      latitude: cleanCoordinate(input.latitude),
+      longitude: cleanCoordinate(input.longitude),
       organizer_type: input.organizerType,
       organizer_venue_id:
         input.organizerType === 'venue' ? input.organizerProfileId : null,
@@ -311,11 +321,15 @@ export async function updateEvent(
       doors_time: cleanOptionalText(input.doorsTime),
       end_time: cleanOptionalText(input.endTime),
       event_date: cleanRequiredText(input.eventDate),
+      formatted_address: cleanOptionalText(input.formattedAddress),
+      google_place_id: cleanOptionalText(input.googlePlaceId),
       postal_code: cleanOptionalText(input.postalCode),
       start_time: cleanOptionalText(input.startTime),
       state: cleanRequiredText(input.state),
       status: input.status,
       title: cleanRequiredText(input.title),
+      latitude: cleanCoordinate(input.latitude),
+      longitude: cleanCoordinate(input.longitude),
       venue_name: cleanRequiredText(input.venueName),
     })
     .eq('id', eventId)
@@ -442,6 +456,8 @@ function mapEventRow(row: EventRow): StreetTeamEvent {
     eventDate: row.event_date,
     eventImageUrl: row.event_image_url,
     eventTimezone: row.event_timezone?.trim() ?? '',
+    formattedAddress: row.formatted_address?.trim() ?? '',
+    googlePlaceId: row.google_place_id?.trim() ?? '',
     id: row.id,
     latitude: row.latitude,
     longitude: row.longitude,
@@ -481,6 +497,10 @@ function cleanOptionalText(value: string) {
 
 function cleanRequiredText(value: string) {
   return value.trim()
+}
+
+function cleanCoordinate(value: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
 function getTodayDateString() {

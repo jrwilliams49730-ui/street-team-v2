@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import {
   createPerformerProfile,
   isDuplicateSlugError,
+  type PerformerSocialLinks,
   type Performer,
 } from './performers'
+import PerformerSocialLinksFields from './PerformerSocialLinksFields'
 
 type Message = {
   type: 'success' | 'error'
@@ -16,6 +18,14 @@ type CreatePerformerFormProps = {
   ownerUserId: string
 }
 
+const emptySocialLinks: PerformerSocialLinks = {
+  facebook: '',
+  instagram: '',
+  tiktok: '',
+  website: '',
+  youtube: '',
+}
+
 function CreatePerformerForm({
   onProfileCreated,
   ownerUserId,
@@ -25,6 +35,8 @@ function CreatePerformerForm({
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [bio, setBio] = useState('')
+  const [socialLinks, setSocialLinks] =
+    useState<PerformerSocialLinks>(emptySocialLinks)
   const [message, setMessage] = useState<Message | null>(null)
   const [createdPerformer, setCreatedPerformer] = useState<Performer | null>(
     null,
@@ -45,6 +57,7 @@ function CreatePerformerForm({
         city,
         state,
         bio,
+        socialLinks,
       })
 
       setCreatedPerformer(performer)
@@ -59,6 +72,7 @@ function CreatePerformerForm({
       setCity('')
       setState('')
       setBio('')
+      setSocialLinks(emptySocialLinks)
     } catch (error) {
       setMessage({
         type: 'error',
@@ -132,6 +146,11 @@ function CreatePerformerForm({
             onChange={(event) => setBio(event.target.value)}
           />
         </label>
+
+        <PerformerSocialLinksFields
+          socialLinks={socialLinks}
+          onSocialLinksChange={setSocialLinks}
+        />
 
         {message ? (
           <p className={`auth-message ${message.type}`}>

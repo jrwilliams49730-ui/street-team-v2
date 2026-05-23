@@ -6,6 +6,7 @@ import {
   fetchCheckoutTicketStatus,
   type CheckoutTicketStatus,
 } from './checkoutTicketStatus'
+import { cancelDoorTicketReservation } from '../events/eventTickets'
 
 type FanTicketLinkStatus = 'hidden' | 'loading' | 'visible'
 type CheckoutStatusLoadState = 'idle' | 'loading' | 'ready' | 'error'
@@ -17,6 +18,7 @@ export function CheckoutSuccessPage() {
   const reservationId = searchParams.get('reservation_id')?.trim() ?? ''
   const guestCheckoutParam = searchParams.get('guest_checkout')
   const ticketEmailParam = searchParams.get('ticket_email')
+  const isDoorSale = searchParams.get('door_sale') === '1'
   const [fanTicketLinkStatus, setFanTicketLinkStatus] =
     useState<FanTicketLinkStatus>('hidden')
   const [checkoutStatus, setCheckoutStatus] =
@@ -110,10 +112,27 @@ export function CheckoutSuccessPage() {
     <section className="checkout-return-page">
       <div className="checkout-return-card is-success">
         <span className="checkout-return-kicker">Stripe Checkout</span>
-        <h2>{isGuestCheckout ? 'Payment successful.' : 'Payment received.'}</h2>
+        <h2>
+          {isDoorSale
+            ? 'Box office payment successful.'
+            : isGuestCheckout
+              ? 'Payment successful.'
+              : 'Payment received.'}
+        </h2>
 
         {sessionId ? (
-          showGuestEmailSuccess ? (
+          isDoorSale && showGuestEmailSuccess ? (
+            <p>Payment successful. The buyer&apos;s ticket has been emailed.</p>
+          ) : isDoorSale && ticketEmailError ? (
+            <p>
+              Payment successful. We could not send the buyer&apos;s ticket
+              email automatically, but the ticket is still confirmed.
+            </p>
+          ) : isDoorSale ? (
+            <p>
+              Payment successful. The box office sale is complete.
+            </p>
+          ) : showGuestEmailSuccess ? (
             <p>Payment successful. Your ticket has been emailed to you.</p>
           ) : ticketEmailError ? (
             <p>
@@ -165,8 +184,11 @@ export function CheckoutSuccessPage() {
         ) : null}
 
         <div className="checkout-return-actions">
-          <Link to="/events" className="auth-submit-button">
-            Return to Events
+          <Link
+            to={isDoorSale ? '/account?tab=my-events' : '/events'}
+            className="auth-submit-button"
+          >
+            {isDoorSale ? 'Return to My Events' : 'Return to Events'}
           </Link>
 
           {fanTicketLinkStatus === 'visible' ? (
@@ -190,15 +212,32 @@ export function CheckoutSuccessPage() {
 export function CheckoutCancelledPage() {
   const [searchParams] = useSearchParams()
   const reservationId = searchParams.get('reservation_id')?.trim() ?? ''
+  const isDoorSale = searchParams.get('door_sale') === '1'
+
+  useEffect(() => {
+    if (!isDoorSale || !reservationId) {
+      return
+    }
+
+    async function markDoorSaleCancelled() {
+      try {
+        await cancelDoorTicketReservation(reservationId)
+      } catch {
+        // The pending hold will still expire automatically if cancellation fails.
+      }
+    }
+
+    void markDoorSaleCancelled()
+  }, [isDoorSale, reservationId])
 
   return (
     <section className="checkout-return-page">
       <div className="checkout-return-card is-cancelled">
         <span className="checkout-return-kicker">Stripe Checkout</span>
-        <h2>Checkout cancelled.</h2>
+        <h2>{isDoorSale ? 'Box office checkout cancelled.' : 'Checkout cancelled.'}</h2>
         <p>
-          No payment was completed. Your pending ticket hold will expire
-          automatically if you do not return to checkout.
+          No payment was completed. The pending ticket hold will expire
+          automatically if checkout is not completed.
         </p>
 
         {reservationId ? (
@@ -208,8 +247,11 @@ export function CheckoutCancelledPage() {
         ) : null}
 
         <div className="checkout-return-actions">
-          <Link to="/events" className="auth-submit-button">
-            Return to Events
+          <Link
+            to={isDoorSale ? '/account?tab=my-events' : '/events'}
+            className="auth-submit-button"
+          >
+            {isDoorSale ? 'Return to My Events' : 'Return to Events'}
           </Link>
         </div>
       </div>

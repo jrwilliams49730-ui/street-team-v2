@@ -7,33 +7,21 @@ import {
   formatTicketPrice,
   updateEventTicketType,
   type EventTicketType,
-  type SaveEventTicketTypeInput,
   type TicketKind,
 } from '../events/eventTickets'
+import {
+  emptyTicketForm,
+  getTicketInput,
+  type TicketFormState,
+} from './ticketSetupForm'
 
 type EventTicketManagerProps = {
   eventId: string
 }
 
-type TicketFormState = {
-  description: string
-  name: string
-  priceDollars: string
-  quantityTotal: string
-  ticketKind: TicketKind
-}
-
 type TicketMessage = {
   type: 'success' | 'error'
   text: string
-}
-
-const emptyTicketForm: TicketFormState = {
-  description: '',
-  name: '',
-  priceDollars: '',
-  quantityTotal: '',
-  ticketKind: 'free',
 }
 
 function EventTicketManager({ eventId }: EventTicketManagerProps) {
@@ -300,14 +288,17 @@ type TicketFormProps = {
   submittingText: string
 }
 
-function TicketForm({
+type TicketSetupFieldsProps = {
+  formState: TicketFormState
+  onFormChange: (formState: TicketFormState) => void
+  radioName?: string
+}
+
+export function TicketSetupFields({
   formState,
-  isSubmitting,
   onFormChange,
-  onSubmit,
-  submitText,
-  submittingText,
-}: TicketFormProps) {
+  radioName = 'ticketKind',
+}: TicketSetupFieldsProps) {
   function updateField<FieldName extends keyof TicketFormState>(
     fieldName: FieldName,
     value: TicketFormState[FieldName],
@@ -327,7 +318,7 @@ function TicketForm({
   }
 
   return (
-    <form className="ticket-type-form" onSubmit={onSubmit}>
+    <>
       <label>
         <span>Ticket name</span>
         <input
@@ -355,7 +346,7 @@ function TicketForm({
           <label>
             <input
               type="radio"
-              name="ticketKind"
+              name={radioName}
               checked={formState.ticketKind === 'free'}
               onChange={() => handleTicketKindChange('free')}
             />
@@ -365,7 +356,7 @@ function TicketForm({
           <label>
             <input
               type="radio"
-              name="ticketKind"
+              name={radioName}
               checked={formState.ticketKind === 'paid'}
               onChange={() => handleTicketKindChange('paid')}
             />
@@ -399,7 +390,21 @@ function TicketForm({
           required
         />
       </label>
+    </>
+  )
+}
 
+function TicketForm({
+  formState,
+  isSubmitting,
+  onFormChange,
+  onSubmit,
+  submitText,
+  submittingText,
+}: TicketFormProps) {
+  return (
+    <form className="ticket-type-form" onSubmit={onSubmit}>
+      <TicketSetupFields formState={formState} onFormChange={onFormChange} />
       <button
         type="submit"
         className="auth-submit-button"
@@ -471,44 +476,6 @@ function TicketTypeSummary({ ticketType }: { ticketType: EventTicketType }) {
   )
 }
 
-type ParsedTicketInput =
-  | { type: 'success'; input: SaveEventTicketTypeInput }
-  | { type: 'error'; message: string }
-
-function getTicketInput(formState: TicketFormState): ParsedTicketInput {
-  const quantityTotal = parseTicketQuantity(formState.quantityTotal)
-
-  if (!quantityTotal) {
-    return {
-      type: 'error',
-      message: 'Enter a valid quantity greater than 0.',
-    }
-  }
-
-  const priceCents =
-    formState.ticketKind === 'free'
-      ? 0
-      : parseTicketPriceCents(formState.priceDollars)
-
-  if (priceCents === null) {
-    return {
-      type: 'error',
-      message: 'Enter a valid paid ticket price greater than $0.00.',
-    }
-  }
-
-  return {
-    input: {
-      description: formState.description,
-      name: formState.name,
-      priceCents,
-      quantityTotal,
-      ticketKind: formState.ticketKind,
-    },
-    type: 'success',
-  }
-}
-
 function getFormStateFromTicketType(
   ticketType: EventTicketType,
 ): TicketFormState {
@@ -522,33 +489,6 @@ function getFormStateFromTicketType(
     quantityTotal: String(ticketType.quantityTotal),
     ticketKind: ticketType.ticketKind,
   }
-}
-
-function parseTicketQuantity(value: string) {
-  const trimmed = value.trim()
-
-  if (!/^\d+$/.test(trimmed)) {
-    return null
-  }
-
-  const quantity = Number.parseInt(trimmed, 10)
-
-  return quantity > 0 ? quantity : null
-}
-
-function parseTicketPriceCents(value: string) {
-  const normalizedValue = value.trim().replace(/[$,]/g, '')
-
-  if (!/^\d+(\.\d{1,2})?$/.test(normalizedValue)) {
-    return null
-  }
-
-  const [dollars, cents = ''] = normalizedValue.split('.')
-  const priceCents =
-    Number.parseInt(dollars, 10) * 100 +
-    Number.parseInt(cents.padEnd(2, '0'), 10)
-
-  return priceCents > 0 ? priceCents : null
 }
 
 export default EventTicketManager

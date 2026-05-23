@@ -6,6 +6,7 @@ export type TicketReservationStatus =
   | 'confirmed'
   | 'cancelled'
   | 'expired'
+export type TicketSalesChannel = 'online' | 'door'
 export type IndividualTicketStatus = 'issued' | 'checked_in' | 'void'
 export type TicketCheckInOutcome =
   | 'checked_in'
@@ -43,10 +44,12 @@ export type TicketReservation = {
   eventId: string
   ticketTypeId: string
   purchaserUserId: string | null
+  createdByUserId: string | null
   buyerName: string
   buyerEmail: string
   quantity: number
   reservationStatus: TicketReservationStatus
+  salesChannel: TicketSalesChannel
   ticketKindSnapshot: TicketKind
   ticketEmailError: string
   ticketEmailLastAttemptedAt: string | null
@@ -136,10 +139,12 @@ export type TicketReservationRow = {
   event_id: string
   ticket_type_id: string
   purchaser_user_id: string | null
+  created_by_user_id: string | null
   buyer_name: string
   buyer_email: string
   quantity: number
   reservation_status: string
+  sales_channel: string
   ticket_kind_snapshot: string
   ticket_email_error: string | null
   ticket_email_last_attempted_at: string | null
@@ -210,10 +215,15 @@ export type ClaimFreeTicketInput = {
 }
 
 export type CreatePaidTicketReservationInput = ClaimFreeTicketInput
+export type CreateDoorTicketReservationInput = ClaimFreeTicketInput
 
 export type CreateCheckoutSessionResponse = {
   sessionId: string
   url: string
+}
+
+export type CreateCheckoutSessionOptions = {
+  checkoutMode?: 'door_sale'
 }
 
 export type SaveEventTicketTypeInput = {
@@ -228,11 +238,16 @@ export type CreateEventTicketTypeInput = SaveEventTicketTypeInput & {
   eventId: string
 }
 
+export type DoorTicketSale = {
+  reservation: TicketReservation
+  ticketTypeName: string
+}
+
 const eventTicketTypeSelect =
   'id, event_id, name, description, ticket_kind, price_cents, quantity_total, created_at, updated_at'
 
 const ticketReservationSelect =
-  'id, event_id, ticket_type_id, purchaser_user_id, buyer_name, buyer_email, quantity, reservation_status, ticket_kind_snapshot, ticket_email_error, ticket_email_last_attempted_at, ticket_email_sent_at, unit_price_cents_snapshot, total_price_cents_snapshot, created_at, updated_at'
+  'id, event_id, ticket_type_id, purchaser_user_id, created_by_user_id, buyer_name, buyer_email, quantity, reservation_status, sales_channel, ticket_kind_snapshot, ticket_email_error, ticket_email_last_attempted_at, ticket_email_sent_at, unit_price_cents_snapshot, total_price_cents_snapshot, created_at, updated_at'
 
 const individualTicketSelect =
   'id, reservation_id, event_id, ticket_type_id, ticket_number, ticket_status, qr_token, checked_in_at, created_at, updated_at'
@@ -381,14 +396,45 @@ export async function createPaidTicketReservation(
   return mapTicketReservationRow(data as TicketReservationRow)
 }
 
+export async function createDoorTicketReservation(
+  input: CreateDoorTicketReservationInput,
+) {
+  const { data, error } = await supabase.rpc('create_door_ticket_reservation', {
+    p_buyer_email: input.buyerEmail,
+    p_buyer_name: input.buyerName,
+    p_quantity: input.quantity,
+    p_ticket_type_id: input.ticketTypeId,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return mapTicketReservationRow(data as TicketReservationRow)
+}
+
+export async function cancelDoorTicketReservation(reservationId: string) {
+  const { data, error } = await supabase.rpc('cancel_door_ticket_reservation', {
+    p_reservation_id: reservationId,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return mapTicketReservationRow(data as TicketReservationRow)
+}
+
 export async function createCheckoutSessionForReservation(
   reservationId: string,
+  options: CreateCheckoutSessionOptions = {},
 ) {
   const { data, error } =
     await supabase.functions.invoke<CreateCheckoutSessionResponse>(
       'create-checkout-session',
       {
         body: {
+          checkoutMode: options.checkoutMode,
           reservationId,
         },
       },
@@ -406,6 +452,55 @@ export async function createCheckoutSessionForReservation(
   }
 
   return data
+}
+
+export async function fetchDoorTicketSalesForEvent(eventId: string) {
+  const { data, error } = await supabase
+    .from('ticket_reservations')
+    .select(ticketReservationSelect)
+    .eq('event_id', eventId)
+    .eq('sales_channel', 'door')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  const reservations = ((data ?? []) as TicketReservationRow[]).map(
+    mapTicketReservationRow,
+  )
+
+  if (reservations.length === 0) {
+    return []
+  }
+
+  const ticketTypes = await fetchEventTicketTypesByIds(
+    reservations.map((reservation) => reservation.ticketTypeId),
+  )
+  const ticketTypesById = new Map(
+    ticketTypes.map((ticketType) => [ticketType.id, ticketType]),
+  )
+
+  return reservations.map((reservation) => ({
+    reservation,
+    ticketTypeName:
+      ticketTypesById.get(reservation.ticketTypeId)?.name ??
+      'Ticket type unavailable',
+  })) satisfies DoorTicketSale[]
+}
+
+export async function fetchTicketReservationsForEvent(eventId: string) {
+  const { data, error } = await supabase
+    .from('ticket_reservations')
+    .select(ticketReservationSelect)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as TicketReservationRow[]).map(mapTicketReservationRow)
 }
 
 export async function fetchTicketReservationsForUser(userId: string) {
@@ -659,11 +754,13 @@ function mapTicketReservationRow(row: TicketReservationRow): TicketReservation {
     buyerEmail: row.buyer_email,
     buyerName: row.buyer_name,
     createdAt: row.created_at,
+    createdByUserId: row.created_by_user_id,
     eventId: row.event_id,
     id: row.id,
     purchaserUserId: row.purchaser_user_id,
     quantity: row.quantity,
     reservationStatus: normalizeReservationStatus(row.reservation_status),
+    salesChannel: normalizeSalesChannel(row.sales_channel),
     ticketEmailError: row.ticket_email_error?.trim() ?? '',
     ticketEmailLastAttemptedAt: row.ticket_email_last_attempted_at,
     ticketEmailSentAt: row.ticket_email_sent_at,
@@ -673,6 +770,10 @@ function mapTicketReservationRow(row: TicketReservationRow): TicketReservation {
     unitPriceCentsSnapshot: row.unit_price_cents_snapshot,
     updatedAt: row.updated_at,
   }
+}
+
+function normalizeSalesChannel(value: string): TicketSalesChannel {
+  return value === 'door' ? 'door' : 'online'
 }
 
 function mapIndividualTicketRow(row: IndividualTicketRow): IndividualTicket {

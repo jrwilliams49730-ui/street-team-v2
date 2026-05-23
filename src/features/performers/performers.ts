@@ -13,11 +13,24 @@ export type PerformerRow = {
   image_url: string | null
   featured_media_url: string | null
   featured_media_type: string | null
+  instagram_url: string | null
+  tiktok_url: string | null
+  facebook_url: string | null
+  youtube_url: string | null
+  website_url: string | null
   created_at: string
   updated_at: string
 }
 
 export type FeaturedMediaType = 'video' | 'audio'
+
+export type PerformerSocialLinks = {
+  instagram: string
+  tiktok: string
+  facebook: string
+  youtube: string
+  website: string
+}
 
 export type Performer = {
   id: string
@@ -33,6 +46,7 @@ export type Performer = {
   imageUrl: string | null
   featuredMediaUrl: string | null
   featuredMediaType: FeaturedMediaType | null
+  socialLinks: PerformerSocialLinks
   followerCount: number
 }
 
@@ -43,6 +57,7 @@ export type CreatePerformerInput = {
   city: string
   state: string
   bio: string
+  socialLinks?: PerformerSocialLinks
 }
 
 export type UpdatePerformerInput = {
@@ -51,6 +66,7 @@ export type UpdatePerformerInput = {
   city: string
   state: string
   bio: string
+  socialLinks?: PerformerSocialLinks
 }
 
 export type UpdatePerformerFeaturedMediaInput = {
@@ -59,7 +75,7 @@ export type UpdatePerformerFeaturedMediaInput = {
 }
 
 const performerSelect =
-  'id, owner_user_id, name, slug, performer_type, city, state, bio, image_url, featured_media_url, featured_media_type, created_at, updated_at'
+  'id, owner_user_id, name, slug, performer_type, city, state, bio, image_url, featured_media_url, featured_media_type, instagram_url, tiktok_url, facebook_url, youtube_url, website_url, created_at, updated_at'
 
 export function generatePerformerSlug(name: string) {
   const slug = name
@@ -173,6 +189,7 @@ export async function createPerformerProfile(input: CreatePerformerInput) {
       state: cleanOptionalText(input.state),
       bio: cleanOptionalText(input.bio),
       image_url: null,
+      ...getSocialLinkPayload(input.socialLinks),
     })
     .select(performerSelect)
     .single()
@@ -217,6 +234,7 @@ export async function updatePerformerProfile(
       city: cleanOptionalText(input.city),
       state: cleanOptionalText(input.state),
       bio: cleanOptionalText(input.bio),
+      ...(input.socialLinks ? getSocialLinkPayload(input.socialLinks) : {}),
     })
     .eq('id', profileId)
     .eq('owner_user_id', ownerUserId)
@@ -270,6 +288,13 @@ function mapPerformerRow(row: PerformerRow): Performer {
     imageUrl: row.image_url,
     featuredMediaUrl: row.featured_media_url,
     featuredMediaType: normalizeFeaturedMediaType(row.featured_media_type),
+    socialLinks: {
+      instagram: row.instagram_url?.trim() ?? '',
+      tiktok: row.tiktok_url?.trim() ?? '',
+      facebook: row.facebook_url?.trim() ?? '',
+      youtube: row.youtube_url?.trim() ?? '',
+      website: row.website_url?.trim() ?? '',
+    },
     followerCount: 0,
   }
 }
@@ -294,6 +319,43 @@ function cleanOptionalText(value: string) {
 
 function cleanRequiredText(value: string) {
   return value.trim()
+}
+
+function getSocialLinkPayload(socialLinks?: PerformerSocialLinks) {
+  return {
+    facebook_url: normalizeOptionalUrl(socialLinks?.facebook ?? '', 'Facebook'),
+    instagram_url: normalizeOptionalUrl(
+      socialLinks?.instagram ?? '',
+      'Instagram',
+    ),
+    tiktok_url: normalizeOptionalUrl(socialLinks?.tiktok ?? '', 'TikTok'),
+    website_url: normalizeOptionalUrl(socialLinks?.website ?? '', 'Website'),
+    youtube_url: normalizeOptionalUrl(socialLinks?.youtube ?? '', 'YouTube'),
+  }
+}
+
+function normalizeOptionalUrl(value: string, label: string) {
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return null
+  }
+
+  const normalizedValue = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed.replace(/^\/+/, '')}`
+
+  try {
+    const url = new URL(normalizedValue)
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('Unsupported protocol')
+    }
+
+    return url.toString()
+  } catch {
+    throw new Error(`Enter a valid ${label} link.`)
+  }
 }
 
 function formatLocation(city: string | null, state: string | null) {
