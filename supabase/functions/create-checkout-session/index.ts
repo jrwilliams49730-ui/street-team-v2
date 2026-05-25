@@ -247,12 +247,20 @@ Deno.serve(async (request) => {
     const ticketEmailStatus = isTicketEmailConfigured()
       ? 'configured'
       : 'not_configured'
-    const successUrl =
-      `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}` +
-      `&reservation_id=${encodeURIComponent(reservation.id)}` +
-      `&guest_checkout=${isGuestCheckout ? '1' : '0'}` +
-      `&door_sale=${isDoorSale ? '1' : '0'}` +
-      `&ticket_email=${ticketEmailStatus}`
+    const successUrl = isDoorSale
+      ? `${appUrl}/account?tab=my-events` +
+        `&manage_event_id=${encodeURIComponent(reservation.event_id)}` +
+        '&manage_tab=box-office' +
+        '&source=box_office' +
+        '&door_sale=1' +
+        `&reservation_id=${encodeURIComponent(reservation.id)}` +
+        '&session_id={CHECKOUT_SESSION_ID}' +
+        `&ticket_email=${ticketEmailStatus}`
+      : `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}` +
+        `&reservation_id=${encodeURIComponent(reservation.id)}` +
+        `&guest_checkout=${isGuestCheckout ? '1' : '0'}` +
+        '&door_sale=0' +
+        `&ticket_email=${ticketEmailStatus}`
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       {
         price_data: {

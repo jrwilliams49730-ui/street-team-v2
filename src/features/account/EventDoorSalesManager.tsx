@@ -1,17 +1,32 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
+  checkInTicketByQr,
   createCheckoutSessionForReservation,
   createDoorTicketReservation,
   fetchDoorTicketSalesForEvent,
   fetchEventTicketTypes,
   formatTicketPrice,
+  formatTicketQrValue,
   type DoorTicketSale,
   type EventTicketType,
   type TicketReservationStatus,
 } from '../events/eventTickets'
+import {
+  fetchCheckoutTicketStatus,
+  type CheckoutTicketStatus,
+} from '../checkout/checkoutTicketStatus'
 
 type EventDoorSalesManagerProps = {
+  doorSaleReturn?: DoorSaleReturnState | null
   eventId: string
+  onManageEvent?: () => void
+  onOpenScanner?: () => void
+  onReturnToBoxOffice?: () => void
+}
+
+type DoorSaleReturnState = {
+  reservationId: string
+  sessionId: string
 }
 
 type DoorSaleFormState = {
@@ -25,6 +40,9 @@ type Message = {
   type: 'success' | 'error'
   text: string
 }
+type DoorSaleCheckInMessage = Message
+type CheckoutStatusLoadState = 'idle' | 'loading' | 'ready' | 'error'
+type DoorSaleTicket = CheckoutTicketStatus['tickets'][number]
 
 const emptyDoorSaleForm: DoorSaleFormState = {
   buyerEmail: '',
@@ -33,7 +51,13 @@ const emptyDoorSaleForm: DoorSaleFormState = {
   ticketTypeId: '',
 }
 
-function EventDoorSalesManager({ eventId }: EventDoorSalesManagerProps) {
+function EventDoorSalesManager({
+  doorSaleReturn = null,
+  eventId,
+  onManageEvent,
+  onOpenScanner,
+  onReturnToBoxOffice,
+}: EventDoorSalesManagerProps) {
   const [ticketTypes, setTicketTypes] = useState<EventTicketType[]>([])
   const [doorSales, setDoorSales] = useState<DoorTicketSale[]>([])
   const [formState, setFormState] =
@@ -107,6 +131,31 @@ function EventDoorSalesManager({ eventId }: EventDoorSalesManagerProps) {
     setDoorSales(nextDoorSales)
   }
 
+  function handleBackToBoxOffice() {
+    void refreshDoorSales()
+    onReturnToBoxOffice?.()
+  }
+
+  function handleSellAnotherTicket() {
+    setFormState((currentFormState) => ({
+      ...emptyDoorSaleForm,
+      ticketTypeId: currentFormState.ticketTypeId,
+    }))
+    setMessage(null)
+    void refreshDoorSales()
+    onReturnToBoxOffice?.()
+  }
+
+  function handleScanTickets() {
+    void refreshDoorSales()
+    onOpenScanner?.()
+  }
+
+  function handleManageEvent() {
+    void refreshDoorSales()
+    onManageEvent?.()
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -175,9 +224,23 @@ function EventDoorSalesManager({ eventId }: EventDoorSalesManagerProps) {
 
       {status === 'ready' ? (
         <>
-          {paidTicketTypes.length === 0 ? (
+          {doorSaleReturn ? (
+            <DoorSaleReturnPanel
+              eventId={eventId}
+              onBackToBoxOffice={handleBackToBoxOffice}
+              onManageEvent={handleManageEvent}
+              onSaleUpdated={refreshDoorSales}
+              onScanTickets={handleScanTickets}
+              onSellAnotherTicket={handleSellAnotherTicket}
+              returnState={doorSaleReturn}
+            />
+          ) : null}
+
+          {!doorSaleReturn && paidTicketTypes.length === 0 ? (
             <p>Add a paid ticket type before selling at the door.</p>
-          ) : (
+          ) : null}
+
+          {!doorSaleReturn && paidTicketTypes.length > 0 ? (
             <form className="ticket-type-form" onSubmit={handleSubmit}>
               <label>
                 <span>Buyer name</span>
@@ -241,7 +304,7 @@ function EventDoorSalesManager({ eventId }: EventDoorSalesManagerProps) {
                 {isSubmitting ? 'Starting Checkout...' : 'Sell Ticket at Door'}
               </button>
             </form>
-          )}
+          ) : null}
 
           {message ? (
             <p className={`auth-message ${message.type}`}>{message.text}</p>
@@ -279,6 +342,455 @@ function EventDoorSalesManager({ eventId }: EventDoorSalesManagerProps) {
         </>
       ) : null}
     </section>
+  )
+}
+
+function DoorSaleReturnPanel({
+  eventId,
+  onBackToBoxOffice,
+  onManageEvent,
+  onSaleUpdated,
+  onScanTickets,
+  onSellAnotherTicket,
+  returnState,
+}: {
+  eventId: string
+  onBackToBoxOffice: () => void
+  onManageEvent: () => void
+  onSaleUpdated: () => Promise<void>
+  onScanTickets: () => void
+  onSellAnotherTicket: () => void
+  returnState: DoorSaleReturnState
+}) {
+  const [checkoutStatus, setCheckoutStatus] =
+    useState<CheckoutTicketStatus | null>(null)
+  const [loadState, setLoadState] =
+    useState<CheckoutStatusLoadState>('idle')
+  const [checkInMessage, setCheckInMessage] =
+    useState<DoorSaleCheckInMessage | null>(null)
+  const [checkingTicketId, setCheckingTicketId] = useState<string | null>(null)
+  const [isCheckingAllTickets, setIsCheckingAllTickets] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+    let retryTimeoutId: number | null = null
+
+    async function loadCheckoutStatus(attempt = 0) {
+      setLoadState('loading')
+
+      try {
+        const nextCheckoutStatus = await fetchCheckoutTicketStatus({
+          reservationId: returnState.reservationId,
+          sessionId: returnState.sessionId,
+        })
+
+        if (!isMounted) {
+          return
+        }
+
+        setCheckoutStatus(nextCheckoutStatus)
+        setLoadState('ready')
+
+        const shouldRetry =
+          attempt < 8 &&
+          (nextCheckoutStatus.eventId !== eventId ||
+            nextCheckoutStatus.reservationStatus !== 'confirmed' ||
+            nextCheckoutStatus.tickets.length === 0)
+
+        if (shouldRetry) {
+          retryTimeoutId = window.setTimeout(() => {
+            void loadCheckoutStatus(attempt + 1)
+          }, 1500)
+        }
+      } catch {
+        if (isMounted) {
+          setCheckoutStatus(null)
+          setLoadState('error')
+        }
+      }
+    }
+
+    void loadCheckoutStatus()
+
+    return () => {
+      isMounted = false
+
+      if (retryTimeoutId !== null) {
+        window.clearTimeout(retryTimeoutId)
+      }
+    }
+  }, [eventId, returnState.reservationId, returnState.sessionId])
+
+  function updateDoorSaleTicketStatus(
+    ticketId: string,
+    ticketStatus: string,
+    checkedInAt: string | null,
+  ) {
+    setCheckoutStatus((currentStatus) =>
+      currentStatus
+        ? {
+            ...currentStatus,
+            tickets: currentStatus.tickets.map((ticket) =>
+              ticket.id === ticketId
+                ? {
+                    ...ticket,
+                    checkedInAt,
+                    ticketStatus,
+                  }
+                : ticket,
+            ),
+          }
+        : currentStatus,
+    )
+  }
+
+  async function handleTicketCheckIn(ticket: DoorSaleTicket) {
+    setCheckingTicketId(ticket.id)
+    setCheckInMessage(null)
+
+    try {
+      const result = await checkInTicketByQr(formatTicketQrValue(ticket.qrToken))
+
+      if (result.ticketId) {
+        updateDoorSaleTicketStatus(
+          result.ticketId,
+          result.ticketStatus ?? ticket.ticketStatus,
+          result.checkedInAt,
+        )
+      }
+
+      const isSuccess =
+        result.outcome === 'checked_in' ||
+        result.outcome === 'already_checked_in'
+
+      setCheckInMessage({
+        type: isSuccess ? 'success' : 'error',
+        text:
+          result.outcome === 'checked_in'
+            ? 'Checked in successfully. 1 ticket checked in.'
+            : result.message,
+      })
+
+      if (isSuccess) {
+        await onSaleUpdated()
+      }
+    } catch (error) {
+      setCheckInMessage({
+        type: 'error',
+        text:
+          error instanceof Error
+            ? error.message
+            : 'Ticket could not be checked in.',
+      })
+    } finally {
+      setCheckingTicketId(null)
+    }
+  }
+
+  async function handleCheckInAll() {
+    if (!checkoutStatus) {
+      return
+    }
+
+    const ticketsToCheckIn = checkoutStatus.tickets.filter(
+      (ticket) => ticket.ticketStatus !== 'checked_in',
+    )
+
+    if (ticketsToCheckIn.length === 0) {
+      setCheckInMessage({
+        type: 'success',
+        text: 'All tickets are already checked in.',
+      })
+      return
+    }
+
+    setIsCheckingAllTickets(true)
+    setCheckInMessage(null)
+
+    let checkedInCount = 0
+    let alreadyCheckedInCount = 0
+    const failures: string[] = []
+
+    try {
+      for (const ticket of ticketsToCheckIn) {
+        try {
+          const result = await checkInTicketByQr(
+            formatTicketQrValue(ticket.qrToken),
+          )
+
+          if (result.ticketId) {
+            updateDoorSaleTicketStatus(
+              result.ticketId,
+              result.ticketStatus ?? ticket.ticketStatus,
+              result.checkedInAt,
+            )
+          }
+
+          if (result.outcome === 'checked_in') {
+            checkedInCount += 1
+          } else if (result.outcome === 'already_checked_in') {
+            alreadyCheckedInCount += 1
+          } else {
+            failures.push(`Ticket ${ticket.ticketNumber}: ${result.message}`)
+          }
+        } catch (error) {
+          failures.push(
+            `Ticket ${ticket.ticketNumber}: ${
+              error instanceof Error ? error.message : 'Check-in failed.'
+            }`,
+          )
+        }
+      }
+
+      if (failures.length > 0) {
+        setCheckInMessage({
+          type: 'error',
+          text: `Checked in ${checkedInCount} ticket(s). ${failures.join(' ')}`,
+        })
+      } else {
+        setCheckInMessage({
+          type: 'success',
+          text:
+            checkedInCount > 0
+              ? `Checked in successfully. ${checkedInCount} ticket(s) checked in.`
+              : `${alreadyCheckedInCount} ticket(s) were already checked in.`,
+        })
+        await onSaleUpdated()
+      }
+    } finally {
+      setIsCheckingAllTickets(false)
+    }
+  }
+
+  if (loadState === 'loading' || loadState === 'idle') {
+    return (
+      <section className="door-sale-success-panel">
+        <h3>Loading box office sale...</h3>
+        <p>Payment succeeded. We are checking the paid ticket records.</p>
+      </section>
+    )
+  }
+
+  if (loadState === 'error' || !checkoutStatus) {
+    return (
+      <section className="door-sale-success-panel">
+        <h3>Box office payment successful</h3>
+        <p>
+          Sale details could not be loaded right now. Back to Box Office will
+          refresh the buyer list for this event.
+        </p>
+        <DoorSaleReturnActions
+          onBackToBoxOffice={onBackToBoxOffice}
+          onManageEvent={onManageEvent}
+          onScanTickets={onScanTickets}
+          onSellAnotherTicket={onSellAnotherTicket}
+        />
+      </section>
+    )
+  }
+
+  if (checkoutStatus.eventId !== eventId) {
+    return (
+      <section className="door-sale-success-panel">
+        <h3>Box office sale loaded for a different event</h3>
+        <p>Return to Box Office and refresh the event before checking in.</p>
+        <DoorSaleReturnActions
+          onBackToBoxOffice={onBackToBoxOffice}
+          onManageEvent={onManageEvent}
+          onScanTickets={onScanTickets}
+          onSellAnotherTicket={onSellAnotherTicket}
+        />
+      </section>
+    )
+  }
+
+  const tickets = checkoutStatus.tickets
+  const uncheckedTickets = tickets.filter(
+    (ticket) => ticket.ticketStatus !== 'checked_in',
+  )
+  const checkedInTickets = tickets.length - uncheckedTickets.length
+  const checkInAllLabel =
+    checkoutStatus.quantity === 1 ? 'Check In Now' : 'Check In All Now'
+  const isPending =
+    checkoutStatus.reservationStatus !== 'confirmed' || tickets.length === 0
+
+  return (
+    <section className="door-sale-success-panel">
+      <header className="door-sale-success-heading">
+        <h3>Box office payment successful</h3>
+        <p>
+          {isPending
+            ? 'Ticket records are still being finalized.'
+            : `${checkedInTickets} of ${tickets.length} ticket(s) checked in.`}
+        </p>
+      </header>
+
+      <dl className="door-sale-success-details">
+        <div>
+          <dt>Event</dt>
+          <dd>{checkoutStatus.eventTitle ?? 'Event unavailable'}</dd>
+        </div>
+        <div>
+          <dt>Ticket type</dt>
+          <dd>{checkoutStatus.ticketTypeName ?? 'Ticket type unavailable'}</dd>
+        </div>
+        <div>
+          <dt>Quantity</dt>
+          <dd>{checkoutStatus.quantity}</dd>
+        </div>
+        <div>
+          <dt>Buyer</dt>
+          <dd>{checkoutStatus.buyerName || 'Door sale buyer'}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd>{checkoutStatus.buyerEmail || 'No email provided'}</dd>
+        </div>
+        <div>
+          <dt>Payment status</dt>
+          <dd>{formatDoorSaleStatusForCheckout(checkoutStatus.reservationStatus)}</dd>
+        </div>
+        <div>
+          <dt>Total</dt>
+          <dd>{formatTicketPrice(checkoutStatus.totalPriceCents)}</dd>
+        </div>
+      </dl>
+
+      {checkInMessage ? (
+        <p className={`auth-message ${checkInMessage.type}`}>
+          {checkInMessage.text}
+        </p>
+      ) : null}
+
+      {isPending ? (
+        <p className="checkout-return-small">
+          Waiting for Stripe confirmation and ticket creation. This panel will
+          keep checking for a moment.
+        </p>
+      ) : (
+        <div className="door-sale-check-in-actions">
+          <button
+            type="button"
+            className="auth-submit-button"
+            disabled={isCheckingAllTickets || uncheckedTickets.length === 0}
+            onClick={handleCheckInAll}
+          >
+            {isCheckingAllTickets ? 'Checking in...' : checkInAllLabel}
+          </button>
+        </div>
+      )}
+
+      {tickets.length > 1 ? (
+        <div className="door-sale-ticket-list">
+          {tickets.map((ticket) => (
+            <DoorSaleTicketCheckInCard
+              checkingTicketId={checkingTicketId}
+              isCheckingAllTickets={isCheckingAllTickets}
+              key={ticket.id}
+              onCheckInTicket={handleTicketCheckIn}
+              quantity={checkoutStatus.quantity}
+              ticket={ticket}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      <DoorSaleReturnActions
+        onBackToBoxOffice={onBackToBoxOffice}
+        onManageEvent={onManageEvent}
+        onScanTickets={onScanTickets}
+        onSellAnotherTicket={onSellAnotherTicket}
+      />
+    </section>
+  )
+}
+
+function DoorSaleTicketCheckInCard({
+  checkingTicketId,
+  isCheckingAllTickets,
+  onCheckInTicket,
+  quantity,
+  ticket,
+}: {
+  checkingTicketId: string | null
+  isCheckingAllTickets: boolean
+  onCheckInTicket: (ticket: DoorSaleTicket) => void
+  quantity: number
+  ticket: DoorSaleTicket
+}) {
+  const isCheckedIn = ticket.ticketStatus === 'checked_in'
+  const isChecking = checkingTicketId === ticket.id
+
+  return (
+    <article className="door-sale-ticket-card">
+      <div>
+        <strong>
+          Ticket {ticket.ticketNumber} of {quantity}
+        </strong>
+        <span>{formatCheckoutTicketStatus(ticket.ticketStatus)}</span>
+        {ticket.checkedInAt ? (
+          <span>Checked in {formatDoorSaleTime(ticket.checkedInAt)}</span>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        className="secondary-action-button"
+        disabled={isCheckedIn || isChecking || isCheckingAllTickets}
+        onClick={() => onCheckInTicket(ticket)}
+      >
+        {isChecking
+          ? 'Checking in...'
+          : isCheckedIn
+            ? 'Checked In'
+            : `Ticket ${ticket.ticketNumber} - Check In`}
+      </button>
+    </article>
+  )
+}
+
+function DoorSaleReturnActions({
+  onBackToBoxOffice,
+  onManageEvent,
+  onScanTickets,
+  onSellAnotherTicket,
+}: {
+  onBackToBoxOffice: () => void
+  onManageEvent: () => void
+  onScanTickets: () => void
+  onSellAnotherTicket: () => void
+}) {
+  return (
+    <div className="door-sale-post-actions">
+      <button
+        type="button"
+        className="auth-submit-button"
+        onClick={onBackToBoxOffice}
+      >
+        Back to Box Office
+      </button>
+      <button
+        type="button"
+        className="secondary-action-button"
+        onClick={onSellAnotherTicket}
+      >
+        Sell Another Ticket
+      </button>
+      <button
+        type="button"
+        className="secondary-action-button"
+        onClick={onScanTickets}
+      >
+        Scan Tickets
+      </button>
+      <button
+        type="button"
+        className="secondary-action-button"
+        onClick={onManageEvent}
+      >
+        Manage Event
+      </button>
+    </div>
   )
 }
 
@@ -326,6 +838,34 @@ function formatDoorSaleStatus(status: TicketReservationStatus) {
   }
 
   return 'Expired'
+}
+
+function formatDoorSaleStatusForCheckout(status: string) {
+  if (status === 'confirmed') {
+    return 'Paid'
+  }
+
+  if (status === 'pending') {
+    return 'Pending Payment'
+  }
+
+  if (status === 'cancelled') {
+    return 'Canceled'
+  }
+
+  return 'Expired'
+}
+
+function formatCheckoutTicketStatus(status: string) {
+  if (status === 'checked_in') {
+    return 'Checked in'
+  }
+
+  if (status === 'void') {
+    return 'Void'
+  }
+
+  return 'Not checked in'
 }
 
 function getDoorSaleEmailStatus(doorSale: DoorTicketSale) {

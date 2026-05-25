@@ -6,7 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import EventTicketManager, {
   TicketSetupFields,
 } from './EventTicketManager'
@@ -78,6 +78,10 @@ type EventManagementSectionProps = {
 type EventManagementMode = 'all' | 'create' | 'manage'
 type EventFormState = EventFormInput
 type ManageEventTabId = 'setup' | 'box-office' | 'analytics' | 'settings'
+type DoorSaleReturnState = {
+  reservationId: string
+  sessionId: string
+}
 
 const manageEventTabs: Array<{ id: ManageEventTabId; label: string }> = [
   { id: 'setup', label: 'Event Setup' },
@@ -85,6 +89,40 @@ const manageEventTabs: Array<{ id: ManageEventTabId; label: string }> = [
   { id: 'analytics', label: 'Analytics' },
   { id: 'settings', label: 'Settings' },
 ]
+
+function getManageEventTabFromSearchParams(
+  searchParams: URLSearchParams,
+): ManageEventTabId | null {
+  const requestedTab = searchParams.get('manage_tab')?.trim() ?? ''
+
+  return manageEventTabs.some((tab) => tab.id === requestedTab)
+    ? (requestedTab as ManageEventTabId)
+    : null
+}
+
+function getDoorSaleReturnStateFromSearchParams(
+  searchParams: URLSearchParams,
+): DoorSaleReturnState | null {
+  const isDoorSaleReturn =
+    searchParams.get('door_sale') === '1' ||
+    searchParams.get('source') === 'box_office'
+
+  if (!isDoorSaleReturn) {
+    return null
+  }
+
+  const reservationId = searchParams.get('reservation_id')?.trim() ?? ''
+  const sessionId = searchParams.get('session_id')?.trim() ?? ''
+
+  if (!reservationId && !sessionId) {
+    return null
+  }
+
+  return {
+    reservationId,
+    sessionId,
+  }
+}
 
 const defaultInitialTicketForm: TicketFormState = {
   ...emptyTicketForm,
@@ -143,6 +181,7 @@ function EventManagementSection({
   organizerType,
   ownerUserId,
 }: EventManagementSectionProps) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const createDraftKey = getEventCreateDraftKey(
     ownerUserId,
     organizerType,
@@ -152,6 +191,11 @@ function EventManagementSection({
   const canCreateEvents = mode !== 'manage'
   const shouldShowEventList = mode !== 'create'
   const isCreateOnlyMode = mode === 'create'
+  const requestedManagedEventId =
+    searchParams.get('manage_event_id')?.trim() ?? ''
+  const requestedManageTab = getManageEventTabFromSearchParams(searchParams)
+  const doorSaleReturnState =
+    getDoorSaleReturnStateFromSearchParams(searchParams)
   const [events, setEvents] = useState<StreetTeamEvent[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -182,6 +226,33 @@ function EventManagementSection({
     null,
   )
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null)
+  const requestedEventIsOwned =
+    shouldShowEventList &&
+    status === 'ready' &&
+    events.some((event) => event.id === requestedManagedEventId)
+  const activeManagedEventId = requestedEventIsOwned
+    ? requestedManagedEventId
+    : managedEventId
+
+  function updateManagedEventRoute(
+    eventId: string,
+    manageTab: ManageEventTabId,
+    options: { replace?: boolean } = {},
+  ) {
+    const nextSearchParams = new URLSearchParams(searchParams)
+
+    nextSearchParams.set('tab', 'my-events')
+    nextSearchParams.set('manage_event_id', eventId)
+    nextSearchParams.set('manage_tab', manageTab)
+    nextSearchParams.delete('source')
+    nextSearchParams.delete('door_sale')
+    nextSearchParams.delete('reservation_id')
+    nextSearchParams.delete('session_id')
+    nextSearchParams.delete('ticket_email')
+
+    setSearchParams(nextSearchParams, { replace: options.replace ?? true })
+  }
+
   useEffect(() => {
     let isMounted = true
 
@@ -491,7 +562,22 @@ function EventManagementSection({
   }
 
   function handleManageToggle(event: StreetTeamEvent) {
-    const isClosingCurrentEvent = managedEventId === event.id
+    const isClosingCurrentEvent = activeManagedEventId === event.id
+
+    if (isClosingCurrentEvent && requestedManagedEventId === event.id) {
+      const nextSearchParams = new URLSearchParams(searchParams)
+
+      nextSearchParams.delete('manage_event_id')
+      nextSearchParams.delete('manage_tab')
+      nextSearchParams.delete('source')
+      nextSearchParams.delete('door_sale')
+      nextSearchParams.delete('reservation_id')
+      nextSearchParams.delete('session_id')
+      nextSearchParams.delete('ticket_email')
+      setSearchParams(nextSearchParams, { replace: true })
+    } else if (!isClosingCurrentEvent) {
+      updateManagedEventRoute(event.id, 'setup')
+    }
 
     setManagedEventId(isClosingCurrentEvent ? null : event.id)
     setEditingEventId(null)
@@ -804,7 +890,7 @@ function EventManagementSection({
 
           {status === 'ready'
             ? events.map((event) => {
-                const isManaged = managedEventId === event.id
+                const isManaged = activeManagedEventId === event.id
 
                 return (
                   <OwnedEventCard
@@ -814,6 +900,11 @@ function EventManagementSection({
                     managePanel={
                       isManaged ? (
                         <OwnedEventManagePanel
+                          doorSaleReturn={
+                            requestedManagedEventId === event.id
+                              ? doorSaleReturnState
+                              : null
+                          }
                           event={event}
                           fileInputKey={editFileInputKey}
                           flyerFile={editFlyerFile}
@@ -829,9 +920,32 @@ function EventManagementSection({
                           onDeleteEvent={handleDeleteEvent}
                           onFileChange={setEditFlyerFile}
                           onFormChange={setEditFormState}
-                          onOpenScanner={() => setCheckInEventId(event.id)}
+                          onManageEventHome={() => {
+                            setCheckInEventId(null)
+                            updateManagedEventRoute(event.id, 'setup')
+                          }}
+                          onOpenScanner={() => {
+                            setCheckInEventId(event.id)
+                            updateManagedEventRoute(event.id, 'box-office')
+                          }}
+                          onReturnToBoxOffice={() => {
+                            setCheckInEventId(null)
+                            updateManagedEventRoute(event.id, 'box-office')
+                          }}
                           onSave={handleEditSave}
                           onStartEdit={handleEditStart}
+                          onTabChange={(tabId) => {
+                            if (tabId !== 'box-office') {
+                              setCheckInEventId(null)
+                            }
+
+                            updateManagedEventRoute(event.id, tabId)
+                          }}
+                          requestedActiveTab={
+                            requestedManagedEventId === event.id
+                              ? requestedManageTab
+                              : null
+                          }
                         />
                       ) : null
                     }
@@ -1379,6 +1493,7 @@ function OwnedEventCard({
 }
 
 type OwnedEventManagePanelProps = {
+  doorSaleReturn: DoorSaleReturnState | null
   event: StreetTeamEvent
   fileInputKey: number
   flyerFile: File | null
@@ -1394,12 +1509,17 @@ type OwnedEventManagePanelProps = {
   onDeleteEvent: (event: StreetTeamEvent) => void
   onFileChange: (file: File | null) => void
   onFormChange: (formState: EventFormState) => void
+  onManageEventHome: () => void
   onOpenScanner: () => void
+  onReturnToBoxOffice: () => void
   onSave: (event: FormEvent<HTMLFormElement>, eventId: string) => void
   onStartEdit: (event: StreetTeamEvent) => void
+  onTabChange: (tabId: ManageEventTabId) => void
+  requestedActiveTab: ManageEventTabId | null
 }
 
 function OwnedEventManagePanel({
+  doorSaleReturn,
   event,
   fileInputKey,
   flyerFile,
@@ -1415,17 +1535,24 @@ function OwnedEventManagePanel({
   onDeleteEvent,
   onFileChange,
   onFormChange,
+  onManageEventHome,
   onOpenScanner,
+  onReturnToBoxOffice,
   onSave,
   onStartEdit,
+  onTabChange,
+  requestedActiveTab,
 }: OwnedEventManagePanelProps) {
-  const [activeTab, setActiveTab] = useState<ManageEventTabId>('setup')
+  const [localActiveTab, setLocalActiveTab] = useState<ManageEventTabId>(
+    requestedActiveTab ?? 'setup',
+  )
+  const activeTab = requestedActiveTab ?? localActiveTab
   const activeTabLabel =
     manageEventTabs.find((tab) => tab.id === activeTab)?.label ??
     'Manage Event'
 
   function handleOpenScanner() {
-    setActiveTab('box-office')
+    setLocalActiveTab('box-office')
     onOpenScanner()
   }
 
@@ -1434,7 +1561,8 @@ function OwnedEventManagePanel({
       onCloseScanner()
     }
 
-    setActiveTab(tabId)
+    setLocalActiveTab(tabId)
+    onTabChange(tabId)
   }
 
   return (
@@ -1501,10 +1629,13 @@ function OwnedEventManagePanel({
 
         {activeTab === 'box-office' ? (
           <EventBoxOfficeTab
+            doorSaleReturn={doorSaleReturn}
             event={event}
             isScannerOpen={isScannerOpen}
             onCloseScanner={onCloseScanner}
+            onManageEvent={onManageEventHome}
             onOpenScanner={handleOpenScanner}
+            onReturnToBoxOffice={onReturnToBoxOffice}
           />
         ) : null}
 
@@ -1653,15 +1784,21 @@ function EventSetupSummary({ event }: { event: StreetTeamEvent }) {
 }
 
 function EventBoxOfficeTab({
+  doorSaleReturn,
   event,
   isScannerOpen,
   onCloseScanner,
+  onManageEvent,
   onOpenScanner,
+  onReturnToBoxOffice,
 }: {
+  doorSaleReturn: DoorSaleReturnState | null
   event: StreetTeamEvent
   isScannerOpen: boolean
   onCloseScanner: () => void
+  onManageEvent: () => void
   onOpenScanner: () => void
+  onReturnToBoxOffice: () => void
 }) {
   return (
     <section className="event-manage-section">
@@ -1689,7 +1826,13 @@ function EventBoxOfficeTab({
             </button>
           </div>
 
-          <EventDoorSalesManager eventId={event.id} />
+          <EventDoorSalesManager
+            doorSaleReturn={doorSaleReturn}
+            eventId={event.id}
+            onManageEvent={onManageEvent}
+            onOpenScanner={onOpenScanner}
+            onReturnToBoxOffice={onReturnToBoxOffice}
+          />
         </>
       )}
     </section>

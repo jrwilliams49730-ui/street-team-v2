@@ -3,6 +3,7 @@ import { publicSupabase } from '../../lib/supabase'
 export type CheckoutTicketStatus = {
   buyerName: string | null
   buyerEmail: string | null
+  eventId: string
   eventTitle: string | null
   isGuestCheckout: boolean
   quantity: number

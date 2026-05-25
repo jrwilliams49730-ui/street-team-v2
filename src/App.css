@@ -403,6 +403,12 @@
   gap: 0.7rem;
 }
 
+.door-sale-post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
 .door-sale-ticket-list {
   display: grid;
   gap: 0.65rem;

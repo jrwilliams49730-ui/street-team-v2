@@ -183,6 +183,7 @@ Deno.serve(async (request) => {
   return jsonResponse({
     buyerName: reservation.buyer_name,
     buyerEmail: reservation.buyer_email,
+    eventId: reservation.event_id,
     eventTitle: event?.title ?? null,
     isGuestCheckout: !reservation.purchaser_user_id,
     quantity: reservation.quantity,
