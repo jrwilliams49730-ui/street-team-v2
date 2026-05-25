@@ -8,19 +8,35 @@ const corsHeaders = {
 
 type ReservationStatusRow = {
   id: string
+  buyer_name: string | null
   buyer_email: string | null
+  event_id: string
   purchaser_user_id: string | null
+  quantity: number
   reservation_status: string
+  sales_channel: string | null
   stripe_checkout_session_id: string | null
+  ticket_type_id: string
   ticket_email_error: string | null
   ticket_email_last_attempted_at: string | null
   ticket_email_sent_at: string | null
+  total_price_cents_snapshot: number
 }
 
 type TicketStatusRow = {
+  checked_in_at: string | null
   id: string
   qr_token: string
   ticket_number: number
+  ticket_status: string
+}
+
+type EventStatusRow = {
+  title: string
+}
+
+type TicketTypeStatusRow = {
+  name: string
 }
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) =>
@@ -106,7 +122,7 @@ Deno.serve(async (request) => {
   let query = supabase
     .from('ticket_reservations')
     .select(
-      'id,buyer_email,purchaser_user_id,reservation_status,stripe_checkout_session_id,ticket_email_error,ticket_email_last_attempted_at,ticket_email_sent_at',
+      'id,buyer_name,buyer_email,event_id,purchaser_user_id,quantity,reservation_status,sales_channel,stripe_checkout_session_id,ticket_type_id,ticket_email_error,ticket_email_last_attempted_at,ticket_email_sent_at,total_price_cents_snapshot',
     )
 
   query = cleanReservationId
@@ -128,11 +144,35 @@ Deno.serve(async (request) => {
     return errorResponse('Reservation not found.', 404, 'reservation_not_found')
   }
 
-  const { data: tickets, error: ticketsError } = await supabase
-    .from('tickets')
-    .select('id,qr_token,ticket_number')
-    .eq('reservation_id', reservation.id)
-    .order('ticket_number', { ascending: true })
+  const [
+    { data: event, error: eventError },
+    { data: ticketType, error: ticketTypeError },
+    { data: tickets, error: ticketsError },
+  ] = await Promise.all([
+    supabase
+      .from('events')
+      .select('title')
+      .eq('id', reservation.event_id)
+      .maybeSingle<EventStatusRow>(),
+    supabase
+      .from('event_ticket_types')
+      .select('name')
+      .eq('id', reservation.ticket_type_id)
+      .maybeSingle<TicketTypeStatusRow>(),
+    supabase
+      .from('tickets')
+      .select('checked_in_at,id,qr_token,ticket_number,ticket_status')
+      .eq('reservation_id', reservation.id)
+      .order('ticket_number', { ascending: true }),
+  ])
+
+  if (eventError) {
+    return errorResponse(eventError.message, 500, 'event_lookup_failed')
+  }
+
+  if (ticketTypeError) {
+    return errorResponse(ticketTypeError.message, 500, 'ticket_type_lookup_failed')
+  }
 
   if (ticketsError) {
     return errorResponse(ticketsError.message, 500, 'ticket_lookup_failed')
@@ -141,18 +181,27 @@ Deno.serve(async (request) => {
   const ticketRows = (tickets ?? []) as TicketStatusRow[]
 
   return jsonResponse({
+    buyerName: reservation.buyer_name,
     buyerEmail: reservation.buyer_email,
+    eventTitle: event?.title ?? null,
     isGuestCheckout: !reservation.purchaser_user_id,
+    quantity: reservation.quantity,
     reservationId: reservation.id,
     reservationStatus: reservation.reservation_status,
+    salesChannel: reservation.sales_channel ?? 'online',
     stripeCheckoutSessionId: reservation.stripe_checkout_session_id,
     ticketEmailConfigured: isTicketEmailConfigured(),
     ticketEmailError: reservation.ticket_email_error,
     ticketEmailLastAttemptedAt: reservation.ticket_email_last_attempted_at,
     ticketEmailSentAt: reservation.ticket_email_sent_at,
+    ticketTypeName: ticketType?.name ?? null,
+    totalPriceCents: reservation.total_price_cents_snapshot,
     tickets: ticketRows.map((ticket) => ({
+      checkedInAt: ticket.checked_in_at,
       id: ticket.id,
+      qrToken: ticket.qr_token,
       ticketNumber: ticket.ticket_number,
+      ticketStatus: ticket.ticket_status,
       ticketUrl: `${appUrl}/tickets/${ticket.qr_token}`,
     })),
   })

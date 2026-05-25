@@ -137,7 +137,10 @@ Deno.serve(async (request) => {
     return errorResponse('Reservation is not for a paid ticket.', 409, 'reservation_not_paid')
   }
 
-  if (!isValidEmail(reservation.buyer_email)) {
+  const isGuestCheckout = !reservation.purchaser_user_id
+  const isDoorSale = reservation.sales_channel === 'door'
+
+  if (!isDoorSale && !isValidEmail(reservation.buyer_email)) {
     return errorResponse('A valid buyer email is required.', 409, 'invalid_buyer_email')
   }
 
@@ -226,9 +229,6 @@ Deno.serve(async (request) => {
     ticket_type_id: reservation.ticket_type_id,
     sales_channel: reservation.sales_channel ?? 'online',
   }
-  const isGuestCheckout = !reservation.purchaser_user_id
-  const isDoorSale = reservation.sales_channel === 'door'
-
   console.log('[create-checkout-session] paid reservation ready for Stripe:', {
     buyerEmail: reservation.buyer_email,
     isDoorSale,
@@ -291,7 +291,9 @@ Deno.serve(async (request) => {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      customer_email: reservation.buyer_email ?? undefined,
+      customer_email: isValidEmail(reservation.buyer_email)
+        ? reservation.buyer_email ?? undefined
+        : undefined,
       client_reference_id: reservation.id,
       line_items: lineItems,
       success_url: successUrl,

@@ -192,14 +192,13 @@ function EventDoorSalesManager({ eventId }: EventDoorSalesManagerProps) {
               </label>
 
               <label>
-                <span>Buyer email</span>
+                <span>Buyer email optional</span>
                 <input
                   type="email"
                   value={formState.buyerEmail}
                   onChange={(event) =>
                     updateField('buyerEmail', event.target.value)
                   }
-                  required
                 />
               </label>
 
@@ -297,7 +296,7 @@ function DoorSaleCard({ doorSale }: { doorSale: DoorTicketSale }) {
           {formatDoorSaleStatus(reservation.reservationStatus)}
         </span>
       </div>
-      <p>{reservation.buyerEmail}</p>
+      <p>{reservation.buyerEmail || 'No email provided'}</p>
       <p>
         {doorSale.ticketTypeName} x {reservation.quantity}
       </p>

@@ -89,7 +89,7 @@ export type TicketCheckInResult = {
 export type PublicTicket = {
   addressLine1: string
   addressLine2: string
-  buyerEmail: string
+  buyerEmail: string | null
   buyerName: string
   city: string
   country: string
@@ -128,6 +128,8 @@ export type EventCheckInTicket = {
   qrToken: string
   reservationId: string
   reservationQuantity: number
+  reservationStatus: TicketReservationStatus
+  salesChannel: TicketSalesChannel
   ticketEmailError: string
   ticketEmailLastAttemptedAt: string | null
   ticketEmailSentAt: string | null
@@ -144,7 +146,7 @@ export type TicketReservationRow = {
   purchaser_user_id: string | null
   created_by_user_id: string | null
   buyer_name: string
-  buyer_email: string
+  buyer_email: string | null
   quantity: number
   reservation_status: string
   sales_channel: string
@@ -187,7 +189,7 @@ export type TicketCheckInResultRow = {
 export type PublicTicketRow = {
   address_line_1: string | null
   address_line_2: string | null
-  buyer_email: string
+  buyer_email: string | null
   buyer_name: string
   city: string
   country: string | null
@@ -430,7 +432,7 @@ export async function createDoorTicketReservation(
   input: CreateDoorTicketReservationInput,
 ) {
   const { data, error } = await supabase.rpc('create_door_ticket_reservation', {
-    p_buyer_email: input.buyerEmail,
+    p_buyer_email: input.buyerEmail.trim() || null,
     p_buyer_name: input.buyerName,
     p_quantity: input.quantity,
     p_ticket_type_id: input.ticketTypeId,
@@ -666,6 +668,8 @@ export async function fetchEventCheckInTickets(eventId: string) {
       qrToken: ticket.qrToken,
       reservationId: ticket.reservationId,
       reservationQuantity: reservation?.quantity ?? 1,
+      reservationStatus: reservation?.reservationStatus ?? 'confirmed',
+      salesChannel: reservation?.salesChannel ?? 'online',
       ticketEmailError: reservation?.ticketEmailError ?? '',
       ticketEmailLastAttemptedAt: reservation?.ticketEmailLastAttemptedAt ?? null,
       ticketEmailSentAt: reservation?.ticketEmailSentAt ?? null,
@@ -907,7 +911,7 @@ function mapTicketTypeRow(row: EventTicketTypeRow): EventTicketType {
 
 function mapTicketReservationRow(row: TicketReservationRow): TicketReservation {
   return {
-    buyerEmail: row.buyer_email,
+    buyerEmail: row.buyer_email?.trim() ?? '',
     buyerName: row.buyer_name,
     createdAt: row.created_at,
     createdByUserId: row.created_by_user_id,
@@ -970,7 +974,7 @@ function mapPublicTicketRow(row: PublicTicketRow): PublicTicket {
   return {
     addressLine1: row.address_line_1?.trim() ?? '',
     addressLine2: row.address_line_2?.trim() ?? '',
-    buyerEmail: row.buyer_email,
+    buyerEmail: row.buyer_email?.trim() ?? null,
     buyerName: row.buyer_name,
     city: row.city,
     country: row.country?.trim() ?? '',

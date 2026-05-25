@@ -339,6 +339,97 @@
   padding-top: 0.2rem;
 }
 
+.door-sale-success-panel {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.door-sale-success-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.door-sale-success-heading h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.door-sale-success-heading p {
+  color: var(--st-text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.door-sale-success-details {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.door-sale-success-details div,
+.door-sale-ticket-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.85rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.door-sale-success-details dt {
+  color: var(--st-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.door-sale-success-details dd {
+  color: var(--st-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.door-sale-check-in-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.door-sale-ticket-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.door-sale-ticket-card {
+  align-items: center;
+}
+
+.door-sale-ticket-card > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.door-sale-ticket-card strong {
+  color: var(--st-text);
+  font-weight: 800;
+}
+
+.door-sale-ticket-card span {
+  color: var(--st-text-muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
 .guest-ticket-page {
   display: flex;
   flex-direction: column;
@@ -4212,6 +4303,14 @@
 
   .guest-ticket-details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .door-sale-success-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .door-sale-ticket-card {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .performer-grid,

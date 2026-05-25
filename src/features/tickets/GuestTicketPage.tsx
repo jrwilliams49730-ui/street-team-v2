@@ -140,7 +140,7 @@ function GuestTicketPage() {
             </div>
             <div>
               <dt>Buyer email</dt>
-              <dd>{ticket.buyerEmail}</dd>
+              <dd>{ticket.buyerEmail || 'No email provided'}</dd>
             </div>
             <div>
               <dt>Ticket</dt>

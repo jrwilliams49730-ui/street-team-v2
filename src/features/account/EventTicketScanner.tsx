@@ -769,10 +769,14 @@ function AttendeeTicketCard({
             {formatAttendeeTicketStatus(ticket.ticketStatus)}
           </span>
         </div>
-        <p>{ticket.buyerEmail}</p>
+        <p>{ticket.buyerEmail || 'No email provided'}</p>
         <p>{ticket.ticketTypeName}</p>
         <p>
           Ticket {ticket.ticketNumber} of {ticket.reservationQuantity}
+        </p>
+        <p>
+          Source: {formatTicketSalesChannel(ticket.salesChannel)} | Payment:{' '}
+          {formatReservationPaymentStatus(ticket.reservationStatus)}
         </p>
         {emailStatus ? (
           <div className={`ticket-email-status is-${emailStatus.tone}`}>
@@ -952,6 +956,26 @@ function formatAttendeeTicketStatus(status: IndividualTicketStatus) {
   }
 
   return 'Not Checked In'
+}
+
+function formatTicketSalesChannel(salesChannel: 'online' | 'door') {
+  return salesChannel === 'door' ? 'Door sale' : 'Online'
+}
+
+function formatReservationPaymentStatus(status: string) {
+  if (status === 'confirmed') {
+    return 'Paid'
+  }
+
+  if (status === 'pending') {
+    return 'Pending payment'
+  }
+
+  if (status === 'cancelled') {
+    return 'Canceled'
+  }
+
+  return 'Expired'
 }
 
 function formatCheckedInTime(value: string) {

@@ -78,8 +78,17 @@ const getPaymentIntentId = (
   return typeof paymentIntent === 'string' ? paymentIntent : paymentIntent.id
 }
 
-const isValidEmail = (value: string | null) =>
+const isValidEmail = (value: string | null): value is string =>
   Boolean(value?.trim().match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/))
+
+const getSessionCustomerEmail = (session: Stripe.Checkout.Session) => {
+  const email =
+    session.customer_email?.trim() ||
+    session.customer_details?.email?.trim() ||
+    ''
+
+  return isValidEmail(email) ? email.toLowerCase() : null
+}
 
 async function fetchTicketEmailDetails(
   supabase: SupabaseServiceClient,
@@ -430,6 +439,24 @@ async function markTicketEmailSent(
   }
 }
 
+async function saveTicketBuyerEmail(
+  supabase: SupabaseServiceClient,
+  reservationId: string,
+  buyerEmail: string,
+) {
+  const { error } = await supabase
+    .from('ticket_reservations')
+    .update({
+      buyer_email: buyerEmail,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reservationId)
+
+  if (error) {
+    throw error
+  }
+}
+
 async function recordTicketEmailError(
   supabase: SupabaseServiceClient,
   reservationId: string,
@@ -620,13 +647,17 @@ Deno.serve(async (request) => {
   }
 
   const appUrl = Deno.env.get('APP_URL')?.replace(/\/$/, '') ?? ''
-  let buyerEmailForLog: string | null = session.customer_email ?? null
+  let buyerEmailForLog: string | null = getSessionCustomerEmail(session)
   let ticketEmailSent = false
   let ticketEmailSkipped = false
 
   try {
     const emailDetails = await fetchTicketEmailDetails(supabase, reservationId)
-    const buyerEmail = emailDetails.reservation.buyer_email?.trim() ?? null
+    const reservationBuyerEmail =
+      emailDetails.reservation.buyer_email?.trim() ?? null
+    const buyerEmail = isValidEmail(reservationBuyerEmail)
+      ? reservationBuyerEmail
+      : getSessionCustomerEmail(session)
     const ticketDebugDetails = getTicketDebugDetails(emailDetails.tickets)
 
     buyerEmailForLog = buyerEmail
@@ -636,7 +667,13 @@ Deno.serve(async (request) => {
       ticketDebugDetails,
     })
 
-    if (emailDetails.reservation.ticket_email_sent_at) {
+    if (!isValidEmail(buyerEmail)) {
+      ticketEmailSkipped = true
+      console.log('[stripe-webhook] ticket email skipped; no buyer email:', {
+        reservationId,
+        ticketDebugDetails,
+      })
+    } else if (emailDetails.reservation.ticket_email_sent_at) {
       ticketEmailSkipped = true
       console.log('[stripe-webhook] ticket email already sent:', {
         buyerEmail,
@@ -644,6 +681,11 @@ Deno.serve(async (request) => {
         ticketDebugDetails,
       })
     } else {
+      if (!isValidEmail(reservationBuyerEmail)) {
+        await saveTicketBuyerEmail(supabase, reservationId, buyerEmail)
+        emailDetails.reservation.buyer_email = buyerEmail
+      }
+
       await sendTicketConfirmationEmail(emailDetails, appUrl)
       await markTicketEmailSent(supabase, reservationId)
       ticketEmailSent = true

@@ -1,18 +1,27 @@
 import { publicSupabase } from '../../lib/supabase'
 
 export type CheckoutTicketStatus = {
+  buyerName: string | null
   buyerEmail: string | null
+  eventTitle: string | null
   isGuestCheckout: boolean
+  quantity: number
   reservationId: string
   reservationStatus: string
+  salesChannel: string
   stripeCheckoutSessionId: string | null
   ticketEmailConfigured: boolean
   ticketEmailError: string | null
   ticketEmailLastAttemptedAt: string | null
   ticketEmailSentAt: string | null
+  ticketTypeName: string | null
+  totalPriceCents: number
   tickets: Array<{
+    checkedInAt: string | null
     id: string
+    qrToken: string
     ticketNumber: number
+    ticketStatus: string
     ticketUrl: string
   }>
 }
