@@ -771,6 +771,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0;
 }
 
 .admin-page {
@@ -1121,6 +1122,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0;
 }
 
 .auth-mode-switch button,
@@ -1647,6 +1649,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0;
   padding: 1rem;
   border: 1px solid var(--st-border);
   border-radius: 1rem;
@@ -1869,6 +1872,7 @@
 }
 
 .event-manage-panel {
+  min-height: 0;
   border-top: 1px solid var(--st-border);
   padding-top: 1rem;
 }
@@ -1876,11 +1880,13 @@
 .event-manage-grid {
   display: grid;
   gap: 1rem;
+  min-height: 0;
 }
 
 .event-manage-section {
   display: flex;
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
   gap: 0.85rem;
   padding: 1rem;
@@ -1985,6 +1991,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  min-height: 0;
   padding: 1rem;
   border: 1px solid var(--st-border);
   border-radius: 1rem;
@@ -1995,6 +2002,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0;
   padding: 1rem;
   border: 1px solid var(--st-border);
   border-radius: 1rem;
@@ -2124,12 +2132,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  min-height: 0;
 }
 
 .door-sale-history {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-height: 0;
 }
 
 .event-lineup-manager > p,
@@ -2198,6 +2208,12 @@
 .attendee-ticket-list {
   display: grid;
   gap: 0.75rem;
+  max-height: min(64dvh, 42rem);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .attendee-ticket-card {
@@ -2623,6 +2639,16 @@
 .ticket-type-list {
   display: grid;
   gap: 0.75rem;
+}
+
+.door-sale-list,
+.ticket-type-list {
+  max-height: min(56dvh, 34rem);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .door-sale-card,
