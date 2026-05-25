@@ -127,6 +127,7 @@ export type EventCheckInTicket = {
   checkedInAt: string | null
   qrToken: string
   reservationId: string
+  reservationQuantity: number
   ticketEmailError: string
   ticketEmailLastAttemptedAt: string | null
   ticketEmailSentAt: string | null
@@ -664,6 +665,7 @@ export async function fetchEventCheckInTickets(eventId: string) {
       checkedInAt: ticket.checkedInAt,
       qrToken: ticket.qrToken,
       reservationId: ticket.reservationId,
+      reservationQuantity: reservation?.quantity ?? 1,
       ticketEmailError: reservation?.ticketEmailError ?? '',
       ticketEmailLastAttemptedAt: reservation?.ticketEmailLastAttemptedAt ?? null,
       ticketEmailSentAt: reservation?.ticketEmailSentAt ?? null,

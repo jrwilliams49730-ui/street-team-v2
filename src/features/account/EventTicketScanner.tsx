@@ -108,6 +108,16 @@ function EventTicketScanner({
 
     try {
       const nextTickets = await fetchEventCheckInTickets(event.id)
+      logScannerDebug('loaded individual check-in tickets', {
+        eventIdPreview: createIdPreview(event.id),
+        ticketCount: nextTickets.length,
+        uniqueTicketCount: new Set(
+          nextTickets.map((ticket) => ticket.ticketId),
+        ).size,
+        uniqueQrTokenCount: new Set(
+          nextTickets.map((ticket) => ticket.qrToken),
+        ).size,
+      })
       setAttendeeTickets(nextTickets)
       setAttendeeStatus('ready')
     } catch {
@@ -401,12 +411,21 @@ function ScanTab({
         logScannerDebug('ticket check-in validation completed', {
           outcome: nextResult.outcome,
           ticketIdPreview: nextResult.ticketId
-            ? `${nextResult.ticketId.slice(0, 4)}...${nextResult.ticketId.slice(-4)}`
+            ? createIdPreview(nextResult.ticketId)
             : null,
+          ticketNumber: nextResult.ticketNumber,
+          ticketStatus: nextResult.ticketStatus,
         })
         setScanResult(nextResult)
         onCheckInResult(nextResult)
         if (nextResult.outcome === 'checked_in') {
+          logScannerDebug('individual ticket marked checked in', {
+            checkedInAt: nextResult.checkedInAt,
+            ticketIdPreview: nextResult.ticketId
+              ? createIdPreview(nextResult.ticketId)
+              : null,
+            ticketNumber: nextResult.ticketNumber,
+          })
           setManualQrValue('')
         }
       } catch (error) {
@@ -426,6 +445,7 @@ function ScanTab({
       } finally {
         isProcessingRef.current = false
         setIsProcessing(false)
+        setScannerStatus('paused')
       }
     },
     [onCheckInResult, stopCamera],
@@ -581,7 +601,7 @@ function ScanTab({
         />
       ) : null}
 
-      {scannerStatus === 'paused' && !isProcessing ? (
+      {(scannerStatus === 'paused' || scanResult) && !isProcessing ? (
         <button
           type="button"
           className="auth-submit-button"
@@ -751,7 +771,9 @@ function AttendeeTicketCard({
         </div>
         <p>{ticket.buyerEmail}</p>
         <p>{ticket.ticketTypeName}</p>
-        <p>Ticket #{ticket.ticketNumber}</p>
+        <p>
+          Ticket {ticket.ticketNumber} of {ticket.reservationQuantity}
+        </p>
         {emailStatus ? (
           <div className={`ticket-email-status is-${emailStatus.tone}`}>
             <strong>{emailStatus.label}</strong>
@@ -872,6 +894,10 @@ function createInvalidResult(message: string): TicketCheckInResult {
 
 function logScannerDebug(message: string, details: Record<string, unknown>) {
   console.info('[Street Team QR Scanner]', message, details)
+}
+
+function createIdPreview(id: string) {
+  return `${id.slice(0, 4)}...${id.slice(-4)}`
 }
 
 function getResultTone(outcome: TicketCheckInOutcome) {

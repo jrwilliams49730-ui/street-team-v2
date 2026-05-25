@@ -176,12 +176,13 @@ async function sendTicketConfirmationEmail(
   const fromEmail = ticketEmailFrom ?? Deno.env.get('EMAIL_FROM')
   const replyToEmail = Deno.env.get('TICKET_EMAIL_REPLY_TO')
   const buyerEmail = details.reservation.buyer_email?.trim() ?? ''
-  const ticketIds = details.tickets.map((ticket) => ticket.id)
+  const ticketDebugDetails = getTicketDebugDetails(details.tickets)
 
   console.log('[stripe-webhook] Resend ticket email preflight:', {
     buyerEmail,
     hasResendApiKey: Boolean(resendApiKey),
     reservationId: details.reservation.id,
+    ticketDebugDetails,
     ticketEmailFrom,
     usingFromEmail: fromEmail,
   })
@@ -205,7 +206,7 @@ async function sendTicketConfirmationEmail(
   console.log('[stripe-webhook] attempting Resend ticket email send', {
     buyerEmail,
     reservationId: details.reservation.id,
-    ticketIds,
+    ticketDebugDetails,
   })
 
   let response: Response
@@ -275,6 +276,11 @@ function buildTicketEmailContent(
     url: `${appUrl}/tickets/${ticket.qr_token}`,
   }))
 
+  console.log('[stripe-webhook] building individual ticket links:', {
+    reservationId: details.reservation.id,
+    ticketDebugDetails: getTicketDebugDetails(details.tickets),
+  })
+
   const textLines = [
     `Payment successful. ${ticketReadyLine}`,
     '',
@@ -342,6 +348,23 @@ function formatEventDate(eventDate: string) {
     month: 'long',
     year: 'numeric',
   }).format(new Date(year, month - 1, day))
+}
+
+function getTicketDebugDetails(tickets: TicketEmailRow[]) {
+  return {
+    ticketCount: tickets.length,
+    uniqueQrTokenCount: new Set(tickets.map((ticket) => ticket.qr_token)).size,
+    uniqueTicketIdCount: new Set(tickets.map((ticket) => ticket.id)).size,
+    tickets: tickets.map((ticket) => ({
+      qrTokenPreview: createTicketDebugPreview(ticket.qr_token),
+      ticketIdPreview: createTicketDebugPreview(ticket.id),
+      ticketNumber: ticket.ticket_number,
+    })),
+  }
+}
+
+function createTicketDebugPreview(value: string) {
+  return `${value.slice(0, 4)}...${value.slice(-4)}`
 }
 
 function formatEventTime(eventTime: string) {
@@ -604,16 +627,21 @@ Deno.serve(async (request) => {
   try {
     const emailDetails = await fetchTicketEmailDetails(supabase, reservationId)
     const buyerEmail = emailDetails.reservation.buyer_email?.trim() ?? null
-    const ticketIds = emailDetails.tickets.map((ticket) => ticket.id)
+    const ticketDebugDetails = getTicketDebugDetails(emailDetails.tickets)
 
     buyerEmailForLog = buyerEmail
+    console.log('[stripe-webhook] issued tickets ready for delivery:', {
+      buyerEmail,
+      reservationId,
+      ticketDebugDetails,
+    })
 
     if (emailDetails.reservation.ticket_email_sent_at) {
       ticketEmailSkipped = true
       console.log('[stripe-webhook] ticket email already sent:', {
         buyerEmail,
         reservationId,
-        ticketIds,
+        ticketDebugDetails,
       })
     } else {
       await sendTicketConfirmationEmail(emailDetails, appUrl)
@@ -622,8 +650,7 @@ Deno.serve(async (request) => {
       console.log('[stripe-webhook] ticket email sent:', {
         buyerEmail,
         reservationId,
-        ticketIds,
-        ticketCount: emailDetails.tickets.length,
+        ticketDebugDetails,
       })
     }
   } catch (error) {
