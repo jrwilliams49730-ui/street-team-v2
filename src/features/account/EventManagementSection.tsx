@@ -1317,7 +1317,7 @@ function InitialTicketSetupSection({
           />
         </div>
       ) : (
-        <p>Tickets can be added later from Box Office.</p>
+        <p>Tickets can be added later from Event Setup.</p>
       )}
     </section>
   )
@@ -1429,6 +1429,14 @@ function OwnedEventManagePanel({
     onOpenScanner()
   }
 
+  function handleTabChange(tabId: ManageEventTabId) {
+    if (tabId !== 'box-office' && isScannerOpen) {
+      onCloseScanner()
+    }
+
+    setActiveTab(tabId)
+  }
+
   return (
     <section className="event-manage-panel" aria-label={`Manage ${event.title}`}>
       <header className="event-manage-header">
@@ -1462,7 +1470,7 @@ function OwnedEventManagePanel({
             className={`event-manage-tab-button ${
               activeTab === tab.id ? 'is-active' : ''
             }`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
           >
             {tab.label}
           </button>
@@ -1588,6 +1596,7 @@ function EventSetupTab({
         <EventSetupSummary event={event} />
       )}
 
+      <EventTicketManager eventId={event.id} />
       <EventLineupManager eventId={event.id} />
     </section>
   )
@@ -1659,7 +1668,7 @@ function EventBoxOfficeTab({
       <header className="event-manage-section-heading">
         <span>Box Office</span>
         <h4>Tickets, sales, and check-ins</h4>
-        <p>Manage ticket types, door sales, attendee lists, and QR scans.</p>
+        <p>Sell door tickets, scan QR codes, and manage check-ins.</p>
       </header>
 
       {isScannerOpen ? (
@@ -1680,7 +1689,6 @@ function EventBoxOfficeTab({
             </button>
           </div>
 
-          <EventTicketManager eventId={event.id} />
           <EventDoorSalesManager eventId={event.id} />
         </>
       )}

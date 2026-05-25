@@ -209,8 +209,8 @@ function EventTicketManager({ eventId }: EventTicketManagerProps) {
   return (
     <div className="event-ticket-manager">
       <header className="event-ticket-heading">
-        <h4>Tickets</h4>
-        <p>Configure ticket types for this event.</p>
+        <h4>Ticket Setup</h4>
+        <p>Configure ticket types, pricing, and capacity for this event.</p>
       </header>
 
       {status === 'loading' ? <p>Loading ticket types...</p> : null}
