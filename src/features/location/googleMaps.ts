@@ -93,6 +93,10 @@ export function hasGoogleMapsApiKey() {
   return Boolean(getGoogleMapsApiKey())
 }
 
+export function getGoogleMapsDebugState() {
+  return getGoogleMapsLoaderState()
+}
+
 export async function loadGoogleMaps() {
   logGoogleMapsLoaderState('load requested')
 
@@ -478,6 +482,12 @@ export function createPlaceAutocomplete(
 
 export function clearGoogleAutocompleteListeners(autocomplete: unknown) {
   window.google?.maps.event.clearInstanceListeners(autocomplete)
+}
+
+export function cleanupGooglePlacesPredictionContainers() {
+  document
+    .querySelectorAll('.pac-container')
+    .forEach((container) => container.remove())
 }
 
 export function parseGooglePlace(

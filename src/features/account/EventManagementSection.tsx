@@ -55,9 +55,11 @@ import {
   type StreetTeamEvent,
 } from '../events/events'
 import {
+  cleanupGooglePlacesPredictionContainers,
   clearGoogleAutocompleteListeners,
   createPlaceAutocomplete,
   geocodeAddress,
+  getGoogleMapsDebugState,
   hasGoogleMapsApiKey,
   loadGoogleMaps,
   type ParsedGooglePlace,
@@ -854,6 +856,7 @@ function EventManagementSection({
           onFileChange={setFlyerFile}
           onFormChange={setFormState}
           onSubmit={handleCreate}
+          organizerType={organizerType}
           submitText="Create Event"
           submittingText="Creating event..."
           ticketSetupSection={
@@ -1011,6 +1014,7 @@ type EventFormProps = {
   onFileChange: (file: File | null) => void
   onFormChange: (formState: EventFormState) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  organizerType: EventOrganizerType
   submitText: string
   submittingText: string
   ticketSetupSection?: ReactNode
@@ -1026,100 +1030,11 @@ function EventForm({
   onFileChange,
   onFormChange,
   onSubmit,
+  organizerType,
   submitText,
   submittingText,
   ticketSetupSection = null,
 }: EventFormProps) {
-  const locationInputRef = useRef<HTMLInputElement | null>(null)
-  const formStateRef = useRef(formState)
-  const isGoogleMapsConfigured = hasGoogleMapsApiKey()
-  const [locationSearch, setLocationSearch] = useState(() =>
-    formatLocationSearchDefault(formState),
-  )
-  const [locationSearchStatus, setLocationSearchStatus] =
-    useState<LocationSearchStatus | null>(() =>
-      isGoogleMapsConfigured
-        ? null
-        : {
-            type: 'info',
-            text: 'Google Places is not configured, so use the address fields below.',
-          },
-    )
-
-  useEffect(() => {
-    formStateRef.current = formState
-  }, [formState])
-
-  useEffect(() => {
-    const inputElement = locationInputRef.current
-    let autocomplete: unknown = null
-    let isMounted = true
-
-    if (!inputElement) {
-      return
-    }
-
-    if (!isGoogleMapsConfigured) {
-      return
-    }
-
-    async function initializeAutocomplete() {
-      setLocationSearchStatus({
-        type: 'info',
-        text: 'Loading Google Places...',
-      })
-
-      try {
-        await loadGoogleMaps()
-
-        if (!isMounted || !inputElement) {
-          return
-        }
-
-        autocomplete = createPlaceAutocomplete(inputElement, (place) => {
-          const nextFormState = getFormStateFromGooglePlace(
-            formStateRef.current,
-            place,
-          )
-
-          onFormChange(nextFormState)
-          setLocationSearch(formatLocationSearchDefault(nextFormState))
-          setLocationSearchStatus({
-            type: 'success',
-            text: 'Location selected from Google Places.',
-          })
-        })
-
-        if (isMounted) {
-          setLocationSearchStatus({
-            type: 'info',
-            text: 'Start typing a venue name or street address.',
-          })
-        }
-      } catch (error) {
-        if (isMounted) {
-          setLocationSearchStatus({
-            type: 'error',
-            text:
-              error instanceof Error
-                ? error.message
-                : 'Google Places could not be loaded.',
-          })
-        }
-      }
-    }
-
-    void initializeAutocomplete()
-
-    return () => {
-      isMounted = false
-
-      if (autocomplete) {
-        clearGoogleAutocompleteListeners(autocomplete)
-      }
-    }
-  }, [isGoogleMapsConfigured, onFormChange])
-
   function updateField<FieldName extends keyof EventFormState>(
     fieldName: FieldName,
     value: EventFormState[FieldName],
@@ -1143,26 +1058,6 @@ function EventForm({
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     onFileChange(event.currentTarget.files?.[0] ?? null)
   }
-
-  function handleLocationSearchChange(event: ChangeEvent<HTMLInputElement>) {
-    setLocationSearch(event.target.value)
-
-    if (!isGoogleMapsConfigured) {
-      return
-    }
-
-    setLocationSearchStatus({
-      type: 'info',
-      text: event.target.value.trim()
-        ? 'Choose a Google Places suggestion or fill out the address fields below.'
-        : 'Start typing a venue name or street address.',
-    })
-  }
-
-  const locationHelperText = locationSearchStatus?.text ?? ''
-  const locationHelperClassName = locationSearchStatus
-    ? `location-autocomplete-helper is-${locationSearchStatus.type}`
-    : 'location-autocomplete-helper'
 
   return (
     <form className="auth-form event-form" onSubmit={onSubmit}>
@@ -1234,22 +1129,11 @@ function EventForm({
         </label>
       </div>
 
-      <label>
-        <span>Find venue or address</span>
-        <input
-          ref={locationInputRef}
-          type="text"
-          value={locationSearch}
-          autoComplete="off"
-          placeholder="Start typing a venue, street address, city, or ZIP"
-          onChange={handleLocationSearchChange}
-        />
-        {locationHelperText ? (
-          <small className={locationHelperClassName}>
-            {locationHelperText}
-          </small>
-        ) : null}
-      </label>
+      <EventLocationAutocompleteField
+        formState={formState}
+        onFormChange={onFormChange}
+        organizerType={organizerType}
+      />
 
       <label>
         <span>Venue name</span>
@@ -1391,6 +1275,175 @@ function EventForm({
       </button>
     </form>
   )
+}
+
+type EventLocationAutocompleteFieldProps = {
+  formState: EventFormState
+  onFormChange: (formState: EventFormState) => void
+  organizerType: EventOrganizerType
+}
+
+function EventLocationAutocompleteField({
+  formState,
+  onFormChange,
+  organizerType,
+}: EventLocationAutocompleteFieldProps) {
+  const locationInputRef = useRef<HTMLInputElement | null>(null)
+  const formStateRef = useRef(formState)
+  const isGoogleMapsConfigured = hasGoogleMapsApiKey()
+  const [locationSearch, setLocationSearch] = useState(() =>
+    formatLocationSearchDefault(formState),
+  )
+  const [locationSearchStatus, setLocationSearchStatus] =
+    useState<LocationSearchStatus | null>(() =>
+      isGoogleMapsConfigured
+        ? null
+        : {
+            type: 'info',
+            text: 'Google Places is not configured, so use the address fields below.',
+          },
+    )
+
+  useEffect(() => {
+    formStateRef.current = formState
+  }, [formState])
+
+  useEffect(() => {
+    const inputElement = locationInputRef.current
+    let autocomplete: unknown = null
+    let isMounted = true
+
+    logEventFormPlacesState(organizerType, false, 'field mounted')
+
+    if (!inputElement) {
+      return
+    }
+
+    if (!isGoogleMapsConfigured) {
+      logEventFormPlacesState(organizerType, false, 'api key missing')
+      return
+    }
+
+    async function initializeAutocomplete() {
+      setLocationSearchStatus({
+        type: 'info',
+        text: 'Loading Google Places...',
+      })
+
+      try {
+        await loadGoogleMaps()
+
+        if (!isMounted || !inputElement) {
+          return
+        }
+
+        autocomplete = createPlaceAutocomplete(inputElement, (place) => {
+          const nextFormState = getFormStateFromGooglePlace(
+            formStateRef.current,
+            place,
+          )
+
+          onFormChange(nextFormState)
+          setLocationSearch(formatLocationSearchDefault(nextFormState))
+          setLocationSearchStatus({
+            type: 'success',
+            text: 'Location selected from Google Places.',
+          })
+        })
+
+        logEventFormPlacesState(organizerType, true, 'autocomplete ready')
+
+        if (isMounted) {
+          setLocationSearchStatus({
+            type: 'info',
+            text: 'Start typing a venue name or street address.',
+          })
+        }
+      } catch (error) {
+        cleanupGooglePlacesPredictionContainers()
+        logEventFormPlacesState(organizerType, false, 'autocomplete failed')
+
+        if (isMounted) {
+          setLocationSearchStatus({
+            type: 'error',
+            text:
+              error instanceof Error
+                ? error.message
+                : 'Google Places could not be loaded. Use the address fields below.',
+          })
+        }
+      }
+    }
+
+    void initializeAutocomplete()
+
+    return () => {
+      isMounted = false
+
+      if (autocomplete) {
+        clearGoogleAutocompleteListeners(autocomplete)
+      }
+    }
+  }, [isGoogleMapsConfigured, onFormChange, organizerType])
+
+  function handleLocationSearchChange(event: ChangeEvent<HTMLInputElement>) {
+    setLocationSearch(event.target.value)
+
+    if (!isGoogleMapsConfigured) {
+      return
+    }
+
+    setLocationSearchStatus({
+      type: 'info',
+      text: event.target.value.trim()
+        ? 'Choose a Google Places suggestion or fill out the address fields below.'
+        : 'Start typing a venue name or street address.',
+    })
+  }
+
+  const locationHelperText = locationSearchStatus?.text ?? ''
+  const locationHelperClassName = locationSearchStatus
+    ? `location-autocomplete-helper is-${locationSearchStatus.type}`
+    : 'location-autocomplete-helper'
+
+  return (
+    <label>
+      <span>Find venue or address</span>
+      <input
+        ref={locationInputRef}
+        type="text"
+        value={locationSearch}
+        autoComplete="off"
+        placeholder="Start typing a venue, street address, city, or ZIP"
+        onChange={handleLocationSearchChange}
+      />
+      {locationHelperText ? (
+        <small className={locationHelperClassName}>
+          {locationHelperText}
+        </small>
+      ) : null}
+    </label>
+  )
+}
+
+function logEventFormPlacesState(
+  organizerType: EventOrganizerType,
+  sharedGooglePlacesComponentLoaded: boolean,
+  message: string,
+) {
+  if (!import.meta.env.DEV) {
+    return
+  }
+
+  const debugState = getGoogleMapsDebugState()
+
+  console.info('[Street Team Event Form Places]', message, {
+    accountTypeUsingEventForm: organizerType,
+    googleMapsPlacesAvailable: debugState.hasWindowGoogleMapsPlaces,
+    hasStreetTeamPlacesLibrary: debugState.hasStreetTeamPlacesLibrary,
+    placesLibraryRequested: debugState.hasRequestedPlacesLibrary,
+    sharedGooglePlacesComponentLoaded,
+  })
 }
 
 type InitialTicketSetupSectionProps = {
@@ -1922,6 +1975,7 @@ function OwnedEventEditCard({
         onFileChange={onFileChange}
         onFormChange={onFormChange}
         onSubmit={(formEvent) => onSave(formEvent, event.id)}
+        organizerType={event.organizerType}
         submitText="Save Changes"
         submittingText="Saving changes..."
       />
