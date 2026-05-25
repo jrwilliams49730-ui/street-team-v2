@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -1288,10 +1289,12 @@ function EventLocationAutocompleteField({
   onFormChange,
   organizerType,
 }: EventLocationAutocompleteFieldProps) {
-  const locationInputRef = useRef<HTMLInputElement | null>(null)
+  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null)
+  const autocompleteInitializedRef = useRef(false)
+  const placeChangedListenerAttachedRef = useRef(false)
   const formStateRef = useRef(formState)
   const isGoogleMapsConfigured = hasGoogleMapsApiKey()
-  const [locationSearch, setLocationSearch] = useState(() =>
+  const [initialLocationSearch] = useState(() =>
     formatLocationSearchDefault(formState),
   )
   const [locationSearchStatus, setLocationSearchStatus] =
@@ -1309,11 +1312,15 @@ function EventLocationAutocompleteField({
   }, [formState])
 
   useEffect(() => {
-    const inputElement = locationInputRef.current
     let autocomplete: unknown = null
     let isMounted = true
+    autocompleteInitializedRef.current = false
+    placeChangedListenerAttachedRef.current = false
 
-    logEventFormPlacesState(organizerType, false, 'field mounted')
+    logEventFormPlacesState(organizerType, false, 'field binding check', {
+      apiKeyExists: isGoogleMapsConfigured,
+      inputRefAttached: Boolean(inputElement),
+    })
 
     if (!inputElement) {
       return
@@ -1337,21 +1344,36 @@ function EventLocationAutocompleteField({
           return
         }
 
+        cleanupGooglePlacesPredictionContainers()
         autocomplete = createPlaceAutocomplete(inputElement, (place) => {
+          logEventFormPlacesState(organizerType, true, 'place_selected fired', {
+            autocompleteInitialized: autocompleteInitializedRef.current,
+            placeChangedListenerAttached:
+              placeChangedListenerAttachedRef.current,
+          })
+
           const nextFormState = getFormStateFromGooglePlace(
             formStateRef.current,
             place,
           )
+          const formattedLocationSearch =
+            formatLocationSearchDefault(nextFormState)
 
           onFormChange(nextFormState)
-          setLocationSearch(formatLocationSearchDefault(nextFormState))
+          inputElement.value = formattedLocationSearch
           setLocationSearchStatus({
             type: 'success',
             text: 'Location selected from Google Places.',
           })
         })
+        autocompleteInitializedRef.current = true
+        placeChangedListenerAttachedRef.current = true
 
-        logEventFormPlacesState(organizerType, true, 'autocomplete ready')
+        logEventFormPlacesState(organizerType, true, 'autocomplete ready', {
+          autocompleteInitialized: autocompleteInitializedRef.current,
+          inputRefAttached: true,
+          placeChangedListenerAttached: placeChangedListenerAttachedRef.current,
+        })
 
         if (isMounted) {
           setLocationSearchStatus({
@@ -1361,7 +1383,12 @@ function EventLocationAutocompleteField({
         }
       } catch (error) {
         cleanupGooglePlacesPredictionContainers()
-        logEventFormPlacesState(organizerType, false, 'autocomplete failed')
+        logEventFormPlacesState(organizerType, false, 'autocomplete failed', {
+          autocompleteInitialized: false,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          inputRefAttached: Boolean(inputElement),
+          placeChangedListenerAttached: false,
+        })
 
         if (isMounted) {
           setLocationSearchStatus({
@@ -1383,11 +1410,21 @@ function EventLocationAutocompleteField({
       if (autocomplete) {
         clearGoogleAutocompleteListeners(autocomplete)
       }
+
+      autocompleteInitializedRef.current = false
+      placeChangedListenerAttachedRef.current = false
     }
-  }, [isGoogleMapsConfigured, onFormChange, organizerType])
+  }, [inputElement, isGoogleMapsConfigured, onFormChange, organizerType])
 
   function handleLocationSearchChange(event: ChangeEvent<HTMLInputElement>) {
-    setLocationSearch(event.target.value)
+    const inputValue = event.target.value
+
+    logEventFormPlacesState(organizerType, true, 'location input changed', {
+      autocompleteInitialized: autocompleteInitializedRef.current,
+      inputLength: inputValue.length,
+      placeChangedListenerAttached: placeChangedListenerAttachedRef.current,
+      ...getPlacesPredictionDomState(),
+    })
 
     if (!isGoogleMapsConfigured) {
       return
@@ -1395,11 +1432,39 @@ function EventLocationAutocompleteField({
 
     setLocationSearchStatus({
       type: 'info',
-      text: event.target.value.trim()
+      text: inputValue.trim()
         ? 'Choose a Google Places suggestion or fill out the address fields below.'
         : 'Start typing a venue name or street address.',
     })
+
+    if (import.meta.env.DEV && inputValue.trim()) {
+      window.setTimeout(() => {
+        logEventFormPlacesState(organizerType, true, 'prediction dropdown check', {
+          autocompleteInitialized: autocompleteInitializedRef.current,
+          inputLength: inputValue.length,
+          placeChangedListenerAttached: placeChangedListenerAttachedRef.current,
+          ...getPlacesPredictionDomState(),
+        })
+      }, 350)
+    }
   }
+
+  const handleLocationInputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      setInputElement(node)
+
+      logEventFormPlacesState(
+        organizerType,
+        false,
+        node ? 'input ref attached' : 'input ref detached',
+        {
+          apiKeyExists: isGoogleMapsConfigured,
+          inputRefAttached: Boolean(node),
+        },
+      )
+    },
+    [isGoogleMapsConfigured, organizerType],
+  )
 
   const locationHelperText = locationSearchStatus?.text ?? ''
   const locationHelperClassName = locationSearchStatus
@@ -1410,9 +1475,9 @@ function EventLocationAutocompleteField({
     <label>
       <span>Find venue or address</span>
       <input
-        ref={locationInputRef}
+        ref={handleLocationInputRef}
         type="text"
-        value={locationSearch}
+        defaultValue={initialLocationSearch}
         autoComplete="off"
         placeholder="Start typing a venue, street address, city, or ZIP"
         onChange={handleLocationSearchChange}
@@ -1430,6 +1495,7 @@ function logEventFormPlacesState(
   organizerType: EventOrganizerType,
   sharedGooglePlacesComponentLoaded: boolean,
   message: string,
+  extra: Record<string, unknown> = {},
 ) {
   if (!import.meta.env.DEV) {
     return
@@ -1443,7 +1509,35 @@ function logEventFormPlacesState(
     hasStreetTeamPlacesLibrary: debugState.hasStreetTeamPlacesLibrary,
     placesLibraryRequested: debugState.hasRequestedPlacesLibrary,
     sharedGooglePlacesComponentLoaded,
+    ...extra,
   })
+}
+
+function getPlacesPredictionDomState() {
+  const predictionContainers = Array.from(
+    document.querySelectorAll<HTMLElement>('.pac-container'),
+  )
+  const visiblePredictionContainers = predictionContainers.filter(
+    (container) => {
+      const style = window.getComputedStyle(container)
+
+      return (
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        style.opacity !== '0'
+      )
+    },
+  )
+
+  return {
+    pacContainerCount: predictionContainers.length,
+    pacItemCount: predictionContainers.reduce(
+      (total, container) =>
+        total + container.querySelectorAll('.pac-item').length,
+      0,
+    ),
+    visiblePacContainerCount: visiblePredictionContainers.length,
+  }
 }
 
 type InitialTicketSetupSectionProps = {

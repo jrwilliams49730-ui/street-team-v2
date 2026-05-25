@@ -1931,8 +1931,11 @@
 }
 
 body .pac-container {
-  z-index: 10000;
-  overflow: hidden;
+  z-index: 2147483647 !important;
+  max-height: min(18rem, calc(100vh - 1rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
   border: 1px solid var(--st-border);
   border-radius: 0.85rem;
   background: #1c1713;
