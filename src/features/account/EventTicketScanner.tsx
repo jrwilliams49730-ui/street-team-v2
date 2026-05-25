@@ -11,6 +11,9 @@ import {
   checkInTicketByQr,
   fetchEventCheckInTickets,
   fetchEventTicketCheckInSummary,
+  formatTicketQrValue,
+  parseTicketQrValue,
+  summarizeTicketQrValueForDebug,
   type EventCheckInTicket,
   type EventTicketCheckInSummary,
   type IndividualTicketStatus,
@@ -47,7 +50,7 @@ type ListMessage = {
 const scannerStatusCopy: Record<ScannerStatus, string> = {
   error: 'Camera scanner could not be started.',
   paused: 'Scanner paused.',
-  scanning: 'Scanner active.',
+  scanning: 'Scanning... Aim the ticket QR inside the frame.',
   starting: 'Starting camera...',
   unsupported: 'Camera scanning is not supported in this browser.',
 }
@@ -160,9 +163,7 @@ function EventTicketScanner({ event, onBack }: EventTicketScannerProps) {
     setListMessage(null)
 
     try {
-      const result = await checkInTicketByQr(
-        `street-team-ticket:${ticket.qrToken}`,
-      )
+      const result = await checkInTicketByQr(formatTicketQrValue(ticket.qrToken))
 
       if (result.outcome === 'checked_in') {
         refreshAfterCheckIn(result)
@@ -352,6 +353,7 @@ function ScanTab({
   const submitQrValue = useCallback(
     async (qrValue: string, shouldStopCamera = true) => {
       const cleanQrValue = qrValue.trim()
+      const parsedQrValue = parseTicketQrValue(cleanQrValue)
 
       if (isProcessingRef.current) {
         return
@@ -365,6 +367,23 @@ function ScanTab({
 
       if (!cleanQrValue) {
         setScanResult(createInvalidResult('Paste a QR value before checking.'))
+        logScannerDebug('empty QR value submitted', {
+          source: shouldStopCamera ? 'manual' : 'camera',
+        })
+        return
+      }
+
+      logScannerDebug('QR value received', {
+        ...summarizeTicketQrValueForDebug(cleanQrValue, parsedQrValue),
+        source: shouldStopCamera ? 'manual' : 'camera',
+      })
+
+      if (!parsedQrValue.validationValue) {
+        setScanResult(createInvalidResult(parsedQrValue.message))
+        logScannerDebug('QR validation failed before check-in', {
+          reason: parsedQrValue.message,
+          ...summarizeTicketQrValueForDebug(cleanQrValue, parsedQrValue),
+        })
         return
       }
 
@@ -373,10 +392,25 @@ function ScanTab({
       setScanResult(null)
 
       try {
-        const nextResult = await checkInTicketByQr(cleanQrValue)
+        const nextResult = await checkInTicketByQr(parsedQrValue.validationValue)
+        logScannerDebug('ticket check-in validation completed', {
+          outcome: nextResult.outcome,
+          ticketIdPreview: nextResult.ticketId
+            ? `${nextResult.ticketId.slice(0, 4)}...${nextResult.ticketId.slice(-4)}`
+            : null,
+        })
         setScanResult(nextResult)
         onCheckInResult(nextResult)
+        if (nextResult.outcome === 'checked_in') {
+          setManualQrValue('')
+        }
       } catch (error) {
+        logScannerDebug('ticket check-in validation threw', {
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Ticket check-in could not be completed.',
+        })
         setScanResult(
           createInvalidResult(
             error instanceof Error
@@ -419,12 +453,23 @@ function ScanTab({
           delayBetweenScanAttempts: 220,
           delayBetweenScanSuccess: 800,
         })
+        const videoConstraints: MediaTrackConstraints = {
+          facingMode: { ideal: 'environment' },
+          height: { ideal: 720 },
+          width: { ideal: 1280 },
+        }
+
+        logScannerDebug('starting camera scanner', {
+          hasMediaDevices: Boolean(navigator.mediaDevices),
+          requestedFacingMode: 'environment',
+          requestedHeight: 720,
+          requestedWidth: 1280,
+        })
+
         const controls = await codeReader.decodeFromConstraints(
           {
             audio: false,
-            video: {
-              facingMode: { ideal: 'environment' },
-            },
+            video: videoConstraints,
           },
           previewElement,
           (result, _error, controls) => {
@@ -433,6 +478,15 @@ function ScanTab({
             if (!scannedValue || isProcessingRef.current) {
               return
             }
+
+            const parsedScannedValue = parseTicketQrValue(scannedValue)
+
+            logScannerDebug('camera QR decode succeeded', {
+              ...summarizeTicketQrValueForDebug(
+                scannedValue,
+                parsedScannedValue,
+              ),
+            })
 
             controls.stop()
 
@@ -456,6 +510,12 @@ function ScanTab({
         }
       } catch (error) {
         if (isMounted) {
+          logScannerDebug('camera scanner failed to start', {
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Camera scanner could not be started.',
+          })
           controlsRef.current = null
           setScannerStatus('error')
           setCameraMessage(
@@ -490,7 +550,7 @@ function ScanTab({
     <section className="event-check-in-panel event-check-in-scan-panel">
       <header className="event-scanner-heading">
         <h4>Scan Tickets</h4>
-        <p>Use the camera scanner or paste a QR value manually.</p>
+        <p>Use the camera scanner or enter a ticket code/link manually.</p>
       </header>
 
       <div className="event-scanner-camera">
@@ -538,10 +598,11 @@ function ScanTab({
 
       <form className="event-scanner-manual-form" onSubmit={handleManualSubmit}>
         <label>
-          <span>Paste QR value manually</span>
+          <span>Ticket code or link</span>
           <input
             type="text"
             value={manualQrValue}
+            placeholder="Paste QR code, ticket link, or ticket token"
             onChange={(event) => setManualQrValue(event.target.value)}
           />
         </label>
@@ -802,6 +863,10 @@ function createInvalidResult(message: string): TicketCheckInResult {
     ticketStatus: null,
     ticketTypeName: null,
   }
+}
+
+function logScannerDebug(message: string, details: Record<string, unknown>) {
+  console.info('[Street Team QR Scanner]', message, details)
 }
 
 function getResultTone(outcome: TicketCheckInOutcome) {

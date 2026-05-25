@@ -10,6 +10,7 @@ import {
   fetchIndividualTicketsForReservation,
   formatIndividualTicketStatus,
   formatReservationStatus,
+  formatTicketQrValue,
   formatTicketKind,
   formatTicketPrice,
   type IndividualTicket,
@@ -21,8 +22,6 @@ type MyTicketsSectionProps = {
 }
 
 type IndividualTicketLoadStatus = 'idle' | 'loading' | 'ready' | 'error'
-
-const ticketQrLogoSrc = '/assets/notification-icon.png'
 
 function MyTicketsSection({ ownerUserId }: MyTicketsSectionProps) {
   const [tickets, setTickets] = useState<MyTicket[]>([])
@@ -341,7 +340,7 @@ function TicketDetailView({
     ? formatIndividualTicketStatus(currentIndividualTicket.ticketStatus)
     : null
   const currentTicketQrValue = currentIndividualTicket
-    ? `street-team-ticket:${currentIndividualTicket.qrToken}`
+    ? formatTicketQrValue(currentIndividualTicket.qrToken)
     : null
   const showTicketControls = individualTickets.length > 1
   const canMoveToPreviousTicket = selectedTicketIndex > 0
@@ -459,18 +458,12 @@ function TicketDetailView({
             <QRCodeSVG
               value={currentTicketQrValue}
               title="Street Team ticket QR code"
-              size={204}
+              size={288}
               level="H"
-              marginSize={4}
+              marginSize={6}
               bgColor="#ffffff"
-              fgColor="#15110f"
+              fgColor="#000000"
               className="my-ticket-qr-code"
-              imageSettings={{
-                src: ticketQrLogoSrc,
-                height: 28,
-                width: 28,
-                excavate: true,
-              }}
             />
           ) : (
             <p>Loading ticket QR...</p>

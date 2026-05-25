@@ -24,6 +24,15 @@ type GoogleAutocomplete = {
   getPlace: () => GooglePlaceResult
 }
 
+type GooglePlacesLibrary = {
+  Autocomplete: new (
+    input: HTMLInputElement,
+    options: {
+      fields: string[]
+    },
+  ) => GoogleAutocomplete
+}
+
 type GoogleGeocoderResult = {
   address_components?: GoogleAddressComponent[]
   formatted_address?: string
@@ -48,14 +57,7 @@ type GoogleMapsNamespace = {
       clearInstanceListeners: (instance: unknown) => void
     }
     importLibrary?: (libraryName: string) => Promise<unknown>
-    places: {
-      Autocomplete: new (
-        input: HTMLInputElement,
-        options: {
-          fields: string[]
-        },
-      ) => GoogleAutocomplete
-    }
+    places?: GooglePlacesLibrary
   }
 }
 
@@ -63,6 +65,7 @@ declare global {
   interface Window {
     gm_authFailure?: () => void
     google?: GoogleMapsNamespace
+    streetTeamGooglePlacesLibrary?: GooglePlacesLibrary
     streetTeamGoogleMapsPromise?: Promise<GoogleMapsNamespace>
     streetTeamGoogleMapsReady?: () => void
   }
@@ -84,6 +87,7 @@ export type ParsedGooglePlace = {
 const googleMapsScriptId = 'street-team-google-maps'
 const googleMapsCallbackName = 'streetTeamGoogleMapsReady'
 const googleMapsLoadTimeoutMs = 15000
+let hasRequestedPlacesLibrary = false
 
 export function hasGoogleMapsApiKey() {
   return Boolean(getGoogleMapsApiKey())
@@ -92,9 +96,14 @@ export function hasGoogleMapsApiKey() {
 export async function loadGoogleMaps() {
   logGoogleMapsLoaderState('load requested')
 
-  if (window.google?.maps?.places) {
+  if (hasLoadedPlacesAutocomplete()) {
     logGoogleMapsLoaderState('already loaded')
-    return window.google
+    return getGoogleMapsNamespace()
+  }
+
+  if (window.google?.maps) {
+    logGoogleMapsLoaderState('maps already loaded, checking places')
+    return ensureGooglePlacesLibrary()
   }
 
   if (window.streetTeamGoogleMapsPromise) {
@@ -150,7 +159,7 @@ export async function loadGoogleMaps() {
       isSettled = true
       cleanup()
       window.streetTeamGoogleMapsPromise = undefined
-      console.error('[Street Team Google Maps] load failed', {
+      logGoogleMapsLoaderError('load failed', {
         errorName: error.name,
         errorMessage: error.message,
         ...getGoogleMapsLoaderState(),
@@ -242,18 +251,30 @@ export async function loadGoogleMaps() {
 }
 
 async function ensureGooglePlacesLibrary() {
-  if (!window.google?.maps) {
-    throw new Error(
-      'Google Maps script loaded, but window.google.maps is unavailable.',
-    )
+  const google = getGoogleMapsNamespace()
+
+  const existingPlacesLibrary = getLoadedPlacesLibrary()
+
+  if (existingPlacesLibrary) {
+    window.streetTeamGooglePlacesLibrary = existingPlacesLibrary
+    return google
   }
 
-  if (!window.google.maps.places && window.google.maps.importLibrary) {
+  if (google.maps.importLibrary) {
+    hasRequestedPlacesLibrary = true
     logGoogleMapsLoaderState('importing places library')
 
     try {
-      await window.google.maps.importLibrary('places')
-      logGoogleMapsLoaderState('places import completed')
+      const importedPlacesLibrary =
+        await google.maps.importLibrary('places')
+      const placesLibrary = normalizePlacesLibrary(importedPlacesLibrary)
+
+      if (placesLibrary) {
+        window.streetTeamGooglePlacesLibrary = placesLibrary
+        logGoogleMapsLoaderState('places import completed')
+
+        return google
+      }
     } catch (error) {
       throw new Error(
         `Google Places library import failed: ${formatErrorForMessage(error)}`,
@@ -262,9 +283,15 @@ async function ensureGooglePlacesLibrary() {
     }
   }
 
-  if (!window.google.maps.places) {
+  throw new Error(
+    'Google Places autocomplete could not be loaded. You can still enter the venue and address manually. Confirm the Maps JavaScript API and Places API are enabled and that the app is loading libraries=places.',
+  )
+}
+
+function getGoogleMapsNamespace() {
+  if (!window.google?.maps) {
     throw new Error(
-      'Google Maps loaded, but the Places library is unavailable. Confirm Maps JavaScript API and Places API are enabled and the script includes libraries=places.',
+      'Google Maps script loaded, but window.google.maps is unavailable.',
     )
   }
 
@@ -272,9 +299,10 @@ async function ensureGooglePlacesLibrary() {
 }
 
 function buildGoogleMapsScriptUrl(apiKey: string) {
+  hasRequestedPlacesLibrary = true
+
   const url = new URL('https://maps.googleapis.com/maps/api/js')
   url.searchParams.set('key', apiKey)
-  url.searchParams.set('loading', 'async')
   url.searchParams.set('libraries', 'places')
   url.searchParams.set('v', 'weekly')
   url.searchParams.set('callback', googleMapsCallbackName)
@@ -296,10 +324,25 @@ function logGoogleMapsLoaderState(
   message: string,
   extra: Record<string, unknown> = {},
 ) {
+  if (!import.meta.env.DEV) {
+    return
+  }
+
   console.info('[Street Team Google Maps]', message, {
     ...getGoogleMapsLoaderState(),
     ...extra,
   })
+}
+
+function logGoogleMapsLoaderError(
+  message: string,
+  extra: Record<string, unknown> = {},
+) {
+  if (!import.meta.env.DEV) {
+    return
+  }
+
+  console.error('[Street Team Google Maps]', message, extra)
 }
 
 function getGoogleMapsLoaderState() {
@@ -307,7 +350,57 @@ function getGoogleMapsLoaderState() {
     hasViteGoogleMapsApiKey: hasGoogleMapsApiKey(),
     hasWindowGoogle: Boolean(window.google),
     hasWindowGoogleMaps: Boolean(window.google?.maps),
-    hasWindowGoogleMapsPlaces: Boolean(window.google?.maps?.places),
+    hasWindowGoogleMapsPlaces: Boolean(
+      window.google?.maps?.places?.Autocomplete,
+    ),
+    hasStreetTeamPlacesLibrary: Boolean(
+      window.streetTeamGooglePlacesLibrary?.Autocomplete,
+    ),
+    hasRequestedPlacesLibrary,
+    scriptIncludesPlacesLibrary: getGoogleMapsScriptSrcIncludesPlaces(),
+  }
+}
+
+function hasLoadedPlacesAutocomplete() {
+  return Boolean(window.google?.maps && getLoadedPlacesLibrary())
+}
+
+function getLoadedPlacesLibrary() {
+  return (
+    normalizePlacesLibrary(window.streetTeamGooglePlacesLibrary) ??
+    normalizePlacesLibrary(window.google?.maps?.places)
+  )
+}
+
+function normalizePlacesLibrary(value: unknown): GooglePlacesLibrary | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const maybeLibrary = value as Partial<GooglePlacesLibrary>
+
+  return typeof maybeLibrary.Autocomplete === 'function'
+    ? (maybeLibrary as GooglePlacesLibrary)
+    : null
+}
+
+function getGoogleMapsScriptSrcIncludesPlaces() {
+  const script = document.getElementById(googleMapsScriptId)
+
+  if (!(script instanceof HTMLScriptElement)) {
+    return false
+  }
+
+  try {
+    const url = new URL(script.src)
+
+    return url.searchParams
+      .get('libraries')
+      ?.split(',')
+      .map((libraryName) => libraryName.trim())
+      .includes('places') === true
+  } catch {
+    return script.src.includes('libraries=places')
   }
 }
 
@@ -356,11 +449,13 @@ export function createPlaceAutocomplete(
   input: HTMLInputElement,
   onPlaceSelected: (place: ParsedGooglePlace) => void,
 ) {
-  if (!window.google?.maps?.places) {
+  const placesLibrary = getLoadedPlacesLibrary()
+
+  if (!placesLibrary) {
     throw new Error('Google Maps Places library is not loaded.')
   }
 
-  const autocomplete = new window.google.maps.places.Autocomplete(input, {
+  const autocomplete = new placesLibrary.Autocomplete(input, {
     fields: [
       'address_components',
       'formatted_address',

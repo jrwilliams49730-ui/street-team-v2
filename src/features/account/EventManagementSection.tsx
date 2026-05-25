@@ -88,6 +88,23 @@ type EventMessage = {
   text: string
 }
 
+type EventCreateDraft = {
+  formState: EventFormState
+  initialTicketFormState: TicketFormState
+  savedAt: string
+  shouldCreateInitialTicket: boolean
+}
+
+type EventEditDraft = {
+  formState: EventFormState
+  savedAt: string
+}
+
+type LocationSearchStatus = {
+  type: 'info' | 'success' | 'error'
+  text: string
+}
+
 const emptyEventForm: EventFormState = {
   addressLine1: '',
   addressLine2: '',
@@ -115,6 +132,11 @@ function EventManagementSection({
   organizerType,
   ownerUserId,
 }: EventManagementSectionProps) {
+  const createDraftKey = getEventCreateDraftKey(
+    ownerUserId,
+    organizerType,
+    organizerProfileId,
+  )
   const [events, setEvents] = useState<StreetTeamEvent[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -127,6 +149,8 @@ function EventManagementSection({
   const [flyerFile, setFlyerFile] = useState<File | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [availableCreateDraft, setAvailableCreateDraft] =
+    useState<EventCreateDraft | null>(() => loadEventCreateDraft(createDraftKey))
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
   const [editFormState, setEditFormState] =
     useState<EventFormState>(emptyEventForm)
@@ -141,7 +165,6 @@ function EventManagementSection({
     null,
   )
   const [deletingEventId, setDeletingEventId] = useState<string | null>(null)
-
   useEffect(() => {
     let isMounted = true
 
@@ -172,6 +195,161 @@ function EventManagementSection({
       isMounted = false
     }
   }, [organizerProfileId, organizerType, ownerUserId])
+
+  useEffect(() => {
+    if (!isCreateFormOpen) {
+      return
+    }
+
+    if (
+      !hasCreateDraftContent(
+        formState,
+        initialTicketFormState,
+        shouldCreateInitialTicket,
+      )
+    ) {
+      removeEventDraft(createDraftKey)
+      return
+    }
+
+    saveEventCreateDraft(createDraftKey, {
+      formState,
+      initialTicketFormState,
+      savedAt: new Date().toISOString(),
+      shouldCreateInitialTicket,
+    })
+  }, [
+    createDraftKey,
+    formState,
+    initialTicketFormState,
+    isCreateFormOpen,
+    shouldCreateInitialTicket,
+  ])
+
+  useEffect(() => {
+    if (!editingEventId) {
+      return
+    }
+
+    const event = events.find(
+      (currentEvent) => currentEvent.id === editingEventId,
+    )
+
+    if (!event) {
+      return
+    }
+
+    const editDraftKey = getEventEditDraftKey(ownerUserId, editingEventId)
+
+    if (!hasEditDraftContent(editFormState, event) && !editFlyerFile) {
+      removeEventDraft(editDraftKey)
+      return
+    }
+
+    saveEventEditDraft(editDraftKey, {
+      formState: editFormState,
+      savedAt: new Date().toISOString(),
+    })
+  }, [editFlyerFile, editFormState, editingEventId, events, ownerUserId])
+
+  useEffect(() => {
+    const activeEditedEvent = editingEventId
+      ? events.find((event) => event.id === editingEventId)
+      : null
+    const hasUnsavedCreate =
+      isCreateFormOpen &&
+      (hasCreateDraftContent(
+        formState,
+        initialTicketFormState,
+        shouldCreateInitialTicket,
+      ) ||
+        Boolean(flyerFile))
+    const hasUnsavedEdit =
+      Boolean(editingEventId && activeEditedEvent) &&
+      ((activeEditedEvent
+        ? hasEditDraftContent(editFormState, activeEditedEvent)
+        : false) ||
+        Boolean(editFlyerFile))
+
+    if (!hasUnsavedCreate && !hasUnsavedEdit) {
+      return
+    }
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [
+    editFlyerFile,
+    editFormState,
+    editingEventId,
+    events,
+    flyerFile,
+    formState,
+    initialTicketFormState,
+    isCreateFormOpen,
+    shouldCreateInitialTicket,
+  ])
+
+  function resetCreateForm() {
+    setFormState(emptyEventForm)
+    setInitialTicketFormState(defaultInitialTicketForm)
+    setShouldCreateInitialTicket(true)
+    setFlyerFile(null)
+    setFileInputKey((currentKey) => currentKey + 1)
+  }
+
+  function handleCreateNewEvent() {
+    if (availableCreateDraft) {
+      const shouldDiscardDraft = window.confirm(
+        'Discard your saved event draft and start a blank event?',
+      )
+
+      if (!shouldDiscardDraft) {
+        return
+      }
+
+      removeEventDraft(createDraftKey)
+      setAvailableCreateDraft(null)
+    }
+
+    resetCreateForm()
+    setMessage(null)
+    setIsCreateFormOpen(true)
+  }
+
+  function handleResumeCreateDraft() {
+    if (!availableCreateDraft) {
+      return
+    }
+
+    setFormState(availableCreateDraft.formState)
+    setInitialTicketFormState(availableCreateDraft.initialTicketFormState)
+    setShouldCreateInitialTicket(availableCreateDraft.shouldCreateInitialTicket)
+    setFlyerFile(null)
+    setFileInputKey((currentKey) => currentKey + 1)
+    setAvailableCreateDraft(null)
+    setMessage(null)
+    setIsCreateFormOpen(true)
+  }
+
+  function handleDiscardCreateDraft() {
+    const shouldDiscardDraft = window.confirm('Discard this saved event draft?')
+
+    if (!shouldDiscardDraft) {
+      return
+    }
+
+    removeEventDraft(createDraftKey)
+    setAvailableCreateDraft(null)
+    resetCreateForm()
+  }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -234,11 +412,9 @@ function EventManagementSection({
       }
 
       setEvents((currentEvents) => [nextEvent, ...currentEvents])
-      setFormState(emptyEventForm)
-      setInitialTicketFormState(defaultInitialTicketForm)
-      setShouldCreateInitialTicket(true)
-      setFlyerFile(null)
-      setFileInputKey((currentKey) => currentKey + 1)
+      removeEventDraft(createDraftKey)
+      setAvailableCreateDraft(null)
+      resetCreateForm()
       setIsCreateFormOpen(false)
       setStatus('ready')
       setMessage({
@@ -267,12 +443,25 @@ function EventManagementSection({
   }
 
   function handleCreateFormCancel() {
+    const hasUnsavedDraft =
+      hasCreateDraftContent(
+        formState,
+        initialTicketFormState,
+        shouldCreateInitialTicket,
+      ) || Boolean(flyerFile)
+
+    if (hasUnsavedDraft) {
+      const shouldDiscardDraft = window.confirm('Discard this event draft?')
+
+      if (!shouldDiscardDraft) {
+        return
+      }
+    }
+
+    removeEventDraft(createDraftKey)
+    setAvailableCreateDraft(null)
     setIsCreateFormOpen(false)
-    setFormState(emptyEventForm)
-    setInitialTicketFormState(defaultInitialTicketForm)
-    setShouldCreateInitialTicket(true)
-    setFlyerFile(null)
-    setFileInputKey((currentKey) => currentKey + 1)
+    resetCreateForm()
   }
 
   function handleManageToggle(event: StreetTeamEvent) {
@@ -289,18 +478,53 @@ function EventManagementSection({
   }
 
   function handleEditStart(event: StreetTeamEvent) {
+    const editDraftKey = getEventEditDraftKey(ownerUserId, event.id)
+    const editDraft = loadEventEditDraft(editDraftKey)
+    let nextFormState = getFormStateFromEvent(event)
+
+    if (editDraft) {
+      const shouldResumeDraft = window.confirm(
+        `Resume unsaved edits for ${event.title}?`,
+      )
+
+      if (shouldResumeDraft) {
+        nextFormState = editDraft.formState
+      } else {
+        removeEventDraft(editDraftKey)
+      }
+    }
+
     setManagedEventId(event.id)
     setEditingEventId(event.id)
     setCheckInEventId((currentId) =>
       currentId === event.id ? null : currentId,
     )
-    setEditFormState(getFormStateFromEvent(event))
+    setEditFormState(nextFormState)
     setEditFlyerFile(null)
     setEditFileInputKey((currentKey) => currentKey + 1)
     setMessage(null)
   }
 
   function handleEditCancel() {
+    if (editingEventId) {
+      const event = events.find(
+        (currentEvent) => currentEvent.id === editingEventId,
+      )
+      const hasUnsavedEdit =
+        (event ? hasEditDraftContent(editFormState, event) : false) ||
+        Boolean(editFlyerFile)
+
+      if (hasUnsavedEdit) {
+        const shouldDiscardDraft = window.confirm('Discard unsaved edits?')
+
+        if (!shouldDiscardDraft) {
+          return
+        }
+      }
+
+      removeEventDraft(getEventEditDraftKey(ownerUserId, editingEventId))
+    }
+
     setEditingEventId(null)
     setEditFormState(emptyEventForm)
     setEditFlyerFile(null)
@@ -330,6 +554,7 @@ function EventManagementSection({
           currentEvent.id === eventId ? nextEvent : currentEvent,
         ),
       )
+      removeEventDraft(getEventEditDraftKey(ownerUserId, eventId))
       setEditingEventId(null)
       setEditFormState(emptyEventForm)
       setEditFlyerFile(null)
@@ -348,6 +573,7 @@ function EventManagementSection({
             currentEvent.id === eventId ? eventWithoutNewFlyer : currentEvent,
           ),
         )
+        removeEventDraft(getEventEditDraftKey(ownerUserId, eventId))
         setEditingEventId(null)
         setEditFormState(emptyEventForm)
         setEditFlyerFile(null)
@@ -426,6 +652,7 @@ function EventManagementSection({
 
     try {
       await deleteEvent(ownerUserId, event.id)
+      removeEventDraft(getEventEditDraftKey(ownerUserId, event.id))
       setEvents((currentEvents) =>
         currentEvents.filter((currentEvent) => currentEvent.id !== event.id),
       )
@@ -498,12 +725,20 @@ function EventManagementSection({
           <button
             type="button"
             className="auth-submit-button"
-            onClick={() => setIsCreateFormOpen(true)}
+            onClick={handleCreateNewEvent}
           >
             Create New Event
           </button>
         )}
       </div>
+
+      {availableCreateDraft && !isCreateFormOpen ? (
+        <EventDraftRecovery
+          draft={availableCreateDraft}
+          onDiscard={handleDiscardCreateDraft}
+          onResume={handleResumeCreateDraft}
+        />
+      ) : null}
 
       {isCreateFormOpen ? (
         <EventForm
@@ -589,6 +824,47 @@ function EventManagementSection({
   )
 }
 
+type EventDraftRecoveryProps = {
+  draft: EventCreateDraft
+  onDiscard: () => void
+  onResume: () => void
+}
+
+function EventDraftRecovery({
+  draft,
+  onDiscard,
+  onResume,
+}: EventDraftRecoveryProps) {
+  return (
+    <section className="event-draft-recovery">
+      <div>
+        <h4>Unsaved Event Draft</h4>
+        <p>
+          {draft.formState.title.trim() || 'Untitled event'} was saved on this
+          device {formatDraftSavedAt(draft.savedAt)}.
+        </p>
+      </div>
+
+      <div className="event-draft-actions">
+        <button
+          type="button"
+          className="auth-submit-button"
+          onClick={onResume}
+        >
+          Resume Draft
+        </button>
+        <button
+          type="button"
+          className="secondary-action-button"
+          onClick={onDiscard}
+        >
+          Discard Draft
+        </button>
+      </div>
+    </section>
+  )
+}
+
 type EventFormProps = {
   currentImageUrl?: string | null
   fileInputKey: number
@@ -620,8 +896,19 @@ function EventForm({
 }: EventFormProps) {
   const locationInputRef = useRef<HTMLInputElement | null>(null)
   const formStateRef = useRef(formState)
-  const [locationSearchStatus, setLocationSearchStatus] = useState('')
   const isGoogleMapsConfigured = hasGoogleMapsApiKey()
+  const [locationSearch, setLocationSearch] = useState(() =>
+    formatLocationSearchDefault(formState),
+  )
+  const [locationSearchStatus, setLocationSearchStatus] =
+    useState<LocationSearchStatus | null>(() =>
+      isGoogleMapsConfigured
+        ? null
+        : {
+            type: 'info',
+            text: 'Google Places is not configured, so use the address fields below.',
+          },
+    )
 
   useEffect(() => {
     formStateRef.current = formState
@@ -641,6 +928,11 @@ function EventForm({
     }
 
     async function initializeAutocomplete() {
+      setLocationSearchStatus({
+        type: 'info',
+        text: 'Loading Google Places...',
+      })
+
       try {
         await loadGoogleMaps()
 
@@ -649,17 +941,34 @@ function EventForm({
         }
 
         autocomplete = createPlaceAutocomplete(inputElement, (place) => {
-          onFormChange(getFormStateFromGooglePlace(formStateRef.current, place))
-          setLocationSearchStatus('Location selected from Google Places.')
+          const nextFormState = getFormStateFromGooglePlace(
+            formStateRef.current,
+            place,
+          )
+
+          onFormChange(nextFormState)
+          setLocationSearch(formatLocationSearchDefault(nextFormState))
+          setLocationSearchStatus({
+            type: 'success',
+            text: 'Location selected from Google Places.',
+          })
         })
-        setLocationSearchStatus('Start typing a venue name or street address.')
+
+        if (isMounted) {
+          setLocationSearchStatus({
+            type: 'info',
+            text: 'Start typing a venue name or street address.',
+          })
+        }
       } catch (error) {
         if (isMounted) {
-          setLocationSearchStatus(
-            error instanceof Error
-              ? error.message
-              : 'Google Places could not be loaded.',
-          )
+          setLocationSearchStatus({
+            type: 'error',
+            text:
+              error instanceof Error
+                ? error.message
+                : 'Google Places could not be loaded.',
+          })
         }
       }
     }
@@ -699,11 +1008,25 @@ function EventForm({
     onFileChange(event.currentTarget.files?.[0] ?? null)
   }
 
-  const locationHelperText =
-    locationSearchStatus ||
-    (!isGoogleMapsConfigured
-      ? 'Google Places is not configured, so use the address fields below.'
-      : '')
+  function handleLocationSearchChange(event: ChangeEvent<HTMLInputElement>) {
+    setLocationSearch(event.target.value)
+
+    if (!isGoogleMapsConfigured) {
+      return
+    }
+
+    setLocationSearchStatus({
+      type: 'info',
+      text: event.target.value.trim()
+        ? 'Choose a Google Places suggestion or fill out the address fields below.'
+        : 'Start typing a venue name or street address.',
+    })
+  }
+
+  const locationHelperText = locationSearchStatus?.text ?? ''
+  const locationHelperClassName = locationSearchStatus
+    ? `location-autocomplete-helper is-${locationSearchStatus.type}`
+    : 'location-autocomplete-helper'
 
   return (
     <form className="auth-form event-form" onSubmit={onSubmit}>
@@ -780,11 +1103,13 @@ function EventForm({
         <input
           ref={locationInputRef}
           type="text"
-          defaultValue={formatLocationSearchDefault(formState)}
+          value={locationSearch}
+          autoComplete="off"
           placeholder="Start typing a venue, street address, city, or ZIP"
+          onChange={handleLocationSearchChange}
         />
         {locationHelperText ? (
-          <small className="location-autocomplete-helper">
+          <small className={locationHelperClassName}>
             {locationHelperText}
           </small>
         ) : null}
@@ -1820,6 +2145,224 @@ function LineupPerformerSummary({ entry }: { entry: EventLineupEntry }) {
       </div>
     </div>
   )
+}
+
+const eventFormFields: (keyof EventFormState)[] = [
+  'addressLine1',
+  'addressLine2',
+  'category',
+  'city',
+  'country',
+  'description',
+  'doorsTime',
+  'endTime',
+  'eventDate',
+  'formattedAddress',
+  'googlePlaceId',
+  'latitude',
+  'longitude',
+  'postalCode',
+  'startTime',
+  'state',
+  'status',
+  'title',
+  'venueName',
+]
+
+const ticketFormFields: (keyof TicketFormState)[] = [
+  'description',
+  'name',
+  'priceDollars',
+  'quantityTotal',
+  'ticketKind',
+]
+
+function getEventCreateDraftKey(
+  ownerUserId: string,
+  organizerType: EventOrganizerType,
+  organizerProfileId: string,
+) {
+  return [
+    'street-team',
+    'event-create-draft',
+    'v1',
+    ownerUserId,
+    organizerType,
+    organizerProfileId,
+  ].join(':')
+}
+
+function getEventEditDraftKey(ownerUserId: string, eventId: string) {
+  return ['street-team', 'event-edit-draft', 'v1', ownerUserId, eventId].join(
+    ':',
+  )
+}
+
+function loadEventCreateDraft(key: string): EventCreateDraft | null {
+  const draft = readJsonFromLocalStorage<EventCreateDraft>(key)
+
+  if (!draft?.formState || !draft.initialTicketFormState) {
+    return null
+  }
+
+  return {
+    formState: normalizeEventFormState(draft.formState),
+    initialTicketFormState: normalizeTicketFormState(
+      draft.initialTicketFormState,
+    ),
+    savedAt: typeof draft.savedAt === 'string' ? draft.savedAt : '',
+    shouldCreateInitialTicket: draft.shouldCreateInitialTicket !== false,
+  }
+}
+
+function saveEventCreateDraft(key: string, draft: EventCreateDraft) {
+  writeJsonToLocalStorage(key, draft)
+}
+
+function loadEventEditDraft(key: string): EventEditDraft | null {
+  const draft = readJsonFromLocalStorage<EventEditDraft>(key)
+
+  if (!draft?.formState) {
+    return null
+  }
+
+  return {
+    formState: normalizeEventFormState(draft.formState),
+    savedAt: typeof draft.savedAt === 'string' ? draft.savedAt : '',
+  }
+}
+
+function saveEventEditDraft(key: string, draft: EventEditDraft) {
+  writeJsonToLocalStorage(key, draft)
+}
+
+function removeEventDraft(key: string) {
+  if (!canUseLocalStorage()) {
+    return
+  }
+
+  window.localStorage.removeItem(key)
+}
+
+function hasCreateDraftContent(
+  formState: EventFormState,
+  initialTicketFormState: TicketFormState,
+  shouldCreateInitialTicket: boolean,
+) {
+  return (
+    !areEventFormsEqual(formState, emptyEventForm) ||
+    !areTicketFormsEqual(initialTicketFormState, defaultInitialTicketForm) ||
+    shouldCreateInitialTicket !== true
+  )
+}
+
+function hasEditDraftContent(
+  formState: EventFormState,
+  event: StreetTeamEvent,
+) {
+  return !areEventFormsEqual(formState, getFormStateFromEvent(event))
+}
+
+function areEventFormsEqual(
+  firstFormState: EventFormState,
+  secondFormState: EventFormState,
+) {
+  return eventFormFields.every(
+    (fieldName) => firstFormState[fieldName] === secondFormState[fieldName],
+  )
+}
+
+function areTicketFormsEqual(
+  firstFormState: TicketFormState,
+  secondFormState: TicketFormState,
+) {
+  return ticketFormFields.every(
+    (fieldName) => firstFormState[fieldName] === secondFormState[fieldName],
+  )
+}
+
+function normalizeEventFormState(input: Partial<EventFormState>): EventFormState {
+  return {
+    ...emptyEventForm,
+    ...input,
+    country: input.country ?? emptyEventForm.country,
+    latitude:
+      typeof input.latitude === 'number' && Number.isFinite(input.latitude)
+        ? input.latitude
+        : null,
+    longitude:
+      typeof input.longitude === 'number' && Number.isFinite(input.longitude)
+        ? input.longitude
+        : null,
+    status:
+      input.status === 'draft' ||
+      input.status === 'published' ||
+      input.status === 'cancelled'
+        ? input.status
+        : emptyEventForm.status,
+  }
+}
+
+function normalizeTicketFormState(
+  input: Partial<TicketFormState>,
+): TicketFormState {
+  return {
+    ...defaultInitialTicketForm,
+    ...input,
+    ticketKind: input.ticketKind === 'paid' ? 'paid' : 'free',
+  }
+}
+
+function readJsonFromLocalStorage<Value>(key: string): Value | null {
+  if (!canUseLocalStorage()) {
+    return null
+  }
+
+  const rawValue = window.localStorage.getItem(key)
+
+  if (!rawValue) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawValue) as Value
+  } catch {
+    removeEventDraft(key)
+    return null
+  }
+}
+
+function writeJsonToLocalStorage<Value>(key: string, value: Value) {
+  if (!canUseLocalStorage()) {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    window.localStorage.removeItem(key)
+  }
+}
+
+function canUseLocalStorage() {
+  return typeof window !== 'undefined' && Boolean(window.localStorage)
+}
+
+function formatDraftSavedAt(value: string) {
+  if (!value) {
+    return 'recently'
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'recently'
+  }
+
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
 }
 
 function getFormStateFromEvent(event: StreetTeamEvent): EventFormState {

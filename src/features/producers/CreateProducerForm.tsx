@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { uploadProfileImage } from '../profile-images/profileImages'
 import {
   createProducerProfile,
   isDuplicateSlugError,
+  updateProducerImageUrl,
   type Producer,
 } from './producers'
 
@@ -12,19 +14,22 @@ type Message = {
 }
 
 type CreateProducerFormProps = {
-  onProfileCreated?: (producer: Producer) => void
+  initialName?: string
+  onProfileCreated?: (producer: Producer, message?: Message) => void
   ownerUserId: string
 }
 
 function CreateProducerForm({
+  initialName = '',
   onProfileCreated,
   ownerUserId,
 }: CreateProducerFormProps) {
-  const [name, setName] = useState('')
+  const [name, setName] = useState(initialName)
   const [producerType, setProducerType] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [bio, setBio] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [message, setMessage] = useState<Message | null>(null)
   const [createdProducer, setCreatedProducer] = useState<Producer | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -36,7 +41,7 @@ function CreateProducerForm({
     setCreatedProducer(null)
 
     try {
-      const producer = await createProducerProfile({
+      let producer = await createProducerProfile({
         ownerUserId,
         name,
         producerType,
@@ -44,19 +49,46 @@ function CreateProducerForm({
         state,
         bio,
       })
+      const createWarnings: string[] = []
+
+      if (imageFile) {
+        try {
+          const imageUrl = await uploadProfileImage({
+            file: imageFile,
+            ownerUserId,
+            profileId: producer.id,
+            profileType: 'producer',
+          })
+
+          producer = await updateProducerImageUrl(
+            ownerUserId,
+            producer.id,
+            imageUrl,
+          )
+        } catch (error) {
+          createWarnings.push(
+            error instanceof Error
+              ? `Logo could not be uploaded: ${error.message}`
+              : 'Logo could not be uploaded.',
+          )
+        }
+      }
+
+      const nextMessage: Message = {
+        type: createWarnings.length > 0 ? 'error' : 'success',
+        text: joinMessage('Producer profile created.', createWarnings),
+      }
 
       setCreatedProducer(producer)
-      onProfileCreated?.(producer)
-      setMessage({
-        type: 'success',
-        text: 'Producer profile created.',
-      })
+      onProfileCreated?.(producer, nextMessage)
+      setMessage(nextMessage)
 
-      setName('')
+      setName(initialName.trim())
       setProducerType('')
       setCity('')
       setState('')
       setBio('')
+      setImageFile(null)
     } catch (error) {
       setMessage({
         type: 'error',
@@ -69,6 +101,10 @@ function CreateProducerForm({
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    setImageFile(event.currentTarget.files?.[0] ?? null)
   }
 
   return (
@@ -122,6 +158,16 @@ function CreateProducerForm({
           </label>
         </div>
 
+        <div className="profile-create-upload">
+          <span>Photo or logo</span>
+          <input type="file" accept="image/*" onChange={handleImageChange} />
+          <p>
+            {imageFile
+              ? imageFile.name
+              : 'Optional. You can add or replace this image later.'}
+          </p>
+        </div>
+
         <label>
           <span>Bio</span>
           <textarea
@@ -155,6 +201,10 @@ function CreateProducerForm({
       </form>
     </div>
   )
+}
+
+function joinMessage(message: string, warnings: string[]) {
+  return warnings.length > 0 ? `${message} ${warnings.join(' ')}` : message
 }
 
 export default CreateProducerForm

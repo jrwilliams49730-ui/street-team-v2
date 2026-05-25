@@ -3,14 +3,13 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Link, useParams } from 'react-router-dom'
 import {
   fetchPublicTicketByQrToken,
+  formatTicketQrValue,
   formatIndividualTicketStatus,
   type PublicTicket,
 } from '../events/eventTickets'
 import { formatEventDate, formatEventTime } from '../events/events'
 
 type GuestTicketStatus = 'loading' | 'ready' | 'not-found' | 'error'
-
-const ticketQrLogoSrc = '/assets/notification-icon.png'
 
 function GuestTicketPage() {
   const { qrToken = '' } = useParams()
@@ -102,20 +101,14 @@ function GuestTicketPage() {
             }`}
           >
             <QRCodeSVG
-              value={`street-team-ticket:${ticket.qrToken}`}
+              value={formatTicketQrValue(ticket.qrToken)}
               title="Street Team ticket QR code"
-              size={220}
+              size={288}
               level="H"
-              marginSize={4}
+              marginSize={6}
               bgColor="#ffffff"
-              fgColor="#15110f"
+              fgColor="#000000"
               className="my-ticket-qr-code"
-              imageSettings={{
-                src: ticketQrLogoSrc,
-                height: 30,
-                width: 30,
-                excavate: true,
-              }}
             />
           </div>
 

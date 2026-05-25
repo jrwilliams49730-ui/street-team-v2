@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { uploadProfileImage } from '../profile-images/profileImages'
 import {
   createVenueProfile,
   isDuplicateSlugError,
+  updateVenueImageUrl,
   type Venue,
 } from './venues'
 
@@ -12,19 +14,22 @@ type Message = {
 }
 
 type CreateVenueFormProps = {
-  onProfileCreated?: (venue: Venue) => void
+  initialName?: string
+  onProfileCreated?: (venue: Venue, message?: Message) => void
   ownerUserId: string
 }
 
 function CreateVenueForm({
+  initialName = '',
   onProfileCreated,
   ownerUserId,
 }: CreateVenueFormProps) {
-  const [name, setName] = useState('')
+  const [name, setName] = useState(initialName)
   const [venueType, setVenueType] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [description, setDescription] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [message, setMessage] = useState<Message | null>(null)
   const [createdVenue, setCreatedVenue] = useState<Venue | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -36,7 +41,7 @@ function CreateVenueForm({
     setCreatedVenue(null)
 
     try {
-      const venue = await createVenueProfile({
+      let venue = await createVenueProfile({
         ownerUserId,
         name,
         venueType,
@@ -44,19 +49,42 @@ function CreateVenueForm({
         state,
         description,
       })
+      const createWarnings: string[] = []
+
+      if (imageFile) {
+        try {
+          const imageUrl = await uploadProfileImage({
+            file: imageFile,
+            ownerUserId,
+            profileId: venue.id,
+            profileType: 'venue',
+          })
+
+          venue = await updateVenueImageUrl(ownerUserId, venue.id, imageUrl)
+        } catch (error) {
+          createWarnings.push(
+            error instanceof Error
+              ? `Image could not be uploaded: ${error.message}`
+              : 'Image could not be uploaded.',
+          )
+        }
+      }
+
+      const nextMessage: Message = {
+        type: createWarnings.length > 0 ? 'error' : 'success',
+        text: joinMessage('Venue profile created.', createWarnings),
+      }
 
       setCreatedVenue(venue)
-      onProfileCreated?.(venue)
-      setMessage({
-        type: 'success',
-        text: 'Venue profile created.',
-      })
+      onProfileCreated?.(venue, nextMessage)
+      setMessage(nextMessage)
 
-      setName('')
+      setName(initialName.trim())
       setVenueType('')
       setCity('')
       setState('')
       setDescription('')
+      setImageFile(null)
     } catch (error) {
       setMessage({
         type: 'error',
@@ -69,6 +97,10 @@ function CreateVenueForm({
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    setImageFile(event.currentTarget.files?.[0] ?? null)
   }
 
   return (
@@ -122,6 +154,16 @@ function CreateVenueForm({
           </label>
         </div>
 
+        <div className="profile-create-upload">
+          <span>Venue image</span>
+          <input type="file" accept="image/*" onChange={handleImageChange} />
+          <p>
+            {imageFile
+              ? imageFile.name
+              : 'Optional. You can add or replace this image later.'}
+          </p>
+        </div>
+
         <label>
           <span>Description</span>
           <textarea
@@ -155,6 +197,10 @@ function CreateVenueForm({
       </form>
     </div>
   )
+}
+
+function joinMessage(message: string, warnings: string[]) {
+  return warnings.length > 0 ? `${message} ${warnings.join(' ')}` : message
 }
 
 export default CreateVenueForm

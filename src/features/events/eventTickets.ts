@@ -252,6 +252,31 @@ const ticketReservationSelect =
 const individualTicketSelect =
   'id, reservation_id, event_id, ticket_type_id, ticket_number, ticket_status, qr_token, checked_in_at, created_at, updated_at'
 
+const ticketQrPrefix = 'street-team-ticket:'
+const ticketQrTokenPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export type ParsedTicketQrValueKind =
+  | 'empty'
+  | 'prefixed-token'
+  | 'raw-token'
+  | 'ticket-url'
+  | 'unknown'
+
+export type ParsedTicketQrValue = {
+  kind: ParsedTicketQrValueKind
+  message: string
+  qrToken: string | null
+  validationValue: string | null
+}
+
+export type TicketQrDebugSummary = {
+  hasToken: boolean
+  kind: ParsedTicketQrValueKind
+  tokenPreview: string | null
+  valueLength: number
+}
+
 export async function fetchEventTicketTypes(eventId: string) {
   const { data, error } = await supabase
     .from('event_ticket_types')
@@ -647,8 +672,14 @@ export async function fetchEventCheckInTickets(eventId: string) {
 }
 
 export async function checkInTicketByQr(qrValue: string) {
+  const parsedQrValue = parseTicketQrValue(qrValue)
+
+  if (!parsedQrValue.validationValue) {
+    return createClientTicketCheckInResult(parsedQrValue.message)
+  }
+
   const { data, error } = await supabase.rpc('check_in_ticket_by_qr', {
-    p_qr_value: qrValue,
+    p_qr_value: parsedQrValue.validationValue,
   })
 
   if (error) {
@@ -733,6 +764,125 @@ export function formatIndividualTicketStatus(status: IndividualTicketStatus) {
   }
 
   return 'Issued'
+}
+
+export function formatTicketQrValue(qrToken: string) {
+  return `${ticketQrPrefix}${qrToken.trim()}`
+}
+
+export function parseTicketQrValue(rawValue: string): ParsedTicketQrValue {
+  const cleanValue = rawValue.trim()
+
+  if (!cleanValue) {
+    return {
+      kind: 'empty',
+      message: 'Enter or scan a ticket QR code before checking in.',
+      qrToken: null,
+      validationValue: null,
+    }
+  }
+
+  const prefixedToken = cleanValue
+    .toLowerCase()
+    .startsWith(ticketQrPrefix)
+    ? cleanValue.slice(ticketQrPrefix.length).trim()
+    : ''
+  const urlToken = prefixedToken ? '' : extractTicketQrTokenFromUrl(cleanValue)
+  const token = prefixedToken || urlToken || cleanValue
+
+  if (!ticketQrTokenPattern.test(token)) {
+    return {
+      kind: 'unknown',
+      message:
+        'This does not look like a Street Team ticket QR code. Scan the QR on the ticket page or paste the ticket link/code.',
+      qrToken: null,
+      validationValue: null,
+    }
+  }
+
+  return {
+    kind: prefixedToken
+      ? 'prefixed-token'
+      : urlToken
+        ? 'ticket-url'
+        : 'raw-token',
+    message: '',
+    qrToken: token,
+    validationValue: formatTicketQrValue(token),
+  }
+}
+
+export function summarizeTicketQrValueForDebug(
+  rawValue: string,
+  parsedValue = parseTicketQrValue(rawValue),
+): TicketQrDebugSummary {
+  return {
+    hasToken: Boolean(parsedValue.qrToken),
+    kind: parsedValue.kind,
+    tokenPreview: parsedValue.qrToken
+      ? createTicketTokenPreview(parsedValue.qrToken)
+      : null,
+    valueLength: rawValue.trim().length,
+  }
+}
+
+function extractTicketQrTokenFromUrl(rawValue: string) {
+  const urlToken = extractTicketQrTokenFromParsedUrl(rawValue)
+
+  if (urlToken) {
+    return urlToken
+  }
+
+  const ticketPathMatch = rawValue.match(/\/tickets\/([^/?#\s]+)/i)
+
+  return cleanTicketQrToken(ticketPathMatch?.[1] ?? '')
+}
+
+function extractTicketQrTokenFromParsedUrl(rawValue: string) {
+  let url: URL
+
+  try {
+    url = new URL(rawValue)
+  } catch {
+    return ''
+  }
+
+  const pathSegments = url.pathname
+    .split('/')
+    .map((segment) => decodeURIComponent(segment.trim()))
+    .filter(Boolean)
+  const ticketPathIndex = pathSegments.findIndex(
+    (segment) => segment.toLowerCase() === 'tickets',
+  )
+
+  if (ticketPathIndex === -1) {
+    return ''
+  }
+
+  return cleanTicketQrToken(pathSegments[ticketPathIndex + 1] ?? '')
+}
+
+function cleanTicketQrToken(value: string) {
+  return value.trim().replace(/^street-team-ticket:/i, '')
+}
+
+function createTicketTokenPreview(qrToken: string) {
+  return `${qrToken.slice(0, 4)}...${qrToken.slice(-4)}`
+}
+
+function createClientTicketCheckInResult(message: string): TicketCheckInResult {
+  return {
+    buyerEmail: null,
+    buyerName: null,
+    checkedInAt: null,
+    eventTitle: null,
+    message,
+    outcome: 'invalid',
+    ticketId: null,
+    ticketNumber: null,
+    ticketStatus: null,
+    ticketTypeName: null,
+  }
 }
 
 function mapTicketTypeRow(row: EventTicketTypeRow): EventTicketType {

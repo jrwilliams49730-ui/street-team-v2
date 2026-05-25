@@ -45,6 +45,7 @@ import {
 } from '../venues/venues'
 import { formatAccountType, type AccountType } from './accountTypes'
 import PerformerAppearancesManager from './PerformerAppearancesManager'
+import { fetchUserProfile } from './userProfile'
 
 type CreatorOnboardingSectionProps = {
   accountType: AccountType
@@ -98,6 +99,7 @@ function CreatorOnboardingSection({
   const [featuredMediaType, setFeaturedMediaType] =
     useState<FeaturedMediaType>('video')
   const [featuredMediaUrl, setFeaturedMediaUrl] = useState('')
+  const [defaultProfileName, setDefaultProfileName] = useState('')
   const [message, setMessage] = useState<Message | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isMediaSaving, setIsMediaSaving] = useState(false)
@@ -130,19 +132,22 @@ function CreatorOnboardingSection({
       setMessage(null)
 
       try {
-        const matchingProfile = await fetchMatchingProfile(
-          accountType,
-          ownerUserId,
-        )
+        const [matchingProfile, userProfile] = await Promise.all([
+          fetchMatchingProfile(accountType, ownerUserId),
+          fetchUserProfile(ownerUserId).catch(() => null),
+        ])
 
         if (!isMounted) {
           return
         }
 
+        setDefaultProfileName(userProfile?.displayName ?? '')
+
         if (matchingProfile) {
           syncProfileState(matchingProfile)
         } else {
           setProfile(null)
+          setName(userProfile?.displayName ?? '')
         }
 
         setIsEditing(false)
@@ -168,13 +173,18 @@ function CreatorOnboardingSection({
   const accountTypeLabel = formatAccountType(accountType)
   const label = accountTypeLabel.toLowerCase()
 
-  function handleProfileCreated(nextProfile: CreatorProfile) {
+  function handleProfileCreated(
+    nextProfile: CreatorProfile,
+    nextMessage?: Message,
+  ) {
     syncProfileState(nextProfile)
     setIsEditing(false)
-    setMessage({
-      type: 'success',
-      text: `${accountTypeLabel} profile created.`,
-    })
+    setMessage(
+      nextMessage ?? {
+        type: 'success',
+        text: `${accountTypeLabel} profile created.`,
+      },
+    )
   }
 
   async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
@@ -423,7 +433,12 @@ function CreatorOnboardingSection({
           </header>
         </section>
 
-        {renderCreateForm(accountType, ownerUserId, handleProfileCreated)}
+        {renderCreateForm(
+          accountType,
+          ownerUserId,
+          defaultProfileName,
+          handleProfileCreated,
+        )}
       </>
     )
   }
@@ -826,14 +841,16 @@ function ProfileSummary({
 function renderCreateForm(
   accountType: AccountType,
   ownerUserId: string,
-  onProfileCreated: (profile: CreatorProfile) => void,
+  defaultProfileName: string,
+  onProfileCreated: (profile: CreatorProfile, message?: Message) => void,
 ) {
   if (accountType === 'performer') {
     return (
       <CreatePerformerForm
+        initialName={defaultProfileName}
         ownerUserId={ownerUserId}
-        onProfileCreated={(performer) =>
-          onProfileCreated(mapPerformerProfile(performer))
+        onProfileCreated={(performer, message) =>
+          onProfileCreated(mapPerformerProfile(performer), message)
         }
       />
     )
@@ -842,9 +859,10 @@ function renderCreateForm(
   if (accountType === 'producer') {
     return (
       <CreateProducerForm
+        initialName={defaultProfileName}
         ownerUserId={ownerUserId}
-        onProfileCreated={(producer) =>
-          onProfileCreated(mapProducerProfile(producer))
+        onProfileCreated={(producer, message) =>
+          onProfileCreated(mapProducerProfile(producer), message)
         }
       />
     )
@@ -853,8 +871,11 @@ function renderCreateForm(
   if (accountType === 'venue') {
     return (
       <CreateVenueForm
+        initialName={defaultProfileName}
         ownerUserId={ownerUserId}
-        onProfileCreated={(venue) => onProfileCreated(mapVenueProfile(venue))}
+        onProfileCreated={(venue, message) =>
+          onProfileCreated(mapVenueProfile(venue), message)
+        }
       />
     )
   }
