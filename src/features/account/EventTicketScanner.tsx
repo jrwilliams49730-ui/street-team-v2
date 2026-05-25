@@ -28,6 +28,7 @@ import {
 } from '../events/events'
 
 type EventTicketScannerProps = {
+  backLabel?: string
   event: StreetTeamEvent
   onBack: () => void
 }
@@ -65,7 +66,11 @@ const attendeeFilterOptions: Array<{
   { label: 'Void', value: 'void' },
 ]
 
-function EventTicketScanner({ event, onBack }: EventTicketScannerProps) {
+function EventTicketScanner({
+  backLabel = 'Back to My Events',
+  event,
+  onBack,
+}: EventTicketScannerProps) {
   const [activeTab, setActiveTab] = useState<CheckInTab>('scan')
   const [summary, setSummary] = useState<EventTicketCheckInSummary | null>(
     null,
@@ -226,7 +231,7 @@ function EventTicketScanner({ event, onBack }: EventTicketScannerProps) {
           className="secondary-action-button"
           onClick={onBack}
         >
-          Back to My Events
+          {backLabel}
         </button>
 
         <div className="event-check-in-title">

@@ -55,6 +55,10 @@ function GuestTicketPage() {
     () => (ticket ? formatPublicTicketLocation(ticket) : ''),
     [ticket],
   )
+  const ticketPosition =
+    ticket && ticket.quantity > 1
+      ? `Ticket ${ticket.ticketNumber} of ${ticket.quantity}`
+      : ''
 
   return (
     <section className="guest-ticket-page">
@@ -93,6 +97,9 @@ function GuestTicketPage() {
             <span className="checkout-return-kicker">Street Team Ticket</span>
             <h2>{ticket.eventTitle}</h2>
             <p>{ticket.ticketTypeName}</p>
+            {ticketPosition ? (
+              <span className="guest-ticket-position">{ticketPosition}</span>
+            ) : null}
           </header>
 
           <div
@@ -148,6 +155,41 @@ function GuestTicketPage() {
           </dl>
 
           <div className="guest-ticket-actions">
+            {ticket.quantity > 1 &&
+            (ticket.previousQrToken || ticket.nextQrToken) ? (
+              <>
+                {ticket.previousQrToken ? (
+                  <Link
+                    to={`/tickets/${ticket.previousQrToken}`}
+                    className="secondary-action-button"
+                  >
+                    Previous ticket
+                  </Link>
+                ) : (
+                  <span
+                    className="secondary-action-button is-disabled"
+                    aria-disabled="true"
+                  >
+                    Previous ticket
+                  </span>
+                )}
+                {ticket.nextQrToken ? (
+                  <Link
+                    to={`/tickets/${ticket.nextQrToken}`}
+                    className="secondary-action-button"
+                  >
+                    Next ticket
+                  </Link>
+                ) : (
+                  <span
+                    className="secondary-action-button is-disabled"
+                    aria-disabled="true"
+                  >
+                    Next ticket
+                  </span>
+                )}
+              </>
+            ) : null}
             {ticket.eventSlug ? (
               <Link
                 to={`/events/${ticket.eventSlug}`}

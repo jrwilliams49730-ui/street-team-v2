@@ -264,13 +264,19 @@ function buildTicketEmailContent(
     ? formatEventTime(details.event.start_time)
     : 'Time TBA'
   const location = formatEventLocation(details.event)
+  const ticketReadyLine =
+    details.reservation.quantity === 1
+      ? 'Your ticket is ready.'
+      : 'Your tickets are ready.'
+  const ticketNote =
+    'Each ticket has its own QR code. Each guest will need their own ticket scanned at the door.'
   const ticketLinks = details.tickets.map((ticket) => ({
-    label: `Ticket ${ticket.ticket_number}`,
+    label: `Ticket ${ticket.ticket_number} \u2014 View QR Code`,
     url: `${appUrl}/tickets/${ticket.qr_token}`,
   }))
 
   const textLines = [
-    'Payment successful. Your ticket has been emailed to you.',
+    `Payment successful. ${ticketReadyLine}`,
     '',
     `Event: ${details.event.title}`,
     `Date/time: ${eventDate} at ${eventTime}`,
@@ -278,14 +284,15 @@ function buildTicketEmailContent(
     `Ticket type: ${details.ticketType.name}`,
     `Ticket quantity: ${details.reservation.quantity}`,
     '',
-    'Ticket links:',
+    'Your tickets:',
+    ticketNote,
     ...ticketLinks.map((ticketLink) => `${ticketLink.label}: ${ticketLink.url}`),
   ]
 
   const linkItems = ticketLinks
     .map(
       (ticketLink) =>
-        `<li><a href="${escapeHtml(ticketLink.url)}">${escapeHtml(
+        `<li style="margin:0 0 10px;"><a href="${escapeHtml(ticketLink.url)}" style="color:#ef2722;font-weight:700;">${escapeHtml(
           ticketLink.label,
         )}</a></li>`,
     )
@@ -297,7 +304,7 @@ function buildTicketEmailContent(
     <main style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e5ded1;border-radius:12px;padding:24px;">
       <p style="margin:0 0 8px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#ef2722;">Street Team Ticket</p>
       <h1 style="margin:0 0 16px;font-size:28px;line-height:1.15;">Payment successful</h1>
-      <p style="margin:0 0 20px;font-size:16px;">Your ticket has been emailed to you.</p>
+      <p style="margin:0 0 20px;font-size:16px;">${escapeHtml(ticketReadyLine)}</p>
       <dl style="margin:0 0 20px;">
         <dt style="font-weight:700;">Event</dt>
         <dd style="margin:0 0 12px;">${escapeHtml(details.event.title)}</dd>
@@ -310,7 +317,8 @@ function buildTicketEmailContent(
         <dt style="font-weight:700;">Ticket quantity</dt>
         <dd style="margin:0;">${details.reservation.quantity}</dd>
       </dl>
-      <h2 style="margin:0 0 12px;font-size:20px;">Ticket links</h2>
+      <h2 style="margin:0 0 12px;font-size:20px;">Your tickets</h2>
+      <p style="margin:0 0 14px;font-size:15px;line-height:1.45;color:#4f4842;">${escapeHtml(ticketNote)}</p>
       <ul style="margin:0;padding-left:20px;">${linkItems}</ul>
     </main>
   </body>

@@ -69,12 +69,22 @@ import {
 import ProfileImageAvatar from '../profile-images/ProfileImageAvatar'
 
 type EventManagementSectionProps = {
+  mode?: EventManagementMode
   organizerProfileId: string
   organizerType: EventOrganizerType
   ownerUserId: string
 }
 
+type EventManagementMode = 'all' | 'create' | 'manage'
 type EventFormState = EventFormInput
+type ManageEventTabId = 'setup' | 'box-office' | 'analytics' | 'settings'
+
+const manageEventTabs: Array<{ id: ManageEventTabId; label: string }> = [
+  { id: 'setup', label: 'Event Setup' },
+  { id: 'box-office', label: 'Box Office' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'settings', label: 'Settings' },
+]
 
 const defaultInitialTicketForm: TicketFormState = {
   ...emptyTicketForm,
@@ -128,6 +138,7 @@ const emptyEventForm: EventFormState = {
 }
 
 function EventManagementSection({
+  mode = 'all',
   organizerProfileId,
   organizerType,
   ownerUserId,
@@ -137,6 +148,10 @@ function EventManagementSection({
     organizerType,
     organizerProfileId,
   )
+  const initialCreateDraft = loadEventCreateDraft(createDraftKey)
+  const canCreateEvents = mode !== 'manage'
+  const shouldShowEventList = mode !== 'create'
+  const isCreateOnlyMode = mode === 'create'
   const [events, setEvents] = useState<StreetTeamEvent[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -148,9 +163,11 @@ function EventManagementSection({
     useState(true)
   const [flyerFile, setFlyerFile] = useState<File | null>(null)
   const [fileInputKey, setFileInputKey] = useState(0)
-  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(
+    () => isCreateOnlyMode && !initialCreateDraft,
+  )
   const [availableCreateDraft, setAvailableCreateDraft] =
-    useState<EventCreateDraft | null>(() => loadEventCreateDraft(createDraftKey))
+    useState<EventCreateDraft | null>(initialCreateDraft)
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
   const [editFormState, setEditFormState] =
     useState<EventFormState>(emptyEventForm)
@@ -197,6 +214,10 @@ function EventManagementSection({
   }, [organizerProfileId, organizerType, ownerUserId])
 
   useEffect(() => {
+    if (!canCreateEvents) {
+      return
+    }
+
     if (!isCreateFormOpen) {
       return
     }
@@ -223,6 +244,7 @@ function EventManagementSection({
     formState,
     initialTicketFormState,
     isCreateFormOpen,
+    canCreateEvents,
     shouldCreateInitialTicket,
   ])
 
@@ -349,6 +371,10 @@ function EventManagementSection({
     removeEventDraft(createDraftKey)
     setAvailableCreateDraft(null)
     resetCreateForm()
+
+    if (isCreateOnlyMode) {
+      setIsCreateFormOpen(true)
+    }
   }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -471,9 +497,7 @@ function EventManagementSection({
     setEditingEventId(null)
     setEditFormState(emptyEventForm)
     setEditFlyerFile(null)
-    setCheckInEventId((currentId) =>
-      currentId === event.id ? null : currentId,
-    )
+    setCheckInEventId(null)
     setMessage(null)
   }
 
@@ -692,47 +716,41 @@ function EventManagementSection({
     return updateEventImageUrl(ownerUserId, event.id, publicUrl)
   }
 
-  const activeCheckInEvent =
-    events.find((event) => event.id === checkInEventId) ?? null
-
-  if (activeCheckInEvent) {
-    return (
-      <EventTicketScanner
-        event={activeCheckInEvent}
-        onBack={() => setCheckInEventId(null)}
-      />
-    )
-  }
-
   return (
     <div className="event-management">
       <header className="event-management-heading">
-        <h3>Your Events</h3>
-        <p>Create official Street Team events for your account.</p>
+        <h3>{isCreateOnlyMode ? 'Create Event' : 'My Events'}</h3>
+        <p>
+          {isCreateOnlyMode
+            ? 'Build a public event with location, ticket setup, and flyer details.'
+            : 'Events created or managed by this account.'}
+        </p>
       </header>
 
-      <div className="event-management-actions">
-        {isCreateFormOpen ? (
-          <button
-            type="button"
-            className="secondary-action-button"
-            disabled={isCreating}
-            onClick={handleCreateFormCancel}
-          >
-            Cancel
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="auth-submit-button"
-            onClick={handleCreateNewEvent}
-          >
-            Create New Event
-          </button>
-        )}
-      </div>
+      {canCreateEvents ? (
+        <div className="event-management-actions">
+          {isCreateFormOpen ? (
+            <button
+              type="button"
+              className="secondary-action-button"
+              disabled={isCreating}
+              onClick={handleCreateFormCancel}
+            >
+              Cancel
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="auth-submit-button"
+              onClick={handleCreateNewEvent}
+            >
+              {isCreateOnlyMode ? 'Create Event' : 'Create New Event'}
+            </button>
+          )}
+        </div>
+      ) : null}
 
-      {availableCreateDraft && !isCreateFormOpen ? (
+      {canCreateEvents && availableCreateDraft && !isCreateFormOpen ? (
         <EventDraftRecovery
           draft={availableCreateDraft}
           onDiscard={handleDiscardCreateDraft}
@@ -740,7 +758,7 @@ function EventManagementSection({
         />
       ) : null}
 
-      {isCreateFormOpen ? (
+      {canCreateEvents && isCreateFormOpen ? (
         <EventForm
           fileInputKey={fileInputKey}
           flyerFile={flyerFile}
@@ -774,52 +792,56 @@ function EventManagementSection({
         </p>
       ) : null}
 
-      <div className="owned-events-list">
-        {status === 'loading' ? <p>Loading your events...</p> : null}
+      {shouldShowEventList ? (
+        <div className="owned-events-list">
+          {status === 'loading' ? <p>Loading your events...</p> : null}
 
-        {status === 'error' ? <p>Your events could not be loaded.</p> : null}
+          {status === 'error' ? <p>Your events could not be loaded.</p> : null}
 
-        {status === 'ready' && events.length === 0 ? (
-          <p>No events created yet.</p>
-        ) : null}
+          {status === 'ready' && events.length === 0 ? (
+            <p>No events created yet.</p>
+          ) : null}
 
-        {status === 'ready'
-          ? events.map((event) => {
-              const isManaged = managedEventId === event.id
+          {status === 'ready'
+            ? events.map((event) => {
+                const isManaged = managedEventId === event.id
 
-              return (
-                <OwnedEventCard
-                  key={event.id}
-                  event={event}
-                  isManaged={isManaged}
-                  managePanel={
-                    isManaged ? (
-                      <OwnedEventManagePanel
-                        event={event}
-                        fileInputKey={editFileInputKey}
-                        flyerFile={editFlyerFile}
-                        formState={editFormState}
-                        isCancelling={cancellingEventId === event.id}
-                        isDeleting={deletingEventId === event.id}
-                        isEditing={editingEventId === event.id}
-                        isSaving={savingEventId === event.id}
-                        onCancelEdit={handleEditCancel}
-                        onCancelEvent={handleCancelEvent}
-                        onDeleteEvent={handleDeleteEvent}
-                        onFileChange={setEditFlyerFile}
-                        onFormChange={setEditFormState}
-                        onOpenScanner={() => setCheckInEventId(event.id)}
-                        onSave={handleEditSave}
-                        onStartEdit={handleEditStart}
-                      />
-                    ) : null
-                  }
-                  onManageEvent={handleManageToggle}
-                />
-              )
-            })
-          : null}
-      </div>
+                return (
+                  <OwnedEventCard
+                    key={event.id}
+                    event={event}
+                    isManaged={isManaged}
+                    managePanel={
+                      isManaged ? (
+                        <OwnedEventManagePanel
+                          event={event}
+                          fileInputKey={editFileInputKey}
+                          flyerFile={editFlyerFile}
+                          formState={editFormState}
+                          isCancelling={cancellingEventId === event.id}
+                          isDeleting={deletingEventId === event.id}
+                          isEditing={editingEventId === event.id}
+                          isScannerOpen={checkInEventId === event.id}
+                          isSaving={savingEventId === event.id}
+                          onCancelEdit={handleEditCancel}
+                          onCancelEvent={handleCancelEvent}
+                          onCloseScanner={() => setCheckInEventId(null)}
+                          onDeleteEvent={handleDeleteEvent}
+                          onFileChange={setEditFlyerFile}
+                          onFormChange={setEditFormState}
+                          onOpenScanner={() => setCheckInEventId(event.id)}
+                          onSave={handleEditSave}
+                          onStartEdit={handleEditStart}
+                        />
+                      ) : null
+                    }
+                    onManageEvent={handleManageToggle}
+                  />
+                )
+              })
+            : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1364,9 +1386,11 @@ type OwnedEventManagePanelProps = {
   isCancelling: boolean
   isDeleting: boolean
   isEditing: boolean
+  isScannerOpen: boolean
   isSaving: boolean
   onCancelEdit: () => void
   onCancelEvent: (event: StreetTeamEvent) => void
+  onCloseScanner: () => void
   onDeleteEvent: (event: StreetTeamEvent) => void
   onFileChange: (file: File | null) => void
   onFormChange: (formState: EventFormState) => void
@@ -1383,9 +1407,11 @@ function OwnedEventManagePanel({
   isCancelling,
   isDeleting,
   isEditing,
+  isScannerOpen,
   isSaving,
   onCancelEdit,
   onCancelEvent,
+  onCloseScanner,
   onDeleteEvent,
   onFileChange,
   onFormChange,
@@ -1393,63 +1419,257 @@ function OwnedEventManagePanel({
   onSave,
   onStartEdit,
 }: OwnedEventManagePanelProps) {
+  const [activeTab, setActiveTab] = useState<ManageEventTabId>('setup')
+  const activeTabLabel =
+    manageEventTabs.find((tab) => tab.id === activeTab)?.label ??
+    'Manage Event'
+
+  function handleOpenScanner() {
+    setActiveTab('box-office')
+    onOpenScanner()
+  }
+
   return (
     <section className="event-manage-panel" aria-label={`Manage ${event.title}`}>
-      <div className="event-manage-grid">
-        <section className="event-manage-section">
-          <header className="event-manage-section-heading">
-            <span>Event Setup</span>
-            <h4>Details, media, and lineup</h4>
-            <p>Edit the public event page content and manage performers.</p>
-          </header>
+      <header className="event-manage-header">
+        <div>
+          <span>Manage Event</span>
+          <h4>{event.title}</h4>
+          <p>
+            {formatEventDate(event.eventDate)}
+            {event.startTime ? ` at ${formatEventTime(event.startTime)}` : ''}
+          </p>
+        </div>
 
-          <div className="event-manage-actions">
-            {event.status === 'published' ? (
-              <Link
-                to={`/events/${event.slug}`}
-                className="secondary-action-button"
-              >
-                View Public Event
-              </Link>
-            ) : null}
+        <span className={`event-status-badge is-${event.status}`}>
+          {formatEventStatus(event.status)}
+        </span>
+      </header>
 
-            {!isEditing ? (
-              <button
-                type="button"
-                className="secondary-action-button"
-                onClick={() => onStartEdit(event)}
-              >
-                Edit Event Details
-              </button>
-            ) : null}
-          </div>
+      <div
+        className="event-manage-tab-nav"
+        role="tablist"
+        aria-label={`Manage ${event.title} sections`}
+      >
+        {manageEventTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`event-manage-${event.id}-${tab.id}`}
+            id={`event-manage-tab-${event.id}-${tab.id}`}
+            className={`event-manage-tab-button ${
+              activeTab === tab.id ? 'is-active' : ''
+            }`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-          {isEditing ? (
-            <OwnedEventEditCard
-              event={event}
-              fileInputKey={fileInputKey}
-              flyerFile={flyerFile}
-              formState={formState}
-              isSaving={isSaving}
-              onCancelEdit={onCancelEdit}
-              onFileChange={onFileChange}
-              onFormChange={onFormChange}
-              onSave={onSave}
-            />
-          ) : null}
+      <div
+        id={`event-manage-${event.id}-${activeTab}`}
+        className="event-manage-tab-panel"
+        role="tabpanel"
+        aria-label={activeTabLabel}
+      >
+        {activeTab === 'setup' ? (
+          <EventSetupTab
+            event={event}
+            fileInputKey={fileInputKey}
+            flyerFile={flyerFile}
+            formState={formState}
+            isEditing={isEditing}
+            isSaving={isSaving}
+            onCancelEdit={onCancelEdit}
+            onFileChange={onFileChange}
+            onFormChange={onFormChange}
+            onSave={onSave}
+            onStartEdit={onStartEdit}
+          />
+        ) : null}
 
-          <EventLineupManager eventId={event.id} />
-        </section>
+        {activeTab === 'box-office' ? (
+          <EventBoxOfficeTab
+            event={event}
+            isScannerOpen={isScannerOpen}
+            onCloseScanner={onCloseScanner}
+            onOpenScanner={handleOpenScanner}
+          />
+        ) : null}
 
-        <section className="event-manage-section event-manage-section-wide">
-          <header className="event-manage-section-heading">
-            <span>Box Office</span>
-            <h4>Tickets, sales, and check-ins</h4>
-            <p>
-              Manage ticket types, start door sales, and open the QR scanner.
-            </p>
-          </header>
+        {activeTab === 'analytics' ? (
+          <EventAnalyticsSection eventId={event.id} />
+        ) : null}
 
+        {activeTab === 'settings' ? (
+          <EventSettingsTab
+            event={event}
+            isCancelling={isCancelling}
+            isDeleting={isDeleting}
+            isSaving={isSaving}
+            onCancelEvent={onCancelEvent}
+            onDeleteEvent={onDeleteEvent}
+          />
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+type EventSetupTabProps = {
+  event: StreetTeamEvent
+  fileInputKey: number
+  flyerFile: File | null
+  formState: EventFormState
+  isEditing: boolean
+  isSaving: boolean
+  onCancelEdit: () => void
+  onFileChange: (file: File | null) => void
+  onFormChange: (formState: EventFormState) => void
+  onSave: (event: FormEvent<HTMLFormElement>, eventId: string) => void
+  onStartEdit: (event: StreetTeamEvent) => void
+}
+
+function EventSetupTab({
+  event,
+  fileInputKey,
+  flyerFile,
+  formState,
+  isEditing,
+  isSaving,
+  onCancelEdit,
+  onFileChange,
+  onFormChange,
+  onSave,
+  onStartEdit,
+}: EventSetupTabProps) {
+  return (
+    <section className="event-manage-section">
+      <header className="event-manage-section-heading">
+        <span>Event Setup</span>
+        <h4>Details, media, and lineup</h4>
+        <p>Edit the public event page content and manage performers.</p>
+      </header>
+
+      <div className="event-manage-actions">
+        {event.status === 'published' ? (
+          <Link to={`/events/${event.slug}`} className="secondary-action-button">
+            View Public Event
+          </Link>
+        ) : null}
+
+        {!isEditing ? (
+          <button
+            type="button"
+            className="secondary-action-button"
+            onClick={() => onStartEdit(event)}
+          >
+            Edit Event Details
+          </button>
+        ) : null}
+      </div>
+
+      {isEditing ? (
+        <OwnedEventEditCard
+          event={event}
+          fileInputKey={fileInputKey}
+          flyerFile={flyerFile}
+          formState={formState}
+          isSaving={isSaving}
+          onCancelEdit={onCancelEdit}
+          onFileChange={onFileChange}
+          onFormChange={onFormChange}
+          onSave={onSave}
+        />
+      ) : (
+        <EventSetupSummary event={event} />
+      )}
+
+      <EventLineupManager eventId={event.id} />
+    </section>
+  )
+}
+
+function EventSetupSummary({ event }: { event: StreetTeamEvent }) {
+  const location = formatEventLocation(event)
+
+  return (
+    <div className="event-setup-summary">
+      <div className="event-setup-summary-image">
+        {event.eventImageUrl ? (
+          <img src={event.eventImageUrl} alt="" />
+        ) : (
+          <span>No flyer uploaded</span>
+        )}
+      </div>
+
+      <dl className="event-setup-summary-list">
+        <div>
+          <dt>Status</dt>
+          <dd>{formatEventStatus(event.status)}</dd>
+        </div>
+        <div>
+          <dt>Category</dt>
+          <dd>{event.category || 'No category set'}</dd>
+        </div>
+        <div>
+          <dt>Date</dt>
+          <dd>{formatEventDate(event.eventDate)}</dd>
+        </div>
+        <div>
+          <dt>Time</dt>
+          <dd>
+            {event.startTime ? formatEventTime(event.startTime) : 'Time TBA'}
+            {event.endTime ? ` - ${formatEventTime(event.endTime)}` : ''}
+          </dd>
+        </div>
+        <div>
+          <dt>Venue</dt>
+          <dd>{event.venueName || 'No venue set'}</dd>
+        </div>
+        <div>
+          <dt>Location</dt>
+          <dd>{location || 'No location set'}</dd>
+        </div>
+        <div className="is-wide">
+          <dt>Description</dt>
+          <dd>{event.description || 'No description added yet.'}</dd>
+        </div>
+      </dl>
+    </div>
+  )
+}
+
+function EventBoxOfficeTab({
+  event,
+  isScannerOpen,
+  onCloseScanner,
+  onOpenScanner,
+}: {
+  event: StreetTeamEvent
+  isScannerOpen: boolean
+  onCloseScanner: () => void
+  onOpenScanner: () => void
+}) {
+  return (
+    <section className="event-manage-section">
+      <header className="event-manage-section-heading">
+        <span>Box Office</span>
+        <h4>Tickets, sales, and check-ins</h4>
+        <p>Manage ticket types, door sales, attendee lists, and QR scans.</p>
+      </header>
+
+      {isScannerOpen ? (
+        <EventTicketScanner
+          backLabel="Back to Box Office"
+          event={event}
+          onBack={onCloseScanner}
+        />
+      ) : (
+        <>
           <div className="event-manage-actions">
             <button
               type="button"
@@ -1462,39 +1682,55 @@ function OwnedEventManagePanel({
 
           <EventTicketManager eventId={event.id} />
           <EventDoorSalesManager eventId={event.id} />
-        </section>
+        </>
+      )}
+    </section>
+  )
+}
 
-        <EventAnalyticsSection eventId={event.id} />
+function EventSettingsTab({
+  event,
+  isCancelling,
+  isDeleting,
+  isSaving,
+  onCancelEvent,
+  onDeleteEvent,
+}: {
+  event: StreetTeamEvent
+  isCancelling: boolean
+  isDeleting: boolean
+  isSaving: boolean
+  onCancelEvent: (event: StreetTeamEvent) => void
+  onDeleteEvent: (event: StreetTeamEvent) => void
+}) {
+  return (
+    <section className="event-manage-section event-settings-section">
+      <header className="event-manage-section-heading">
+        <span>Settings</span>
+        <h4>Administrative actions</h4>
+        <p>Cancel or delete this event only when the change is intentional.</p>
+      </header>
 
-        <section className="event-manage-section event-settings-section">
-          <header className="event-manage-section-heading">
-            <span>Settings</span>
-            <h4>Administrative actions</h4>
-            <p>Cancel or delete this event only when the change is intentional.</p>
-          </header>
+      <div className="event-settings-actions">
+        {event.status !== 'cancelled' ? (
+          <button
+            type="button"
+            className="secondary-action-button"
+            disabled={isCancelling || isSaving}
+            onClick={() => onCancelEvent(event)}
+          >
+            {isCancelling ? 'Cancelling...' : 'Cancel Event'}
+          </button>
+        ) : null}
 
-          <div className="event-settings-actions">
-            {event.status !== 'cancelled' ? (
-              <button
-                type="button"
-                className="secondary-action-button"
-                disabled={isCancelling || isSaving}
-                onClick={() => onCancelEvent(event)}
-              >
-                {isCancelling ? 'Cancelling...' : 'Cancel Event'}
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              className="secondary-action-button danger-action-button"
-              disabled={isDeleting || isSaving}
-              onClick={() => onDeleteEvent(event)}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete Event'}
-            </button>
-          </div>
-        </section>
+        <button
+          type="button"
+          className="secondary-action-button danger-action-button"
+          disabled={isDeleting || isSaving}
+          onClick={() => onDeleteEvent(event)}
+        >
+          {isDeleting ? 'Deleting...' : 'Delete Event'}
+        </button>
       </div>
     </section>
   )

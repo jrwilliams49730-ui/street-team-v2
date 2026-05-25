@@ -19,7 +19,14 @@ import MyTicketsSection from './MyTicketsSection'
 import { fetchUserProfile } from './userProfile'
 
 type AuthMode = 'create' | 'login'
-type AccountTabId = 'my-profile' | 'my-tickets' | 'following' | 'appearances' | 'my-events'
+type AccountTabId =
+  | 'my-profile'
+  | 'my-tickets'
+  | 'following'
+  | 'appearances'
+  | 'my-events'
+  | 'create-event'
+  | 'settings'
 type AccountTab = {
   id: AccountTabId
   label: string
@@ -46,6 +53,13 @@ const creatorEventTabs: AccountTab[] = [
   { id: 'my-profile', label: 'My Profile' },
   { id: 'my-events', label: 'My Events' },
   { id: 'following', label: 'Following' },
+]
+
+const producerTabs: AccountTab[] = [
+  { id: 'my-profile', label: 'Producer Profile' },
+  { id: 'my-events', label: 'My Events' },
+  { id: 'create-event', label: 'Create Event' },
+  { id: 'settings', label: 'Settings' },
 ]
 
 function AccountPage() {
@@ -525,6 +539,26 @@ function AccountTabPanel({
     )
   }
 
+  if (activeTab === 'create-event') {
+    return (
+      <CreatorOnboardingSection
+        accountType={accountType}
+        ownerUserId={ownerUserId}
+        section="create-event"
+      />
+    )
+  }
+
+  if (activeTab === 'settings') {
+    return (
+      <CreatorOnboardingSection
+        accountType={accountType}
+        ownerUserId={ownerUserId}
+        section="settings"
+      />
+    )
+  }
+
   return (
     <CreatorOnboardingSection
       accountType={accountType}
@@ -543,6 +577,10 @@ function getAccountTabs(accountType: AccountType) {
     return performerTabs
   }
 
+  if (accountType === 'producer') {
+    return producerTabs
+  }
+
   return creatorEventTabs
 }
 
@@ -552,6 +590,10 @@ function getDefaultAccountTab(accountType: AccountType): AccountTabId {
   }
 
   if (accountType === 'performer') {
+    return 'my-profile'
+  }
+
+  if (accountType === 'producer') {
     return 'my-profile'
   }
 

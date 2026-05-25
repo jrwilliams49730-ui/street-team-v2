@@ -175,7 +175,15 @@ function getAccountNavigationSection(
     }
   }
 
-  if (accountType === 'producer' || accountType === 'venue') {
+  if (accountType === 'producer') {
+    return {
+      key: 'account',
+      label: 'Dashboard',
+      path: '/account?tab=my-profile',
+    }
+  }
+
+  if (accountType === 'venue') {
     return {
       key: 'account',
       label: 'Dashboard',

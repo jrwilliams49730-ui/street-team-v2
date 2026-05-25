@@ -99,12 +99,14 @@ export type PublicTicket = {
   eventTimezone: string
   eventTitle: string
   postalCode: string
+  previousQrToken: string | null
   qrToken: string
   quantity: number
   reservationId: string
   startTime: string
   state: string
   ticketId: string
+  nextQrToken: string | null
   ticketNumber: number
   ticketStatus: IndividualTicketStatus
   ticketTypeId: string
@@ -194,12 +196,14 @@ export type PublicTicketRow = {
   event_timezone: string | null
   event_title: string
   postal_code: string | null
+  previous_qr_token?: string | null
   qr_token: string
   quantity: number
   reservation_id: string
   start_time: string | null
   state: string
   ticket_id: string
+  next_qr_token?: string | null
   ticket_number: number
   ticket_status: string
   ticket_type_id: string
@@ -974,12 +978,14 @@ function mapPublicTicketRow(row: PublicTicketRow): PublicTicket {
     eventTimezone: row.event_timezone?.trim() ?? '',
     eventTitle: row.event_title,
     postalCode: row.postal_code?.trim() ?? '',
+    previousQrToken: row.previous_qr_token ?? null,
     qrToken: row.qr_token,
     quantity: row.quantity,
     reservationId: row.reservation_id,
     startTime: row.start_time ?? '',
     state: row.state,
     ticketId: row.ticket_id,
+    nextQrToken: row.next_qr_token ?? null,
     ticketNumber: row.ticket_number,
     ticketStatus: normalizeIndividualTicketStatus(row.ticket_status),
     ticketTypeId: row.ticket_type_id,

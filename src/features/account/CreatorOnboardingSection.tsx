@@ -53,7 +53,13 @@ type CreatorOnboardingSectionProps = {
   section?: CreatorAccountSection
 }
 
-type CreatorAccountSection = 'profile' | 'appearances' | 'events' | 'all'
+type CreatorAccountSection =
+  | 'profile'
+  | 'appearances'
+  | 'events'
+  | 'create-event'
+  | 'settings'
+  | 'all'
 
 type CreatorProfile = {
   id: string
@@ -621,10 +627,26 @@ function CreatorOnboardingSection({
       {(profile.profileType === 'producer' || profile.profileType === 'venue') &&
       (section === 'events' || section === 'all') ? (
         <EventManagementSection
+          key={`event-management-${section}`}
+          mode={accountType === 'producer' && section === 'events' ? 'manage' : 'all'}
           organizerProfileId={profile.id}
           organizerType={profile.profileType}
           ownerUserId={ownerUserId}
         />
+      ) : null}
+
+      {profile.profileType === 'producer' && section === 'create-event' ? (
+        <EventManagementSection
+          key="event-management-create-event"
+          mode="create"
+          organizerProfileId={profile.id}
+          organizerType={profile.profileType}
+          ownerUserId={ownerUserId}
+        />
+      ) : null}
+
+      {profile.profileType === 'producer' && section === 'settings' ? (
+        <ProducerSettingsPanel profile={profile} />
       ) : null}
     </section>
   )
@@ -642,6 +664,14 @@ function getCreatorSectionTitle(
     return 'My Events'
   }
 
+  if (section === 'create-event') {
+    return 'Create Event'
+  }
+
+  if (section === 'settings') {
+    return 'Settings'
+  }
+
   return `Your ${accountTypeLabel} Profile`
 }
 
@@ -654,10 +684,63 @@ function getCreatorSectionDescription(
   }
 
   if (section === 'events') {
-    return 'Create and manage official Street Team events.'
+    return 'Review events for this profile and open the event Manage workspace.'
+  }
+
+  if (section === 'create-event') {
+    return 'Create a new official Street Team event.'
+  }
+
+  if (section === 'settings') {
+    return `Manage ${label} account settings.`
   }
 
   return `Manage the public ${label} profile fans see across Street Team.`
+}
+
+function ProducerSettingsPanel({ profile }: { profile: CreatorProfile }) {
+  return (
+    <div className="producer-settings-grid">
+      <section className="producer-settings-card">
+        <header className="event-manage-section-heading">
+          <span>Account</span>
+          <h4>Producer details</h4>
+        </header>
+
+        <dl className="producer-settings-list">
+          <div>
+            <dt>Producer name</dt>
+            <dd>{profile.name}</dd>
+          </div>
+          <div>
+            <dt>Category</dt>
+            <dd>{profile.category}</dd>
+          </div>
+          <div>
+            <dt>Location</dt>
+            <dd>{profile.location || 'No location set'}</dd>
+          </div>
+        </dl>
+
+        <div className="creator-management-actions">
+          <Link to={profile.publicPath} className="secondary-action-button">
+            View public profile
+          </Link>
+        </div>
+      </section>
+
+      <section className="producer-settings-card producer-settings-danger">
+        <header className="event-manage-section-heading">
+          <span>Danger Zone</span>
+          <h4>Event destructive actions</h4>
+          <p>
+            Event cancellation and deletion stay inside each event Manage screen
+            and require confirmation.
+          </p>
+        </header>
+      </section>
+    </div>
+  )
 }
 
 type FeaturedMediaAreaProps = {

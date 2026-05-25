@@ -25,6 +25,7 @@ function CreateProducerForm({
   ownerUserId,
 }: CreateProducerFormProps) {
   const [name, setName] = useState(initialName)
+  const [hasEditedName, setHasEditedName] = useState(false)
   const [producerType, setProducerType] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
@@ -33,6 +34,7 @@ function CreateProducerForm({
   const [message, setMessage] = useState<Message | null>(null)
   const [createdProducer, setCreatedProducer] = useState<Producer | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const producerName = hasEditedName ? name : initialName
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -43,7 +45,7 @@ function CreateProducerForm({
     try {
       let producer = await createProducerProfile({
         ownerUserId,
-        name,
+        name: producerName,
         producerType,
         city,
         state,
@@ -83,7 +85,8 @@ function CreateProducerForm({
       onProfileCreated?.(producer, nextMessage)
       setMessage(nextMessage)
 
-      setName(initialName.trim())
+      setName('')
+      setHasEditedName(false)
       setProducerType('')
       setCity('')
       setState('')
@@ -119,8 +122,11 @@ function CreateProducerForm({
           <span>Producer name</span>
           <input
             type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+            value={producerName}
+            onChange={(event) => {
+              setHasEditedName(true)
+              setName(event.target.value)
+            }}
             required
           />
         </label>
