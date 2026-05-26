@@ -187,7 +187,7 @@ function getAccountNavigationSection(
     return {
       key: 'account',
       label: 'Dashboard',
-      path: '/account?tab=my-events',
+      path: '/account?tab=my-profile',
     }
   }
 

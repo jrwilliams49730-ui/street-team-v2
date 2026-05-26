@@ -25,6 +25,7 @@ function CreateVenueForm({
   ownerUserId,
 }: CreateVenueFormProps) {
   const [name, setName] = useState(initialName)
+  const [hasEditedName, setHasEditedName] = useState(false)
   const [venueType, setVenueType] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
@@ -33,6 +34,7 @@ function CreateVenueForm({
   const [message, setMessage] = useState<Message | null>(null)
   const [createdVenue, setCreatedVenue] = useState<Venue | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const venueName = hasEditedName ? name : initialName
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -43,7 +45,7 @@ function CreateVenueForm({
     try {
       let venue = await createVenueProfile({
         ownerUserId,
-        name,
+        name: venueName,
         venueType,
         city,
         state,
@@ -79,7 +81,8 @@ function CreateVenueForm({
       onProfileCreated?.(venue, nextMessage)
       setMessage(nextMessage)
 
-      setName(initialName.trim())
+      setName('')
+      setHasEditedName(false)
       setVenueType('')
       setCity('')
       setState('')
@@ -115,8 +118,11 @@ function CreateVenueForm({
           <span>Venue name</span>
           <input
             type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
+            value={venueName}
+            onChange={(event) => {
+              setHasEditedName(true)
+              setName(event.target.value)
+            }}
             required
           />
         </label>
@@ -155,7 +161,7 @@ function CreateVenueForm({
         </div>
 
         <div className="profile-create-upload">
-          <span>Venue image</span>
+          <span>Venue photo or logo</span>
           <input type="file" accept="image/*" onChange={handleImageChange} />
           <p>
             {imageFile

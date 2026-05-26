@@ -49,10 +49,11 @@ const performerTabs: AccountTab[] = [
   { id: 'following', label: 'Following' },
 ]
 
-const creatorEventTabs: AccountTab[] = [
-  { id: 'my-profile', label: 'My Profile' },
+const venueTabs: AccountTab[] = [
+  { id: 'my-profile', label: 'Venue Profile' },
   { id: 'my-events', label: 'My Events' },
-  { id: 'following', label: 'Following' },
+  { id: 'create-event', label: 'Create Event' },
+  { id: 'settings', label: 'Settings' },
 ]
 
 const producerTabs: AccountTab[] = [
@@ -581,7 +582,7 @@ function getAccountTabs(accountType: AccountType) {
     return producerTabs
   }
 
-  return creatorEventTabs
+  return venueTabs
 }
 
 function getDefaultAccountTab(accountType: AccountType): AccountTabId {
@@ -597,7 +598,7 @@ function getDefaultAccountTab(accountType: AccountType): AccountTabId {
     return 'my-profile'
   }
 
-  return 'my-events'
+  return 'my-profile'
 }
 
 export default AccountPage

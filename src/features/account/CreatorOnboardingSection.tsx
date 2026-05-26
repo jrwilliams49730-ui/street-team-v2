@@ -628,14 +628,21 @@ function CreatorOnboardingSection({
       (section === 'events' || section === 'all') ? (
         <EventManagementSection
           key={`event-management-${section}`}
-          mode={accountType === 'producer' && section === 'events' ? 'manage' : 'all'}
+          mode={
+            (profile.profileType === 'producer' ||
+              profile.profileType === 'venue') &&
+            section === 'events'
+              ? 'manage'
+              : 'all'
+          }
           organizerProfileId={profile.id}
           organizerType={profile.profileType}
           ownerUserId={ownerUserId}
         />
       ) : null}
 
-      {profile.profileType === 'producer' && section === 'create-event' ? (
+      {(profile.profileType === 'producer' || profile.profileType === 'venue') &&
+      section === 'create-event' ? (
         <EventManagementSection
           key="event-management-create-event"
           mode="create"
@@ -645,8 +652,9 @@ function CreatorOnboardingSection({
         />
       ) : null}
 
-      {profile.profileType === 'producer' && section === 'settings' ? (
-        <ProducerSettingsPanel profile={profile} />
+      {(profile.profileType === 'producer' || profile.profileType === 'venue') &&
+      section === 'settings' ? (
+        <CreatorSettingsPanel profile={profile} />
       ) : null}
     </section>
   )
@@ -698,18 +706,18 @@ function getCreatorSectionDescription(
   return `Manage the public ${label} profile fans see across Street Team.`
 }
 
-function ProducerSettingsPanel({ profile }: { profile: CreatorProfile }) {
+function CreatorSettingsPanel({ profile }: { profile: CreatorProfile }) {
   return (
     <div className="producer-settings-grid">
       <section className="producer-settings-card">
         <header className="event-manage-section-heading">
           <span>Account</span>
-          <h4>Producer details</h4>
+          <h4>{profile.typeLabel} details</h4>
         </header>
 
         <dl className="producer-settings-list">
           <div>
-            <dt>Producer name</dt>
+            <dt>{profile.typeLabel} name</dt>
             <dd>{profile.name}</dd>
           </div>
           <div>
