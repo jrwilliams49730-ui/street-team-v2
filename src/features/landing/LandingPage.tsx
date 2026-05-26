@@ -34,6 +34,11 @@ type ContactFormState = {
   phone: string
 }
 
+type ContactApiResponse = {
+  error?: string
+  ok?: boolean
+}
+
 const supportTiers = [
   {
     amount: '$10',
@@ -169,6 +174,7 @@ function StreetTeamLandingPage() {
   const [submitStatus, setSubmitStatus] = useState<
     'idle' | 'submitting' | 'success' | 'error'
   >('idle')
+  const [submitError, setSubmitError] = useState('')
 
   const chooseInterestType = (interestType: InterestType) => {
     setFormState((current) => ({
@@ -176,6 +182,7 @@ function StreetTeamLandingPage() {
       interestType,
     }))
     setSubmitStatus('idle')
+    setSubmitError('')
   }
 
   const updateField = <FieldName extends keyof ContactFormState>(
@@ -187,6 +194,7 @@ function StreetTeamLandingPage() {
       [fieldName]: value,
     }))
     setSubmitStatus('idle')
+    setSubmitError('')
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -194,7 +202,7 @@ function StreetTeamLandingPage() {
 
     const payload = {
       email: formState.email.trim(),
-      interestType: formState.interestType,
+      interest: formState.interestType,
       message: formState.message.trim(),
       name: formState.name.trim(),
       phone: formState.phone.trim(),
@@ -203,15 +211,19 @@ function StreetTeamLandingPage() {
     if (
       !payload.name ||
       !isValidEmail(payload.email) ||
-      !payload.interestType ||
+      !payload.interest ||
       !payload.message ||
       payload.message.length > 2000
     ) {
       setSubmitStatus('error')
+      setSubmitError(
+        'Name, valid email, interest type, and message are required. Message must be 2000 characters or fewer.',
+      )
       return
     }
 
     setSubmitStatus('submitting')
+    setSubmitError('')
 
     try {
       const response = await fetch('/api/contact', {
@@ -221,15 +233,25 @@ function StreetTeamLandingPage() {
         },
         method: 'POST',
       })
+      const result = (await response.json().catch(() => ({
+        error: 'Contact API returned an invalid response.',
+      }))) as ContactApiResponse
 
-      if (!response.ok) {
-        throw new Error('Contact request failed')
+      if (!response.ok || result.ok !== true) {
+        throw new Error(
+          result.error || `Contact API failed with status ${response.status}.`,
+        )
       }
 
       setFormState(initialFormState)
       setSubmitStatus('success')
-    } catch {
+    } catch (error) {
       setSubmitStatus('error')
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : 'Contact request failed. Please try again.',
+      )
     }
   }
 
@@ -634,7 +656,7 @@ function StreetTeamLandingPage() {
 
                 {submitStatus === 'error' ? (
                   <p className="raise-form-message is-error">
-                    Something went wrong. Please try again.
+                    {submitError || 'Contact request failed. Please try again.'}
                   </p>
                 ) : null}
               </form>

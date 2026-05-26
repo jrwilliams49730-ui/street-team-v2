@@ -14,7 +14,7 @@ type InterestType = (typeof allowedInterestTypes)[number]
 
 type ContactPayload = {
   email: string
-  interestType: InterestType
+  interest: InterestType
   message: string
   name: string
   phone: string
@@ -27,7 +27,7 @@ type ApiRequest = IncomingMessage & {
 
 type JsonPayload = {
   error?: string
-  ok?: boolean
+  ok: boolean
 }
 
 const maxBodyLength = 10_000
@@ -111,19 +111,19 @@ function validatePayload(body: unknown): ContactPayload | string {
   const name = cleanString(body.name).slice(0, 120)
   const email = cleanString(body.email).slice(0, 160)
   const phone = cleanString(body.phone).slice(0, 80)
-  const interestType = cleanString(body.interestType)
+  const interest = cleanString(body.interest ?? body.interestType)
   const message = cleanString(body.message)
 
-  if (!name || !email || !interestType || !message) {
-    return 'Name, email, interest type, and message are required.'
+  if (!name || !email || !interest || !message) {
+    return 'Name, email, interest, and message are required.'
   }
 
   if (!isValidEmail(email)) {
     return 'Please provide a valid email address.'
   }
 
-  if (!isAllowedInterestType(interestType)) {
-    return 'Please choose a valid interest type.'
+  if (!isAllowedInterestType(interest)) {
+    return 'Please choose a valid interest.'
   }
 
   if (message.length > maxMessageLength) {
@@ -132,7 +132,7 @@ function validatePayload(body: unknown): ContactPayload | string {
 
   return {
     email,
-    interestType,
+    interest,
     message,
     name,
     phone,
@@ -144,7 +144,7 @@ function buildEmailBody(payload: ContactPayload) {
     `Name: ${payload.name}`,
     `Email: ${payload.email}`,
     `Phone: ${payload.phone || 'Not provided'}`,
-    `Interest type: ${payload.interestType}`,
+    `Interest: ${payload.interest}`,
     '',
     'Message:',
     payload.message,
@@ -155,42 +155,90 @@ export default async function handler(
   request: ApiRequest,
   response: ServerResponse,
 ) {
+  console.log('Contact API hit')
+
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST')
-    sendJson(response, 405, { error: 'Method not allowed.' })
+    sendJson(response, 405, { ok: false, error: 'Method not allowed.' })
     return
   }
 
-  const apiKey = process.env.RESEND_API_KEY
-  const toEmail = process.env.CONTACT_TO_EMAIL
-  const fromEmail = process.env.CONTACT_FROM_EMAIL
+  const apiKey = process.env.RESEND_API_KEY?.trim()
+  const toEmail = process.env.CONTACT_TO_EMAIL?.trim()
+  const fromEmail = process.env.CONTACT_FROM_EMAIL?.trim()
 
   if (!apiKey || !toEmail || !fromEmail) {
-    sendJson(response, 500, { error: 'Contact email is not configured.' })
+    sendJson(response, 500, {
+      ok: false,
+      error: 'Contact email is not configured.',
+    })
+    return
+  }
+
+  let payload: ContactPayload
+
+  try {
+    const body = await readBody(request)
+    const validationResult = validatePayload(body)
+
+    if (typeof validationResult === 'string') {
+      sendJson(response, 400, { ok: false, error: validationResult })
+      return
+    }
+
+    payload = validationResult
+  } catch (error) {
+    sendJson(response, 400, {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Request body could not be read.',
+    })
     return
   }
 
   try {
-    const body = await readBody(request)
-    const payload = validatePayload(body)
-
-    if (typeof payload === 'string') {
-      sendJson(response, 400, { error: payload })
-      return
-    }
-
     const resend = new Resend(apiKey)
-
-    await resend.emails.send({
-      from: fromEmail,
+    const { data, error } = await resend.emails.send({
+      from: `Street Team <${fromEmail}>`,
       replyTo: payload.email,
-      subject: `New Street Team Landing Page Inquiry - ${payload.interestType}`,
+      subject: `New Street Team Landing Page Inquiry - ${payload.interest}`,
       text: buildEmailBody(payload),
       to: toEmail,
     })
 
+    if (error || !data?.id) {
+      console.error('Contact email failed', error ?? data)
+      sendJson(response, 502, {
+        ok: false,
+        error: getResendErrorMessage(error) ?? 'Contact email failed to send.',
+      })
+      return
+    }
+
+    console.log('Contact email sent', data)
     sendJson(response, 200, { ok: true })
-  } catch {
-    sendJson(response, 500, { error: 'Something went wrong. Please try again.' })
+  } catch (error) {
+    console.error('Contact email failed', error)
+    sendJson(response, 500, {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Contact email failed to send.',
+    })
   }
+}
+
+function getResendErrorMessage(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return null
+  }
+
+  if ('message' in error && typeof error.message === 'string') {
+    return error.message
+  }
+
+  return null
 }
