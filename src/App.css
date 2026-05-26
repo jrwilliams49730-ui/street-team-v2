@@ -1932,6 +1932,7 @@
 
 body .pac-container {
   z-index: 2147483647 !important;
+  min-width: min(32rem, calc(100vw - 1rem));
   max-height: min(18rem, calc(100vh - 1rem));
   overflow-x: hidden;
   overflow-y: auto;
@@ -1952,6 +1953,8 @@ body .pac-logo::after {
 body .pac-container .pac-item {
   display: flex;
   align-items: center;
+  gap: 0.45rem;
+  width: 100%;
   min-height: 2.9rem;
   border-top: 1px solid var(--st-border);
   padding: 0.6rem 0.9rem;
@@ -1959,6 +1962,7 @@ body .pac-container .pac-item {
   cursor: pointer;
   font-size: 0.9rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 body .pac-container .pac-item:first-child {
@@ -1971,12 +1975,20 @@ body .pac-container .pac-item:hover {
 
 body .pac-container .pac-icon,
 body .pac-container .pac-icon-marker {
+  flex: 0 0 0 !important;
   display: none !important;
   width: 0 !important;
+  max-width: 0 !important;
   min-width: 0 !important;
   height: 0 !important;
   margin: 0 !important;
+  opacity: 0 !important;
   background-image: none !important;
+  pointer-events: none !important;
+}
+
+body .pac-container .pac-item > span {
+  min-width: 0;
 }
 
 body .pac-container .pac-item-query,

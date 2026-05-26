@@ -56,7 +56,6 @@ type GoogleMapsNamespace = {
     event: {
       clearInstanceListeners: (instance: unknown) => void
     }
-    importLibrary?: (libraryName: string) => Promise<unknown>
     places?: GooglePlacesLibrary
   }
 }
@@ -254,7 +253,7 @@ export async function loadGoogleMaps() {
   return window.streetTeamGoogleMapsPromise
 }
 
-async function ensureGooglePlacesLibrary() {
+function ensureGooglePlacesLibrary() {
   const google = getGoogleMapsNamespace()
 
   const existingPlacesLibrary = getLoadedPlacesLibrary()
@@ -264,31 +263,8 @@ async function ensureGooglePlacesLibrary() {
     return google
   }
 
-  if (google.maps.importLibrary) {
-    hasRequestedPlacesLibrary = true
-    logGoogleMapsLoaderState('importing places library')
-
-    try {
-      const importedPlacesLibrary =
-        await google.maps.importLibrary('places')
-      const placesLibrary = normalizePlacesLibrary(importedPlacesLibrary)
-
-      if (placesLibrary) {
-        window.streetTeamGooglePlacesLibrary = placesLibrary
-        logGoogleMapsLoaderState('places import completed')
-
-        return google
-      }
-    } catch (error) {
-      throw new Error(
-        `Google Places library import failed: ${formatErrorForMessage(error)}`,
-        { cause: error },
-      )
-    }
-  }
-
   throw new Error(
-    'Google Places autocomplete could not be loaded. You can still enter the venue and address manually. Confirm the Maps JavaScript API and Places API are enabled and that the app is loading libraries=places.',
+    'Google Places autocomplete could not be loaded. You can still enter the venue and address manually. Confirm the Maps JavaScript API and Places API are enabled and that the app is loading the shared libraries=places script.',
   )
 }
 

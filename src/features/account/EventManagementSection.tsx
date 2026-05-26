@@ -1,9 +1,6 @@
 import {
-  useCallback,
   useEffect,
-  useRef,
   useState,
-  type ChangeEvent,
   type FormEvent,
   type ReactNode,
 } from 'react'
@@ -50,20 +47,19 @@ import {
   isDuplicateEventSlugError,
   updateEvent,
   updateEventImageUrl,
-  type EventFormInput,
   type EventOrganizerType,
   type EventStatus,
   type StreetTeamEvent,
 } from '../events/events'
+import EventDetailsForm from '../events/EventDetailsForm'
 import {
-  cleanupGooglePlacesPredictionContainers,
-  clearGoogleAutocompleteListeners,
-  createPlaceAutocomplete,
+  clearEventGoogleLocation,
+  getEventFormStateFromGooglePlace,
+  type EventFormState,
+} from '../events/eventFormLocation'
+import {
   geocodeAddress,
-  getGoogleMapsDebugState,
   hasGoogleMapsApiKey,
-  loadGoogleMaps,
-  type ParsedGooglePlace,
 } from '../location/googleMaps'
 import {
   fetchPerformers,
@@ -79,7 +75,6 @@ type EventManagementSectionProps = {
 }
 
 type EventManagementMode = 'all' | 'create' | 'manage'
-type EventFormState = EventFormInput
 type ManageEventTabId = 'setup' | 'box-office' | 'analytics' | 'settings'
 type DoorSaleReturnState = {
   reservationId: string
@@ -149,11 +144,6 @@ type EventCreateDraft = {
 type EventEditDraft = {
   formState: EventFormState
   savedAt: string
-}
-
-type LocationSearchStatus = {
-  type: 'info' | 'success' | 'error'
-  text: string
 }
 
 const emptyEventForm: EventFormState = {
@@ -848,9 +838,10 @@ function EventManagementSection({
       ) : null}
 
       {canCreateEvents && isCreateFormOpen ? (
-        <EventForm
+        <EventDetailsForm
           fileInputKey={fileInputKey}
           flyerFile={flyerFile}
+          formMode="create"
           formState={formState}
           includeCancelledStatus={false}
           isSubmitting={isCreating}
@@ -1003,541 +994,6 @@ function EventDraftRecovery({
       </div>
     </section>
   )
-}
-
-type EventFormProps = {
-  currentImageUrl?: string | null
-  fileInputKey: number
-  flyerFile: File | null
-  formState: EventFormState
-  includeCancelledStatus: boolean
-  isSubmitting: boolean
-  onFileChange: (file: File | null) => void
-  onFormChange: (formState: EventFormState) => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
-  organizerType: EventOrganizerType
-  submitText: string
-  submittingText: string
-  ticketSetupSection?: ReactNode
-}
-
-function EventForm({
-  currentImageUrl,
-  fileInputKey,
-  flyerFile,
-  formState,
-  includeCancelledStatus,
-  isSubmitting,
-  onFileChange,
-  onFormChange,
-  onSubmit,
-  organizerType,
-  submitText,
-  submittingText,
-  ticketSetupSection = null,
-}: EventFormProps) {
-  function updateField<FieldName extends keyof EventFormState>(
-    fieldName: FieldName,
-    value: EventFormState[FieldName],
-  ) {
-    const shouldClearGoogleLocation = isManualLocationField(fieldName)
-
-    onFormChange({
-      ...formState,
-      [fieldName]: value,
-      ...(shouldClearGoogleLocation
-        ? {
-            formattedAddress: '',
-            googlePlaceId: '',
-            latitude: null,
-            longitude: null,
-          }
-        : {}),
-    })
-  }
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    onFileChange(event.currentTarget.files?.[0] ?? null)
-  }
-
-  return (
-    <form className="auth-form event-form" onSubmit={onSubmit}>
-      <label>
-        <span>Event title</span>
-        <input
-          type="text"
-          value={formState.title}
-          onChange={(event) => updateField('title', event.target.value)}
-          required
-        />
-      </label>
-
-      <label>
-        <span>Category</span>
-        <input
-          type="text"
-          value={formState.category}
-          placeholder="Comedy, concert, open mic..."
-          onChange={(event) => updateField('category', event.target.value)}
-        />
-      </label>
-
-      <label>
-        <span>Description</span>
-        <textarea
-          value={formState.description}
-          rows={4}
-          onChange={(event) => updateField('description', event.target.value)}
-        />
-      </label>
-
-      <div className="event-date-time-grid">
-        <label>
-          <span>Event date</span>
-          <input
-            type="date"
-            value={formState.eventDate}
-            onChange={(event) => updateField('eventDate', event.target.value)}
-            required
-          />
-        </label>
-
-        <label>
-          <span>Doors time</span>
-          <input
-            type="time"
-            value={formState.doorsTime}
-            onChange={(event) => updateField('doorsTime', event.target.value)}
-          />
-        </label>
-
-        <label>
-          <span>Start time</span>
-          <input
-            type="time"
-            value={formState.startTime}
-            onChange={(event) => updateField('startTime', event.target.value)}
-          />
-        </label>
-
-        <label>
-          <span>End time</span>
-          <input
-            type="time"
-            value={formState.endTime}
-            onChange={(event) => updateField('endTime', event.target.value)}
-          />
-        </label>
-      </div>
-
-      <EventLocationAutocompleteField
-        formState={formState}
-        onFormChange={onFormChange}
-        organizerType={organizerType}
-      />
-
-      <label>
-        <span>Venue name</span>
-        <input
-          type="text"
-          value={formState.venueName}
-          onChange={(event) => updateField('venueName', event.target.value)}
-          required
-        />
-      </label>
-
-      <label>
-        <span>Address line 1</span>
-        <input
-          type="text"
-          value={formState.addressLine1}
-          onChange={(event) => updateField('addressLine1', event.target.value)}
-        />
-      </label>
-
-      <label>
-        <span>Address line 2</span>
-        <input
-          type="text"
-          value={formState.addressLine2}
-          onChange={(event) => updateField('addressLine2', event.target.value)}
-        />
-      </label>
-
-      <div className="event-location-grid">
-        <label>
-          <span>City</span>
-          <input
-            type="text"
-            value={formState.city}
-            onChange={(event) => updateField('city', event.target.value)}
-            required
-          />
-        </label>
-
-        <label>
-          <span>State</span>
-          <input
-            type="text"
-            value={formState.state}
-            maxLength={2}
-            placeholder="TX"
-            onChange={(event) =>
-              updateField('state', event.target.value.toUpperCase())
-            }
-            required
-          />
-        </label>
-
-        <label>
-          <span>ZIP code</span>
-          <input
-            type="text"
-            value={formState.postalCode}
-            onChange={(event) => updateField('postalCode', event.target.value)}
-          />
-        </label>
-
-        <label>
-          <span>Country</span>
-          <input
-            type="text"
-            value={formState.country}
-            onChange={(event) => updateField('country', event.target.value)}
-          />
-        </label>
-      </div>
-
-      <div className="event-image-field">
-        <span>Event Flyer / Event Image</span>
-
-        {currentImageUrl ? (
-          <div className="owned-event-image-frame">
-            <img src={currentImageUrl} alt="" className="owned-event-image" />
-          </div>
-        ) : null}
-
-        <input
-          key={fileInputKey}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-        />
-
-        {flyerFile ? <p>{flyerFile.name}</p> : null}
-      </div>
-
-      <fieldset className="event-status-field">
-        <legend>Status</legend>
-
-        <div className="event-status-options">
-          <label>
-            <input
-              type="radio"
-              name="eventStatus"
-              checked={formState.status === 'published'}
-              onChange={() => updateField('status', 'published')}
-            />
-            <span>Published</span>
-          </label>
-
-          <label>
-            <input
-              type="radio"
-              name="eventStatus"
-              checked={formState.status === 'draft'}
-              onChange={() => updateField('status', 'draft')}
-            />
-            <span>Draft</span>
-          </label>
-
-          {includeCancelledStatus ? (
-            <label>
-              <input
-                type="radio"
-                name="eventStatus"
-                checked={formState.status === 'cancelled'}
-                onChange={() => updateField('status', 'cancelled')}
-              />
-              <span>Cancelled</span>
-            </label>
-          ) : null}
-        </div>
-      </fieldset>
-
-      {ticketSetupSection}
-
-      <button
-        type="submit"
-        className="auth-submit-button"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? submittingText : submitText}
-      </button>
-    </form>
-  )
-}
-
-type EventLocationAutocompleteFieldProps = {
-  formState: EventFormState
-  onFormChange: (formState: EventFormState) => void
-  organizerType: EventOrganizerType
-}
-
-function EventLocationAutocompleteField({
-  formState,
-  onFormChange,
-  organizerType,
-}: EventLocationAutocompleteFieldProps) {
-  const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null)
-  const autocompleteInitializedRef = useRef(false)
-  const placeChangedListenerAttachedRef = useRef(false)
-  const formStateRef = useRef(formState)
-  const isGoogleMapsConfigured = hasGoogleMapsApiKey()
-  const [initialLocationSearch] = useState(() =>
-    formatLocationSearchDefault(formState),
-  )
-  const [locationSearchStatus, setLocationSearchStatus] =
-    useState<LocationSearchStatus | null>(() =>
-      isGoogleMapsConfigured
-        ? null
-        : {
-            type: 'info',
-            text: 'Google Places is not configured, so use the address fields below.',
-          },
-    )
-
-  useEffect(() => {
-    formStateRef.current = formState
-  }, [formState])
-
-  useEffect(() => {
-    let autocomplete: unknown = null
-    let isMounted = true
-    autocompleteInitializedRef.current = false
-    placeChangedListenerAttachedRef.current = false
-
-    logEventFormPlacesState(organizerType, false, 'field binding check', {
-      apiKeyExists: isGoogleMapsConfigured,
-      inputRefAttached: Boolean(inputElement),
-    })
-
-    if (!inputElement) {
-      return
-    }
-
-    if (!isGoogleMapsConfigured) {
-      logEventFormPlacesState(organizerType, false, 'api key missing')
-      return
-    }
-
-    async function initializeAutocomplete() {
-      setLocationSearchStatus({
-        type: 'info',
-        text: 'Loading Google Places...',
-      })
-
-      try {
-        await loadGoogleMaps()
-
-        if (!isMounted || !inputElement) {
-          return
-        }
-
-        cleanupGooglePlacesPredictionContainers()
-        autocomplete = createPlaceAutocomplete(inputElement, (place) => {
-          logEventFormPlacesState(organizerType, true, 'place_selected fired', {
-            autocompleteInitialized: autocompleteInitializedRef.current,
-            placeChangedListenerAttached:
-              placeChangedListenerAttachedRef.current,
-          })
-
-          const nextFormState = getFormStateFromGooglePlace(
-            formStateRef.current,
-            place,
-          )
-          const formattedLocationSearch =
-            formatLocationSearchDefault(nextFormState)
-
-          onFormChange(nextFormState)
-          inputElement.value = formattedLocationSearch
-          setLocationSearchStatus({
-            type: 'success',
-            text: 'Location selected from Google Places.',
-          })
-        })
-        autocompleteInitializedRef.current = true
-        placeChangedListenerAttachedRef.current = true
-
-        logEventFormPlacesState(organizerType, true, 'autocomplete ready', {
-          autocompleteInitialized: autocompleteInitializedRef.current,
-          inputRefAttached: true,
-          placeChangedListenerAttached: placeChangedListenerAttachedRef.current,
-        })
-
-        if (isMounted) {
-          setLocationSearchStatus({
-            type: 'info',
-            text: 'Start typing a venue name or street address.',
-          })
-        }
-      } catch (error) {
-        cleanupGooglePlacesPredictionContainers()
-        logEventFormPlacesState(organizerType, false, 'autocomplete failed', {
-          autocompleteInitialized: false,
-          errorMessage: error instanceof Error ? error.message : String(error),
-          inputRefAttached: Boolean(inputElement),
-          placeChangedListenerAttached: false,
-        })
-
-        if (isMounted) {
-          setLocationSearchStatus({
-            type: 'error',
-            text:
-              error instanceof Error
-                ? error.message
-                : 'Google Places could not be loaded. Use the address fields below.',
-          })
-        }
-      }
-    }
-
-    void initializeAutocomplete()
-
-    return () => {
-      isMounted = false
-
-      if (autocomplete) {
-        clearGoogleAutocompleteListeners(autocomplete)
-      }
-
-      autocompleteInitializedRef.current = false
-      placeChangedListenerAttachedRef.current = false
-    }
-  }, [inputElement, isGoogleMapsConfigured, onFormChange, organizerType])
-
-  function handleLocationSearchChange(event: ChangeEvent<HTMLInputElement>) {
-    const inputValue = event.target.value
-
-    logEventFormPlacesState(organizerType, true, 'location input changed', {
-      autocompleteInitialized: autocompleteInitializedRef.current,
-      inputLength: inputValue.length,
-      placeChangedListenerAttached: placeChangedListenerAttachedRef.current,
-      ...getPlacesPredictionDomState(),
-    })
-
-    if (!isGoogleMapsConfigured) {
-      return
-    }
-
-    setLocationSearchStatus({
-      type: 'info',
-      text: inputValue.trim()
-        ? 'Choose a Google Places suggestion or fill out the address fields below.'
-        : 'Start typing a venue name or street address.',
-    })
-
-    if (import.meta.env.DEV && inputValue.trim()) {
-      window.setTimeout(() => {
-        logEventFormPlacesState(organizerType, true, 'prediction dropdown check', {
-          autocompleteInitialized: autocompleteInitializedRef.current,
-          inputLength: inputValue.length,
-          placeChangedListenerAttached: placeChangedListenerAttachedRef.current,
-          ...getPlacesPredictionDomState(),
-        })
-      }, 350)
-    }
-  }
-
-  const handleLocationInputRef = useCallback(
-    (node: HTMLInputElement | null) => {
-      setInputElement(node)
-
-      logEventFormPlacesState(
-        organizerType,
-        false,
-        node ? 'input ref attached' : 'input ref detached',
-        {
-          apiKeyExists: isGoogleMapsConfigured,
-          inputRefAttached: Boolean(node),
-        },
-      )
-    },
-    [isGoogleMapsConfigured, organizerType],
-  )
-
-  const locationHelperText = locationSearchStatus?.text ?? ''
-  const locationHelperClassName = locationSearchStatus
-    ? `location-autocomplete-helper is-${locationSearchStatus.type}`
-    : 'location-autocomplete-helper'
-
-  return (
-    <label>
-      <span>Find venue or address</span>
-      <input
-        ref={handleLocationInputRef}
-        type="text"
-        defaultValue={initialLocationSearch}
-        autoComplete="off"
-        placeholder="Start typing a venue, street address, city, or ZIP"
-        onChange={handleLocationSearchChange}
-      />
-      {locationHelperText ? (
-        <small className={locationHelperClassName}>
-          {locationHelperText}
-        </small>
-      ) : null}
-    </label>
-  )
-}
-
-function logEventFormPlacesState(
-  organizerType: EventOrganizerType,
-  sharedGooglePlacesComponentLoaded: boolean,
-  message: string,
-  extra: Record<string, unknown> = {},
-) {
-  if (!import.meta.env.DEV) {
-    return
-  }
-
-  const debugState = getGoogleMapsDebugState()
-
-  console.info('[Street Team Event Form Places]', message, {
-    accountTypeUsingEventForm: organizerType,
-    googleMapsPlacesAvailable: debugState.hasWindowGoogleMapsPlaces,
-    hasStreetTeamPlacesLibrary: debugState.hasStreetTeamPlacesLibrary,
-    placesLibraryRequested: debugState.hasRequestedPlacesLibrary,
-    sharedGooglePlacesComponentLoaded,
-    ...extra,
-  })
-}
-
-function getPlacesPredictionDomState() {
-  const predictionContainers = Array.from(
-    document.querySelectorAll<HTMLElement>('.pac-container'),
-  )
-  const visiblePredictionContainers = predictionContainers.filter(
-    (container) => {
-      const style = window.getComputedStyle(container)
-
-      return (
-        style.display !== 'none' &&
-        style.visibility !== 'hidden' &&
-        style.opacity !== '0'
-      )
-    },
-  )
-
-  return {
-    pacContainerCount: predictionContainers.length,
-    pacItemCount: predictionContainers.reduce(
-      (total, container) =>
-        total + container.querySelectorAll('.pac-item').length,
-      0,
-    ),
-    visiblePacContainerCount: visiblePredictionContainers.length,
-  }
 }
 
 type InitialTicketSetupSectionProps = {
@@ -2059,10 +1515,11 @@ function OwnedEventEditCard({
 }: OwnedEventEditCardProps) {
   return (
     <article className="owned-event-card owned-event-edit-card">
-      <EventForm
+      <EventDetailsForm
         currentImageUrl={event.eventImageUrl}
         fileInputKey={fileInputKey}
         flyerFile={flyerFile}
+        formMode="edit"
         formState={formState}
         includeCancelledStatus
         isSubmitting={isSaving}
@@ -2936,14 +2393,14 @@ async function prepareEventInputForSave(input: EventFormState) {
 
   if (!geocodeAddressText) {
     return {
-      input: clearGoogleLocation(input),
+      input: clearEventGoogleLocation(input),
       warning: '',
     }
   }
 
   if (!hasGoogleMapsApiKey()) {
     return {
-      input: clearGoogleLocation(input),
+      input: clearEventGoogleLocation(input),
       warning:
         'Location was saved, but coordinates were not added because Google Maps is not configured.',
     }
@@ -2957,52 +2414,22 @@ async function prepareEventInputForSave(input: EventFormState) {
       typeof place.longitude !== 'number'
     ) {
       return {
-        input: clearGoogleLocation(input),
+        input: clearEventGoogleLocation(input),
         warning:
           'Location was saved, but Google could not find coordinates for that address.',
       }
     }
 
     return {
-      input: getFormStateFromGooglePlace(input, place),
+      input: getEventFormStateFromGooglePlace(input, place),
       warning: '',
     }
   } catch {
     return {
-      input: clearGoogleLocation(input),
+      input: clearEventGoogleLocation(input),
       warning:
         'Location was saved, but Google could not find coordinates for that address.',
     }
-  }
-}
-
-function getFormStateFromGooglePlace(
-  currentFormState: EventFormState,
-  place: ParsedGooglePlace,
-): EventFormState {
-  return {
-    ...currentFormState,
-    addressLine1: place.addressLine1 || currentFormState.addressLine1,
-    addressLine2: '',
-    city: place.city || currentFormState.city,
-    country: place.country || currentFormState.country || 'USA',
-    formattedAddress: place.formattedAddress,
-    googlePlaceId: place.googlePlaceId,
-    latitude: place.latitude,
-    longitude: place.longitude,
-    postalCode: place.postalCode || currentFormState.postalCode,
-    state: place.state || currentFormState.state,
-    venueName: place.venueName || currentFormState.venueName,
-  }
-}
-
-function clearGoogleLocation(input: EventFormState): EventFormState {
-  return {
-    ...input,
-    formattedAddress: '',
-    googlePlaceId: '',
-    latitude: null,
-    longitude: null,
   }
 }
 
@@ -3028,28 +2455,6 @@ function formatGeocodeAddress(input: EventFormState) {
     .map((part) => part.trim())
     .filter(Boolean)
     .join(', ')
-}
-
-function formatLocationSearchDefault(input: EventFormState) {
-  return (
-    input.formattedAddress ||
-    [input.venueName, input.addressLine1, input.city, input.state]
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .join(', ')
-  )
-}
-
-function isManualLocationField(fieldName: keyof EventFormState) {
-  return [
-    'addressLine1',
-    'addressLine2',
-    'city',
-    'country',
-    'postalCode',
-    'state',
-    'venueName',
-  ].includes(fieldName)
 }
 
 function joinMessage(message: string, detail: string) {
