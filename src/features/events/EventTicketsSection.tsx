@@ -303,19 +303,23 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
     }
   }
 
+  const hasTicketingConfigured = ticketTypes.length > 0
+
+  if (status === 'loading') {
+    return null
+  }
+
+  if (status === 'ready' && !hasTicketingConfigured) {
+    return null
+  }
+
   return (
     <section className="event-detail-panel event-tickets-panel">
       <h3>Tickets</h3>
 
-      {status === 'loading' ? <p>Loading ticket details...</p> : null}
-
       {status === 'error' ? <p>Ticket details could not be loaded.</p> : null}
 
-      {status === 'ready' && ticketTypes.length === 0 ? (
-        <p>Ticket details have not been added yet.</p>
-      ) : null}
-
-      {status === 'ready' && ticketTypes.length > 0 ? (
+      {status === 'ready' && hasTicketingConfigured ? (
         <>
           <div className="ticket-type-list">
             {ticketTypes.map((ticketType) => (
