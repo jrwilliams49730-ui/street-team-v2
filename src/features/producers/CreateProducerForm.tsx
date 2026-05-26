@@ -189,7 +189,7 @@ function CreateProducerForm({
             {createdProducer ? (
               <>
                 {' '}
-                <Link to={`/producers/${createdProducer.slug}`}>
+                <Link to={`/app/producers/${createdProducer.slug}`}>
                   View public profile.
                 </Link>
               </>

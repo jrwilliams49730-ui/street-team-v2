@@ -375,7 +375,7 @@ function NearYouSection() {
           <h3>Near You</h3>
           <p>Use the same radius search from Events to find nearby shows.</p>
         </div>
-        <Link to="/events" className="view-all-link">
+        <Link to="/app/events" className="view-all-link">
           Open Events
         </Link>
       </header>
@@ -552,22 +552,22 @@ function DiscoverBrowseSection() {
         <DiscoverBrowseCard
           detail="Upcoming shows, radius search, and ticket options."
           label="Events"
-          to="/events"
+          to="/app/events"
         />
         <DiscoverBrowseCard
           detail="Artists, comedians, DJs, hosts, and featured media."
           label="Performers"
-          to="/performers"
+          to="/app/performers"
         />
         <DiscoverBrowseCard
           detail="Rooms, clubs, theaters, and event spaces."
           label="Venues"
-          to="/venues"
+          to="/app/venues"
         />
         <DiscoverBrowseCard
           detail="Promoters, collectives, and event producers."
           label="Producers"
-          to="/producers"
+          to="/app/producers"
         />
       </div>
 
@@ -702,7 +702,7 @@ function RecentlyAddedSection() {
         <div className="discover-subsection">
           <div className="discover-subsection-heading">
             <h4>Upcoming events</h4>
-            <Link to="/events" className="view-all-link">
+            <Link to="/app/events" className="view-all-link">
               View all events
             </Link>
           </div>
@@ -765,7 +765,7 @@ function mapEventToFeaturedItem(event: StreetTeamEvent): FeaturedItem {
     label: 'Featured event',
     meta: [event.venueName, location].filter(Boolean).join(' | '),
     title: event.title,
-    to: `/events/${event.slug}`,
+    to: `/app/events/${event.slug}`,
     variant: 'event',
   }
 }
@@ -781,7 +781,7 @@ function mapPerformerToFeaturedItem(performer: Performer): FeaturedItem {
     meta: formatFollowerLabel(performer.followerCount),
     nameForAvatar: performer.name,
     title: performer.name,
-    to: `/performers/${performer.slug}`,
+    to: `/app/performers/${performer.slug}`,
     variant: 'profile',
   }
 }
@@ -797,7 +797,7 @@ function mapProducerToFeaturedItem(producer: Producer): FeaturedItem {
     meta: formatFollowerLabel(producer.followerCount),
     nameForAvatar: producer.name,
     title: producer.name,
-    to: `/producers/${producer.slug}`,
+    to: `/app/producers/${producer.slug}`,
     variant: 'profile',
   }
 }
@@ -813,7 +813,7 @@ function mapVenueToFeaturedItem(venue: Venue): FeaturedItem {
     meta: formatFollowerLabel(venue.followerCount),
     nameForAvatar: venue.name,
     title: venue.name,
-    to: `/venues/${venue.slug}`,
+    to: `/app/venues/${venue.slug}`,
     variant: 'profile',
   }
 }
@@ -830,7 +830,7 @@ function mapPerformerToProfilePreview(
     label: 'Performer',
     meta: formatFollowerLabel(performer.followerCount),
     name: performer.name,
-    to: `/performers/${performer.slug}`,
+    to: `/app/performers/${performer.slug}`,
   }
 }
 
@@ -844,7 +844,7 @@ function mapProducerToProfilePreview(producer: Producer): ProfilePreviewItem {
     label: 'Producer',
     meta: formatFollowerLabel(producer.followerCount),
     name: producer.name,
-    to: `/producers/${producer.slug}`,
+    to: `/app/producers/${producer.slug}`,
   }
 }
 
@@ -858,7 +858,7 @@ function mapVenueToProfilePreview(venue: Venue): ProfilePreviewItem {
     label: 'Venue',
     meta: formatFollowerLabel(venue.followerCount),
     name: venue.name,
-    to: `/venues/${venue.slug}`,
+    to: `/app/venues/${venue.slug}`,
   }
 }
 
@@ -882,7 +882,7 @@ function mapEventToSearchResult(event: StreetTeamEvent): DiscoverSearchResult {
       location,
     ]),
     title: event.title,
-    to: `/events/${event.slug}`,
+    to: `/app/events/${event.slug}`,
     type: 'Event',
   }
 }
@@ -900,7 +900,7 @@ function mapPerformerToSearchResult(
       performer.shortBio,
     ]),
     title: performer.name,
-    to: `/performers/${performer.slug}`,
+    to: `/app/performers/${performer.slug}`,
     type: 'Performer',
   }
 }
@@ -916,7 +916,7 @@ function mapProducerToSearchResult(producer: Producer): DiscoverSearchResult {
       producer.shortBio,
     ]),
     title: producer.name,
-    to: `/producers/${producer.slug}`,
+    to: `/app/producers/${producer.slug}`,
     type: 'Producer',
   }
 }
@@ -932,7 +932,7 @@ function mapVenueToSearchResult(venue: Venue): DiscoverSearchResult {
       venue.shortDescription,
     ]),
     title: venue.name,
-    to: `/venues/${venue.slug}`,
+    to: `/app/venues/${venue.slug}`,
     type: 'Venue',
   }
 }

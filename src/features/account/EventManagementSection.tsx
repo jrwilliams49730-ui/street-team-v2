@@ -868,7 +868,7 @@ function EventManagementSection({
           {message.type === 'success' &&
           message.eventStatus === 'published' &&
           message.eventSlug ? (
-            <Link to={`/events/${message.eventSlug}`}>View public event</Link>
+            <Link to={`/app/events/${message.eventSlug}`}>View public event</Link>
           ) : null}
         </p>
       ) : null}
@@ -1298,7 +1298,7 @@ function EventSetupTab({
 
       <div className="event-manage-actions">
         {event.status === 'published' ? (
-          <Link to={`/events/${event.slug}`} className="secondary-action-button">
+          <Link to={`/app/events/${event.slug}`} className="secondary-action-button">
             View Public Event
           </Link>
         ) : null}
@@ -2131,7 +2131,7 @@ function LineupPerformerSummary({ entry }: { entry: EventLineupEntry }) {
         <h4>{entry.performer.name}</h4>
         <p>{entry.performer.category}</p>
         {entry.lineupRole ? <span>{entry.lineupRole}</span> : null}
-        <Link to={`/performers/${entry.performer.slug}`}>
+        <Link to={`/app/performers/${entry.performer.slug}`}>
           View performer profile
         </Link>
       </div>

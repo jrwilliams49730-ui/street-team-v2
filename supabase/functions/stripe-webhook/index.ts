@@ -282,7 +282,7 @@ function buildTicketEmailContent(
     'Each ticket has its own QR code. Each guest will need their own ticket scanned at the door.'
   const ticketLinks = details.tickets.map((ticket) => ({
     label: `Ticket ${ticket.ticket_number} \u2014 View QR Code`,
-    url: `${appUrl}/tickets/${ticket.qr_token}`,
+    url: `${appUrl}/app/tickets/${ticket.qr_token}`,
   }))
 
   console.log('[stripe-webhook] building individual ticket links:', {

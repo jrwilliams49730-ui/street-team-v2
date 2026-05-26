@@ -59,7 +59,7 @@ function VenueDirectory() {
           {venues.map((venue) => (
             <Link
               key={venue.id}
-              to={`/venues/${venue.slug}`}
+              to={`/app/venues/${venue.slug}`}
               className="venue-card"
             >
               <div className="venue-card-header">

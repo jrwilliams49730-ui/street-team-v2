@@ -182,7 +182,7 @@ function mapPerformerFollow(
     location: performer.location,
     name: performer.name,
     profileType: 'performer',
-    publicPath: `/performers/${performer.slug}`,
+    publicPath: `/app/performers/${performer.slug}`,
     typeLabel: 'Performer',
   }
 }
@@ -201,7 +201,7 @@ function mapProducerFollow(
     location: producer.location,
     name: producer.name,
     profileType: 'producer',
-    publicPath: `/producers/${producer.slug}`,
+    publicPath: `/app/producers/${producer.slug}`,
     typeLabel: 'Producer',
   }
 }
@@ -217,7 +217,7 @@ function mapVenueFollow(follow: UserFollow, venue: Venue): FollowedProfile {
     location: venue.location,
     name: venue.name,
     profileType: 'venue',
-    publicPath: `/venues/${venue.slug}`,
+    publicPath: `/app/venues/${venue.slug}`,
     typeLabel: 'Venue',
   }
 }

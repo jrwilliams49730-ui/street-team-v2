@@ -56,7 +56,7 @@ function EventLineupSection({ eventId }: EventLineupSectionProps) {
           entry.performer ? (
             <Link
               key={entry.id}
-              to={`/performers/${entry.performer.slug}`}
+              to={`/app/performers/${entry.performer.slug}`}
               className="lineup-card"
             >
               <div className="lineup-main">

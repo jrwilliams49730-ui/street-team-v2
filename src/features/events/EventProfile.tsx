@@ -67,7 +67,7 @@ function EventProfile() {
       <section className="content-card empty-state">
         <h2>Event could not load</h2>
         <p>Please try again in a moment.</p>
-        <Link to="/events" className="back-link">
+        <Link to="/app/events" className="back-link">
           Back to events
         </Link>
       </section>
@@ -79,7 +79,7 @@ function EventProfile() {
       <section className="content-card empty-state">
         <h2>Event not found</h2>
         <p>That event is not public or does not exist.</p>
-        <Link to="/events" className="back-link">
+        <Link to="/app/events" className="back-link">
           Back to events
         </Link>
       </section>
@@ -104,7 +104,7 @@ function EventProfile() {
 
   return (
     <section className="event-profile">
-      <Link to="/events" className="back-link">
+      <Link to="/app/events" className="back-link">
         Back to events
       </Link>
 

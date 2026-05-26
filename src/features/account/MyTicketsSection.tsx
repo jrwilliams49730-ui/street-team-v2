@@ -559,7 +559,7 @@ function TicketDetailView({
           {event?.slug ? (
             <div className="my-ticket-detail-actions">
               <Link
-                to={`/events/${event.slug}`}
+                to={`/app/events/${event.slug}`}
                 className="secondary-action-button"
               >
                 Open event page

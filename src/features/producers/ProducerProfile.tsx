@@ -68,7 +68,7 @@ function ProducerProfile() {
       <section className="content-card empty-state">
         <h2>Producer profile could not load</h2>
         <p>Please try again in a moment.</p>
-        <Link to="/producers" className="back-link">
+        <Link to="/app/producers" className="back-link">
           Back to producers
         </Link>
       </section>
@@ -80,7 +80,7 @@ function ProducerProfile() {
       <section className="content-card empty-state">
         <h2>Producer not found</h2>
         <p>That producer is not in the directory yet.</p>
-        <Link to="/producers" className="back-link">
+        <Link to="/app/producers" className="back-link">
           Back to producers
         </Link>
       </section>
@@ -89,7 +89,7 @@ function ProducerProfile() {
 
   return (
     <section className="producer-profile">
-      <Link to="/producers" className="back-link">
+      <Link to="/app/producers" className="back-link">
         Back to producers
       </Link>
 

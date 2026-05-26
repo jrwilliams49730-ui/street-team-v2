@@ -248,7 +248,7 @@ Deno.serve(async (request) => {
       ? 'configured'
       : 'not_configured'
     const successUrl = isDoorSale
-      ? `${appUrl}/account?tab=my-events` +
+      ? `${appUrl}/app/account?tab=my-events` +
         `&manage_event_id=${encodeURIComponent(reservation.event_id)}` +
         '&manage_tab=box-office' +
         '&source=box_office' +
@@ -256,7 +256,7 @@ Deno.serve(async (request) => {
         `&reservation_id=${encodeURIComponent(reservation.id)}` +
         '&session_id={CHECKOUT_SESSION_ID}' +
         `&ticket_email=${ticketEmailStatus}`
-      : `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}` +
+      : `${appUrl}/app/checkout/success?session_id={CHECKOUT_SESSION_ID}` +
         `&reservation_id=${encodeURIComponent(reservation.id)}` +
         `&guest_checkout=${isGuestCheckout ? '1' : '0'}` +
         '&door_sale=0' +
@@ -306,7 +306,7 @@ Deno.serve(async (request) => {
       line_items: lineItems,
       success_url: successUrl,
       cancel_url:
-        `${appUrl}/checkout/cancelled?reservation_id=${reservation.id}` +
+        `${appUrl}/app/checkout/cancelled?reservation_id=${reservation.id}` +
         `&door_sale=${isDoorSale ? '1' : '0'}`,
       metadata,
       payment_intent_data: {

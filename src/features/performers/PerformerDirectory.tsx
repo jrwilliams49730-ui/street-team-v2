@@ -59,7 +59,7 @@ function PerformerDirectory() {
           {performers.map((performer) => (
             <Link
               key={performer.id}
-              to={`/performers/${performer.slug}`}
+              to={`/app/performers/${performer.slug}`}
               className="performer-card"
             >
               <div className="performer-card-header">

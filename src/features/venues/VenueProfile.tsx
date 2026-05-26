@@ -68,7 +68,7 @@ function VenueProfile() {
       <section className="content-card empty-state">
         <h2>Venue profile could not load</h2>
         <p>Please try again in a moment.</p>
-        <Link to="/venues" className="back-link">
+        <Link to="/app/venues" className="back-link">
           Back to venues
         </Link>
       </section>
@@ -80,7 +80,7 @@ function VenueProfile() {
       <section className="content-card empty-state">
         <h2>Venue not found</h2>
         <p>That venue is not in the directory yet.</p>
-        <Link to="/venues" className="back-link">
+        <Link to="/app/venues" className="back-link">
           Back to venues
         </Link>
       </section>
@@ -89,7 +89,7 @@ function VenueProfile() {
 
   return (
     <section className="venue-profile">
-      <Link to="/venues" className="back-link">
+      <Link to="/app/venues" className="back-link">
         Back to venues
       </Link>
 

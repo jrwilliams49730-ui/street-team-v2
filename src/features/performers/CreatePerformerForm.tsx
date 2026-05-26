@@ -310,7 +310,7 @@ function CreatePerformerForm({
             {createdPerformer ? (
               <>
                 {' '}
-                <Link to={`/performers/${createdPerformer.slug}`}>
+                <Link to={`/app/performers/${createdPerformer.slug}`}>
                   View public profile.
                 </Link>
               </>

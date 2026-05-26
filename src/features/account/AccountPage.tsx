@@ -110,7 +110,7 @@ function AccountPage() {
 
         if (isAdmin) {
           setAdminRedirectStatus('redirecting')
-          navigate('/admin', { replace: true })
+          navigate('/app/admin', { replace: true })
           return
         }
 

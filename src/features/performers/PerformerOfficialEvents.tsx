@@ -63,7 +63,7 @@ function PerformerOfficialEvents({ performerId }: PerformerOfficialEventsProps) 
           return (
             <Link
               key={entry.lineupId}
-              to={`/events/${entry.event.slug}`}
+              to={`/app/events/${entry.event.slug}`}
               className="official-event-card"
             >
               <div>

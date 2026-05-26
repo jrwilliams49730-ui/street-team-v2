@@ -262,7 +262,7 @@ function mapPerformerProfile(performer: Performer): OwnedProfile {
     initials: performer.initials,
     name: performer.name,
     profileType: 'performer',
-    publicPath: `/performers/${performer.slug}`,
+    publicPath: `/app/performers/${performer.slug}`,
     typeLabel: 'Performer',
   }
 }
@@ -274,7 +274,7 @@ function mapProducerProfile(producer: Producer): OwnedProfile {
     initials: producer.initials,
     name: producer.name,
     profileType: 'producer',
-    publicPath: `/producers/${producer.slug}`,
+    publicPath: `/app/producers/${producer.slug}`,
     typeLabel: 'Producer',
   }
 }
@@ -286,7 +286,7 @@ function mapVenueProfile(venue: Venue): OwnedProfile {
     initials: venue.initials,
     name: venue.name,
     profileType: 'venue',
-    publicPath: `/venues/${venue.slug}`,
+    publicPath: `/app/venues/${venue.slug}`,
     typeLabel: 'Venue',
   }
 }

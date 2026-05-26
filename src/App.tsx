@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import {
+  Navigate,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom'
 import AccountPage from './features/account/AccountPage'
 import { useAuth } from './features/account/auth-context'
 import type { AccountType } from './features/account/accountTypes'
@@ -12,6 +19,7 @@ import {
 import DiscoverPage from './features/discover/DiscoverPage'
 import EventDirectory from './features/events/EventDirectory'
 import EventProfile from './features/events/EventProfile'
+import LandingPage from './features/landing/LandingPage'
 import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
 import ProducerDirectory from './features/producers/ProducerDirectory'
@@ -30,12 +38,12 @@ type NavigationSection = {
 const publicNavigationSections = [
   {
     key: 'discover',
-    path: '/discover',
+    path: '/app',
     label: 'Discover',
   },
   {
     key: 'events',
-    path: '/events',
+    path: '/app/events',
     label: 'Events',
   },
 ] satisfies NavigationSection[]
@@ -50,6 +58,60 @@ function AccountStatusBadge() {
 }
 
 function App() {
+  return (
+    <Routes>
+      <Route index element={<LandingPage />} />
+
+      <Route path="app" element={<AppShell />}>
+        <Route index element={<DiscoverPage />} />
+        <Route path="discover" element={<DiscoverPage />} />
+        <Route path="performers" element={<PerformerDirectory />} />
+        <Route path="performers/:slug" element={<PerformerProfile />} />
+        <Route path="producers" element={<ProducerDirectory />} />
+        <Route path="producers/:slug" element={<ProducerProfile />} />
+        <Route path="venues" element={<VenueDirectory />} />
+        <Route path="venues/:slug" element={<VenueProfile />} />
+        <Route path="events" element={<EventDirectory />} />
+        <Route path="events/:slug" element={<EventProfile />} />
+        <Route path="tickets/:qrToken" element={<GuestTicketPage />} />
+        <Route
+          path="my-tickets"
+          element={<Navigate to="/app/account?tab=my-tickets" replace />}
+        />
+        <Route path="checkout/success" element={<CheckoutSuccessPage />} />
+        <Route
+          path="checkout/cancelled"
+          element={<CheckoutCancelledPage />}
+        />
+        <Route path="account" element={<AccountPage />} />
+        <Route path="admin" element={<AdminPage />} />
+        <Route path="*" element={<Navigate to="/app" replace />} />
+      </Route>
+
+      <Route path="discover" element={<RedirectToAppPath />} />
+      <Route path="performers" element={<RedirectToAppPath />} />
+      <Route path="performers/:slug" element={<RedirectToAppPath />} />
+      <Route path="producers" element={<RedirectToAppPath />} />
+      <Route path="producers/:slug" element={<RedirectToAppPath />} />
+      <Route path="venues" element={<RedirectToAppPath />} />
+      <Route path="venues/:slug" element={<RedirectToAppPath />} />
+      <Route path="events" element={<RedirectToAppPath />} />
+      <Route path="events/:slug" element={<RedirectToAppPath />} />
+      <Route path="tickets/:qrToken" element={<RedirectToAppPath />} />
+      <Route
+        path="my-tickets"
+        element={<Navigate to="/app/account?tab=my-tickets" replace />}
+      />
+      <Route path="checkout/success" element={<RedirectToAppPath />} />
+      <Route path="checkout/cancelled" element={<RedirectToAppPath />} />
+      <Route path="account" element={<RedirectToAppPath />} />
+      <Route path="admin" element={<RedirectToAppPath />} />
+      <Route path="*" element={<Navigate to="/app" replace />} />
+    </Routes>
+  )
+}
+
+function AppShell() {
   const { session } = useAuth()
   const location = useLocation()
   const [accountType, setAccountType] = useState<AccountType>('fan')
@@ -126,32 +188,20 @@ function App() {
           ))}
         </nav>
 
-        <Routes>
-          <Route path="/" element={<Navigate to="/discover" replace />} />
-          <Route path="/discover" element={<DiscoverPage />} />
-          <Route path="/performers" element={<PerformerDirectory />} />
-          <Route path="/performers/:slug" element={<PerformerProfile />} />
-          <Route path="/producers" element={<ProducerDirectory />} />
-          <Route path="/producers/:slug" element={<ProducerProfile />} />
-          <Route path="/venues" element={<VenueDirectory />} />
-          <Route path="/venues/:slug" element={<VenueProfile />} />
-          <Route path="/events" element={<EventDirectory />} />
-          <Route path="/events/:slug" element={<EventProfile />} />
-          <Route path="/tickets/:qrToken" element={<GuestTicketPage />} />
-          <Route
-            path="/my-tickets"
-            element={<Navigate to="/account?tab=my-tickets" replace />}
-          />
-          <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
-          <Route
-            path="/checkout/cancelled"
-            element={<CheckoutCancelledPage />}
-          />
-          <Route path="/account" element={<AccountPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
+        <Outlet />
       </div>
     </main>
+  )
+}
+
+function RedirectToAppPath() {
+  const location = useLocation()
+
+  return (
+    <Navigate
+      to={`/app${location.pathname}${location.search}${location.hash}`}
+      replace
+    />
   )
 }
 
@@ -163,7 +213,7 @@ function getAccountNavigationSection(
     return {
       key: 'account',
       label: 'Login',
-      path: '/account',
+      path: '/app/account',
     }
   }
 
@@ -171,7 +221,7 @@ function getAccountNavigationSection(
     return {
       key: 'account',
       label: 'My Profile',
-      path: '/account?tab=my-profile',
+      path: '/app/account?tab=my-profile',
     }
   }
 
@@ -179,7 +229,7 @@ function getAccountNavigationSection(
     return {
       key: 'account',
       label: 'Dashboard',
-      path: '/account?tab=my-profile',
+      path: '/app/account?tab=my-profile',
     }
   }
 
@@ -187,14 +237,14 @@ function getAccountNavigationSection(
     return {
       key: 'account',
       label: 'Dashboard',
-      path: '/account?tab=my-profile',
+      path: '/app/account?tab=my-profile',
     }
   }
 
   return {
     key: 'account',
     label: 'My Stuff',
-    path: '/account?tab=my-tickets',
+    path: '/app/account?tab=my-tickets',
   }
 }
 
@@ -204,15 +254,16 @@ function isNavigationSectionActive(
 ) {
   if (section.key === 'discover') {
     return (
-      pathname === '/discover' ||
-      pathname.startsWith('/performers') ||
-      pathname.startsWith('/producers') ||
-      pathname.startsWith('/venues')
+      pathname === '/app' ||
+      pathname === '/app/discover' ||
+      pathname.startsWith('/app/performers') ||
+      pathname.startsWith('/app/producers') ||
+      pathname.startsWith('/app/venues')
     )
   }
 
   if (section.key === 'account') {
-    return pathname === '/account' || pathname === '/my-tickets'
+    return pathname === '/app/account' || pathname === '/app/my-tickets'
   }
 
   return pathname.startsWith(section.path)

@@ -61,7 +61,7 @@ function ProducerDirectory() {
           {producers.map((producer) => (
             <Link
               key={producer.id}
-              to={`/producers/${producer.slug}`}
+              to={`/app/producers/${producer.slug}`}
               className="producer-card"
             >
               <div className="producer-card-header">

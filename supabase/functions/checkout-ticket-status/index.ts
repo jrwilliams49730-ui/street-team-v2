@@ -203,7 +203,7 @@ Deno.serve(async (request) => {
       qrToken: ticket.qr_token,
       ticketNumber: ticket.ticket_number,
       ticketStatus: ticket.ticket_status,
-      ticketUrl: `${appUrl}/tickets/${ticket.qr_token}`,
+      ticketUrl: `${appUrl}/app/tickets/${ticket.qr_token}`,
     })),
   })
 })

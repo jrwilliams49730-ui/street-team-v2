@@ -347,7 +347,7 @@ export function CheckoutSuccessPage() {
 
         <div className="checkout-return-actions">
           <Link
-            to={isDoorSale ? '/account?tab=my-events' : '/events'}
+            to={isDoorSale ? '/app/account?tab=my-events' : '/app/events'}
             className="auth-submit-button"
           >
             {isDoorSale ? 'Return to My Events' : 'Return to Events'}
@@ -355,7 +355,7 @@ export function CheckoutSuccessPage() {
 
           {fanTicketLinkStatus === 'visible' ? (
             <Link
-              to="/account?tab=my-tickets"
+              to="/app/account?tab=my-tickets"
               className="secondary-action-button"
             >
               Go to My Tickets
@@ -619,7 +619,7 @@ export function CheckoutCancelledPage() {
 
         <div className="checkout-return-actions">
           <Link
-            to={isDoorSale ? '/account?tab=my-events' : '/events'}
+            to={isDoorSale ? '/app/account?tab=my-events' : '/app/events'}
             className="auth-submit-button"
           >
             {isDoorSale ? 'Return to My Events' : 'Return to Events'}

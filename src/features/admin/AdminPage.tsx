@@ -247,7 +247,7 @@ function AdminPage() {
       rememberAdminExit(session.user.id)
     }
 
-    navigate('/discover', { replace: true })
+    navigate('/app', { replace: true })
   }
 
   async function handleSignOut() {
@@ -262,7 +262,7 @@ function AdminPage() {
         throw error
       }
 
-      navigate('/discover', { replace: true })
+      navigate('/app', { replace: true })
     } catch (error) {
       setActionMessage({
         type: 'error',
@@ -290,7 +290,7 @@ function AdminPage() {
       <section className="content-card empty-state">
         <h2>Access denied</h2>
         <p>This hidden admin route is restricted to approved admin users.</p>
-        <Link to={session ? '/discover' : '/account'} className="back-link">
+        <Link to={session ? '/app' : '/app/account'} className="back-link">
           {session ? 'Return to Discover' : 'Log in'}
         </Link>
       </section>
@@ -302,7 +302,7 @@ function AdminPage() {
       <section className="content-card empty-state">
         <h2>Admin access could not load</h2>
         <p>{message || 'Please try again in a moment.'}</p>
-        <Link to="/discover" className="back-link">
+        <Link to="/app" className="back-link">
           Return to Discover
         </Link>
       </section>
@@ -537,7 +537,7 @@ function EventsSection({
             </td>
             <td>
               {event.publicPath ? (
-                <Link to={event.publicPath}>View</Link>
+                <Link to={toAppPath(event.publicPath)}>View</Link>
               ) : (
                 'Unavailable'
               )}
@@ -885,6 +885,14 @@ function createEmptyAdminPanelData(): AdminPanelData {
     reservations: [],
     users: [],
   }
+}
+
+function toAppPath(path: string | null) {
+  if (!path) {
+    return '/app'
+  }
+
+  return path.startsWith('/app') ? path : `/app${path}`
 }
 
 export default AdminPage

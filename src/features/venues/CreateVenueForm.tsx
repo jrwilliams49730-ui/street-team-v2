@@ -185,7 +185,7 @@ function CreateVenueForm({
             {createdVenue ? (
               <>
                 {' '}
-                <Link to={`/venues/${createdVenue.slug}`}>
+                <Link to={`/app/venues/${createdVenue.slug}`}>
                   View public profile.
                 </Link>
               </>

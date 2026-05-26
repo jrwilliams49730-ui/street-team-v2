@@ -73,7 +73,7 @@ function PerformerProfile() {
       <section className="content-card empty-state">
         <h2>Performer profile could not load</h2>
         <p>Please try again in a moment.</p>
-        <Link to="/performers" className="back-link">
+        <Link to="/app/performers" className="back-link">
           Back to performers
         </Link>
       </section>
@@ -85,7 +85,7 @@ function PerformerProfile() {
       <section className="content-card empty-state">
         <h2>Performer not found</h2>
         <p>That performer is not in the directory yet.</p>
-        <Link to="/performers" className="back-link">
+        <Link to="/app/performers" className="back-link">
           Back to performers
         </Link>
       </section>
@@ -94,7 +94,7 @@ function PerformerProfile() {
 
   return (
     <section className="performer-profile">
-      <Link to="/performers" className="back-link">
+      <Link to="/app/performers" className="back-link">
         Back to performers
       </Link>
 

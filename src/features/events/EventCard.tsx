@@ -16,7 +16,7 @@ function EventCard({ distanceMiles = null, event }: EventCardProps) {
   const location = formatEventLocation(event)
 
   return (
-    <Link to={`/events/${event.slug}`} className="event-card">
+    <Link to={`/app/events/${event.slug}`} className="event-card">
       {event.eventImageUrl ? (
         <div className="event-card-image-frame">
           <img

@@ -351,7 +351,7 @@ function EventTicketsSection({ eventId }: EventTicketsSectionProps) {
                         {claimMessage.showMyTicketsLink ? (
                           <>
                             {' '}
-                            <Link to="/account?tab=my-tickets">
+                            <Link to="/app/account?tab=my-tickets">
                               View tickets in your Account.
                             </Link>
                           </>
@@ -559,7 +559,7 @@ function TicketMessageCard({ message }: { message: ClaimMessage }) {
       <p>{message.text}</p>
       {message.showMyTicketsLink ? (
         <p>
-          <Link to="/account?tab=my-tickets">View tickets in your Account.</Link>
+          <Link to="/app/account?tab=my-tickets">View tickets in your Account.</Link>
         </p>
       ) : null}
     </div>

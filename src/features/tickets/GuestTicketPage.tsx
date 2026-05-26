@@ -74,7 +74,7 @@ function GuestTicketPage() {
           <span className="checkout-return-kicker">Street Team Ticket</span>
           <h2>Ticket unavailable.</h2>
           <p>This ticket could not be loaded right now.</p>
-          <Link to="/events" className="auth-submit-button">
+          <Link to="/app/events" className="auth-submit-button">
             Return to Events
           </Link>
         </div>
@@ -85,7 +85,7 @@ function GuestTicketPage() {
           <span className="checkout-return-kicker">Street Team Ticket</span>
           <h2>Ticket not found.</h2>
           <p>This ticket link is invalid or no longer available.</p>
-          <Link to="/events" className="auth-submit-button">
+          <Link to="/app/events" className="auth-submit-button">
             Return to Events
           </Link>
         </div>
@@ -160,7 +160,7 @@ function GuestTicketPage() {
               <>
                 {ticket.previousQrToken ? (
                   <Link
-                    to={`/tickets/${ticket.previousQrToken}`}
+                    to={`/app/tickets/${ticket.previousQrToken}`}
                     className="secondary-action-button"
                   >
                     Previous ticket
@@ -175,7 +175,7 @@ function GuestTicketPage() {
                 )}
                 {ticket.nextQrToken ? (
                   <Link
-                    to={`/tickets/${ticket.nextQrToken}`}
+                    to={`/app/tickets/${ticket.nextQrToken}`}
                     className="secondary-action-button"
                   >
                     Next ticket
@@ -192,7 +192,7 @@ function GuestTicketPage() {
             ) : null}
             {ticket.eventSlug ? (
               <Link
-                to={`/events/${ticket.eventSlug}`}
+                to={`/app/events/${ticket.eventSlug}`}
                 className="secondary-action-button"
               >
                 Open event page
