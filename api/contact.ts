@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { Resend } from 'resend'
+import { createClient } from '@supabase/supabase-js'
 
 const allowedInterestTypes = [
   'Supporting the launch',
@@ -32,6 +32,7 @@ type JsonPayload = {
 
 const maxBodyLength = 10_000
 const maxMessageLength = 2_000
+const publicErrorMessage = 'Something went wrong. Please try again.'
 
 function sendJson(
   response: ServerResponse,
@@ -111,7 +112,9 @@ function validatePayload(body: unknown): ContactPayload | string {
   const name = cleanString(body.name).slice(0, 120)
   const email = cleanString(body.email).slice(0, 160)
   const phone = cleanString(body.phone).slice(0, 80)
-  const interest = cleanString(body.interest ?? body.interestType)
+  const interest = cleanString(
+    body.interest ?? body.interestType ?? body.interest_type,
+  )
   const message = cleanString(body.message)
 
   if (!name || !email || !interest || !message) {
@@ -139,18 +142,6 @@ function validatePayload(body: unknown): ContactPayload | string {
   }
 }
 
-function buildEmailBody(payload: ContactPayload) {
-  return [
-    `Name: ${payload.name}`,
-    `Email: ${payload.email}`,
-    `Phone: ${payload.phone || 'Not provided'}`,
-    `Interest: ${payload.interest}`,
-    '',
-    'Message:',
-    payload.message,
-  ].join('\n')
-}
-
 export default async function handler(
   request: ApiRequest,
   response: ServerResponse,
@@ -163,15 +154,17 @@ export default async function handler(
     return
   }
 
-  const apiKey = process.env.RESEND_API_KEY?.trim()
-  const toEmail = process.env.CONTACT_TO_EMAIL?.trim()
-  const fromEmail = process.env.CONTACT_FROM_EMAIL?.trim()
+  const supabaseUrl =
+    process.env.SUPABASE_URL?.trim() ?? process.env.VITE_SUPABASE_URL?.trim()
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
 
-  if (!apiKey || !toEmail || !fromEmail) {
-    sendJson(response, 500, {
-      ok: false,
-      error: 'Contact email is not configured.',
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    console.error('Contact submission insert failed', {
+      hasSupabaseServiceRoleKey: Boolean(supabaseServiceRoleKey),
+      hasSupabaseUrl: Boolean(supabaseUrl),
+      reason: 'missing_supabase_configuration',
     })
+    sendJson(response, 500, { ok: false, error: publicErrorMessage })
     return
   }
 
@@ -182,63 +175,53 @@ export default async function handler(
     const validationResult = validatePayload(body)
 
     if (typeof validationResult === 'string') {
-      sendJson(response, 400, { ok: false, error: validationResult })
+      sendJson(response, 400, { ok: false, error: publicErrorMessage })
       return
     }
 
     payload = validationResult
   } catch (error) {
-    sendJson(response, 400, {
-      ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Request body could not be read.',
-    })
+    console.error('Contact submission request failed', error)
+    sendJson(response, 400, { ok: false, error: publicErrorMessage })
     return
   }
 
-  try {
-    const resend = new Resend(apiKey)
-    const { data, error } = await resend.emails.send({
-      from: `Street Team <${fromEmail}>`,
-      replyTo: payload.email,
-      subject: `New Street Team Landing Page Inquiry - ${payload.interest}`,
-      text: buildEmailBody(payload),
-      to: toEmail,
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+
+  const { data, error } = await supabase
+    .from('contact_submissions')
+    .insert({
+      email: payload.email,
+      interest_type: payload.interest,
+      message: payload.message,
+      name: payload.name,
+      phone: payload.phone || null,
+      source: 'street_team_landing_page',
+      status: 'new',
     })
+    .select('id')
+    .single()
 
-    if (error || !data?.id) {
-      console.error('Contact email failed', error ?? data)
-      sendJson(response, 502, {
-        ok: false,
-        error: getResendErrorMessage(error) ?? 'Contact email failed to send.',
-      })
-      return
-    }
-
-    console.log('Contact email sent', data)
-    sendJson(response, 200, { ok: true })
-  } catch (error) {
-    console.error('Contact email failed', error)
-    sendJson(response, 500, {
-      ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Contact email failed to send.',
+  if (error || !data?.id) {
+    console.error('Contact submission insert failed', {
+      error,
+      payload: {
+        email: payload.email,
+        hasPhone: Boolean(payload.phone),
+        interest: payload.interest,
+        messageLength: payload.message.length,
+        name: payload.name,
+      },
     })
-  }
-}
-
-function getResendErrorMessage(error: unknown) {
-  if (!error || typeof error !== 'object') {
-    return null
+    sendJson(response, 500, { ok: false, error: publicErrorMessage })
+    return
   }
 
-  if ('message' in error && typeof error.message === 'string') {
-    return error.message
-  }
-
-  return null
+  console.log('Contact submission saved', { id: data.id })
+  sendJson(response, 200, { ok: true })
 }

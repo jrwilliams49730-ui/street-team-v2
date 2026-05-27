@@ -20,6 +20,7 @@ import DiscoverPage from './features/discover/DiscoverPage'
 import EventDirectory from './features/events/EventDirectory'
 import EventProfile from './features/events/EventProfile'
 import LandingPage from './features/landing/LandingPage'
+import LaunchFundPage from './features/landing/LaunchFundPage'
 import PerformerDirectory from './features/performers/PerformerDirectory'
 import PerformerProfile from './features/performers/PerformerProfile'
 import ProducerDirectory from './features/producers/ProducerDirectory'
@@ -61,6 +62,7 @@ function App() {
   return (
     <Routes>
       <Route index element={<LandingPage />} />
+      <Route path="launch-fund" element={<LaunchFundPage />} />
 
       <Route path="app" element={<AppShell />}>
         <Route index element={<DiscoverPage />} />

@@ -127,6 +127,14 @@
   min-height: 38rem;
 }
 
+.launch-fund-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 0.8fr);
+  gap: clamp(2rem, 6vw, 4rem);
+  align-items: center;
+  min-height: 34rem;
+}
+
 .raise-hero-copy,
 .raise-section-heading,
 .raise-investor-copy,
@@ -188,6 +196,14 @@
 .raise-hero-copy > p {
   max-width: 45rem;
   font-size: clamp(1rem, 2vw, 1.18rem);
+}
+
+.raise-disclaimer {
+  border: 2px solid rgba(214, 185, 138, 0.7);
+  padding: 0.95rem;
+  color: var(--raise-cream);
+  background: rgba(214, 40, 40, 0.12);
+  font-weight: 850;
 }
 
 .raise-actions {
@@ -546,6 +562,46 @@
   box-shadow: none;
 }
 
+.launch-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.launch-payment-card {
+  border: 2px solid rgba(245, 243, 232, 0.2);
+  border-radius: 0;
+  color: var(--raise-cream);
+  background: var(--raise-black);
+  box-shadow: 0.42rem 0.42rem 0 var(--raise-red);
+}
+
+.launch-payment-card .st-card-content {
+  display: flex;
+  min-height: 10rem;
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.launch-payment-card svg {
+  color: var(--raise-red);
+}
+
+.launch-payment-card .st-button {
+  width: 100%;
+  min-height: 4rem;
+  justify-content: space-between;
+  box-shadow: none;
+  text-align: left;
+}
+
+.launch-payment-card-investor {
+  background: var(--raise-charcoal);
+}
+
 .raise-investor-grid {
   grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr);
 }
@@ -577,10 +633,26 @@
   margin-top: 0.8rem;
 }
 
+.launch-investor-tiers {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
 .raise-investor-tiers div {
   border: 2px solid rgba(245, 243, 232, 0.45);
   padding: 1rem;
   background: var(--raise-black);
+}
+
+.launch-investor-tiers div {
+  border: 2px solid rgba(245, 243, 232, 0.45);
+  padding: 1rem;
+  color: var(--raise-cream);
+  background: var(--raise-black);
+  font-size: 1.15rem;
+  font-weight: 950;
+  text-transform: uppercase;
 }
 
 .raise-investor-tiers strong {
@@ -595,12 +667,32 @@
 
 .raise-contact-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(20rem, 1.15fr);
-  gap: clamp(2rem, 5vw, 3rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(2.5rem, 6vw, 4rem);
   align-items: start;
 }
 
+.raise-contact-grid > * {
+  min-width: 0;
+}
+
+.raise-contact-grid .raise-section-heading {
+  width: 100%;
+  max-width: 36rem;
+}
+
+.raise-contact-grid .raise-section-heading h2 {
+  max-width: 100%;
+  font-size: clamp(1.9rem, 3vw, 2.75rem);
+  line-height: 1.05;
+  overflow-wrap: break-word;
+  text-transform: none;
+  word-break: normal;
+}
+
 .raise-contact-card {
+  width: 100%;
+  min-width: 0;
   border: 2px solid var(--raise-cream);
   border-radius: 0;
   color: var(--raise-cream);
@@ -610,6 +702,7 @@
 
 .raise-contact-form {
   display: grid;
+  min-width: 0;
   gap: 1rem;
 }
 
@@ -752,13 +845,15 @@
 
 @media (max-width: 58rem) {
   .raise-hero-grid,
+  .launch-fund-hero-grid,
   .raise-split,
   .raise-investor-grid,
   .raise-contact-grid {
     grid-template-columns: 1fr;
   }
 
-  .raise-hero-grid {
+  .raise-hero-grid,
+  .launch-fund-hero-grid {
     min-height: 0;
   }
 

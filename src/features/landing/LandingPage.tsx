@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ArrowRight,
-  BadgeDollarSign,
   CheckCircle2,
   Gift,
   MapPin,
@@ -39,38 +39,7 @@ type ContactApiResponse = {
   ok?: boolean
 }
 
-const supportTiers = [
-  {
-    amount: '$10',
-    text: 'Help push the launch forward. Every bit matters.',
-    title: 'Early Supporter',
-  },
-  {
-    amount: '$25',
-    text: 'Support the grassroots release and get early updates.',
-    title: 'Street Team Supporter',
-  },
-  {
-    amount: '$50',
-    text: 'Be part of the first wave helping local events get seen.',
-    title: 'Founding Fan',
-  },
-  {
-    amount: '$100',
-    text: 'Help fund testing, polish, launch materials, and early ads.',
-    title: 'Launch Backer',
-  },
-  {
-    amount: '$250',
-    text: 'Great for creators, small businesses, venues, and organizers.',
-    title: 'Local Builder',
-  },
-  {
-    amount: '$500',
-    text: 'A higher-level supporter helping us launch the right way.',
-    title: 'Community Founder',
-  },
-]
+const contactFormErrorMessage = 'Something went wrong. Please try again.'
 
 const raiseUses = [
   'Legal setup and company protection',
@@ -83,50 +52,31 @@ const raiseUses = [
 const featureCards = [
   {
     icon: MapPin,
-    text: 'A local discovery layer for shows, venues, performers, and nearby events.',
-    title: 'Discovery',
+    text: 'Find local shows, venues, performers, and nearby events in one place.',
+    title: 'Discover',
   },
   {
     icon: Ticket,
-    text: 'A low-fee ticket office built to keep fees low and checkout simple.',
-    title: 'Ticket Office',
+    text: 'Give organizers a low-fee ticketing flow built for local event nights.',
+    title: 'Ticketing',
   },
   {
     icon: Users,
-    text: 'Trackable fan links turn real word-of-mouth into measurable promotion.',
-    title: 'Street Team Links',
+    text: 'Fans share trackable Street Team links that turn word-of-mouth into real momentum.',
+    title: 'Share',
   },
   {
     icon: Gift,
-    text: 'Fans earn points toward digital gift cards when promotion helps move tickets.',
-    title: 'Fan Rewards',
+    text: 'Fans earn points toward digital gift cards when their promotion helps move tickets.',
+    title: 'Earn Gift Cards',
   },
 ]
 
-const howItWorksSteps = [
-  'Fans discover local events and performers.',
-  'Fans buy tickets through a low-fee ticket office.',
-  'Fans share events using trackable Street Team links.',
-  'When fan promotion helps move tickets, fans earn points.',
-  'Points can be redeemed for digital gift cards.',
-]
-
-const investorTiers = [
-  {
-    amount: '$1,500',
-    text: 'For early believers who want a deeper role in the launch.',
-    title: 'Founding Investor Hybrid',
-  },
-  {
-    amount: '$3,000',
-    text: 'For supporters who can help with capital, connections, and rollout.',
-    title: 'Founding Partner',
-  },
-  {
-    amount: '$5,000+',
-    text: 'For serious early conversations with strategic value.',
-    title: 'Strategic Founding Partner',
-  },
+const heroLoop = [
+  'Discover local events',
+  'Buy tickets with fewer fees',
+  'Share trackable fan links',
+  'Earn points toward gift cards',
 ]
 
 const initialFormState: ContactFormState = {
@@ -160,10 +110,7 @@ function LogoMark() {
         </div>
       )}
       <p>Fight the Algorithm</p>
-      <span>
-        Discover events. Sell tickets. Reward the fans who help spread the
-        word.
-      </span>
+      <span>Local discovery, ticketing, and fan-powered promotion.</span>
     </div>
   )
 }
@@ -216,9 +163,7 @@ function StreetTeamLandingPage() {
       payload.message.length > 2000
     ) {
       setSubmitStatus('error')
-      setSubmitError(
-        'Name, valid email, interest type, and message are required. Message must be 2000 characters or fewer.',
-      )
+      setSubmitError(contactFormErrorMessage)
       return
     }
 
@@ -238,20 +183,14 @@ function StreetTeamLandingPage() {
       }))) as ContactApiResponse
 
       if (!response.ok || result.ok !== true) {
-        throw new Error(
-          result.error || `Contact API failed with status ${response.status}.`,
-        )
+        throw new Error(result.error || contactFormErrorMessage)
       }
 
       setFormState(initialFormState)
       setSubmitStatus('success')
-    } catch (error) {
+    } catch {
       setSubmitStatus('error')
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : 'Contact request failed. Please try again.',
-      )
+      setSubmitError(contactFormErrorMessage)
     }
   }
 
@@ -269,30 +208,23 @@ function StreetTeamLandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: 'easeOut' }}
             >
-              <span className="raise-badge">
-                Grassroots Capital Raise + Launch Fund
-              </span>
+              <span className="raise-badge">Street Team Launch Fund</span>
               <h1 id="raise-hero-title">
-                Invest in the platform helping local events fight the algorithm.
+                Street Team helps local events get seen.
               </h1>
               <p>
-                Street Team is raising grassroots launch capital to protect the
-                company, finish the release build, and launch the first market.
-                We are building a performer and event discovery platform, a
-                low-fee ticket office, and a fan-powered promotion system that
-                rewards fans with digital gift cards when they help promote the
-                events they love.
+                Street Team is a local event discovery, ticketing, and
+                fan-powered promotion platform. It helps organizers reach people
+                who care, sell tickets with fewer fees, and reward the fans who
+                spread the word.
               </p>
 
               <div className="raise-actions">
                 <Button asChild>
-                  <a
-                    href="#contact"
-                    onClick={() => chooseInterestType('Supporting the launch')}
-                  >
-                    Invest / Support the Launch
+                  <Link to="/launch-fund">
+                    Support the Launch
                     <ArrowRight aria-hidden="true" size={18} />
-                  </a>
+                  </Link>
                 </Button>
                 <Button asChild variant="secondary">
                   <a
@@ -301,7 +233,7 @@ function StreetTeamLandingPage() {
                       chooseInterestType('Founding investor conversation')
                     }
                   >
-                    Founding Investor Info
+                    Private Investor Conversation
                   </a>
                 </Button>
               </div>
@@ -317,14 +249,14 @@ function StreetTeamLandingPage() {
                   <div className="raise-preview-panel">
                     <div className="raise-preview-heading">
                       <div>
-                        <span>Launch Fund</span>
-                        <h2>Protected. Polished. Ready.</h2>
+                        <span>The Street Team Loop</span>
+                        <h2>Find it. Share it. Fill the room.</h2>
                       </div>
-                      <ShieldCheck aria-hidden="true" size={34} />
+                      <Megaphone aria-hidden="true" size={34} />
                     </div>
 
                     <div className="raise-preview-list">
-                      {raiseUses.map((item) => (
+                      {heroLoop.map((item) => (
                         <div key={item}>
                           <CheckCircle2 aria-hidden="true" size={18} />
                           <span>{item}</span>
@@ -333,11 +265,11 @@ function StreetTeamLandingPage() {
                     </div>
                   </div>
 
-                  <div className="raise-preview-stats" aria-label="Launch goals">
+                  <div className="raise-preview-stats" aria-label="App model">
                     {[
-                      ['Protect', 'company'],
-                      ['Test', 'release build'],
-                      ['Launch', 'first market'],
+                      ['Discover', 'events'],
+                      ['Ticket', 'sales'],
+                      ['Reward', 'fans'],
                     ].map(([label, detail]) => (
                       <div key={label}>
                         <strong>{label}</strong>
@@ -354,20 +286,25 @@ function StreetTeamLandingPage() {
 
       <section className="raise-red-band">
         <div className="raise-shell">
-          <h2>Local events do not fail because people do not care.</h2>
+          <h2>Local events are getting buried.</h2>
           <p>
-            They fail because people never see them. Street Team is being built
-            to help organizers reach people through discovery, ticketing, and
-            fan-powered promotion.
+            Social algorithms decide who sees the poster, and paid ads can burn
+            cash before the right people ever hear about the event. Street Team
+            gives local organizers another way to build momentum.
           </p>
         </div>
       </section>
 
-      <section className="raise-section">
+      <section className="raise-section" id="how-it-works">
         <div className="raise-shell">
           <div className="raise-section-heading">
-            <span>What we are building</span>
-            <h2>Fans become the growth engine for local events.</h2>
+            <span>How it works</span>
+            <h2>Discover. Ticket. Share. Earn.</h2>
+            <p>
+              Street Team connects the event listing, ticket purchase, fan
+              sharing, and reward loop so promotion can come from the people
+              already excited to help.
+            </p>
           </div>
 
           <div className="raise-feature-grid">
@@ -393,14 +330,12 @@ function StreetTeamLandingPage() {
       <section className="raise-section raise-charcoal" id="why">
         <div className="raise-shell raise-split">
           <div className="raise-section-heading">
-            <span>Launch fund</span>
-            <h2>Why We&apos;re Raising</h2>
+            <span>Why we are raising</span>
+            <h2>Protect the company. Polish the app. Launch the pilot.</h2>
             <p>
-              We are raising launch capital to get Street Team protected,
-              polished, and ready for a real first-market release. The money
-              helps cover legal setup, trademark and brand protection, app
-              testing, launch ads, promotional materials, and the Myrtle Beach
-              pilot rollout.
+              The launch fund helps Street Team move from a working product
+              into a protected, tested, market-ready release for the Myrtle
+              Beach pilot.
             </p>
           </div>
 
@@ -417,128 +352,29 @@ function StreetTeamLandingPage() {
         </div>
       </section>
 
-      <section className="raise-section" id="how-it-works">
+      <section className="raise-footer-cta" id="support">
         <div className="raise-shell">
-          <div className="raise-section-heading">
-            <span>The model</span>
-            <h2>How Street Team Works</h2>
-          </div>
-
-          <div className="raise-steps">
-            {howItWorksSteps.map((step, index) => (
-              <article key={step} className="raise-step">
-                <strong>{index + 1}</strong>
-                <p>{step}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="raise-section raise-fans-section">
-        <div className="raise-shell raise-split">
-          <div className="raise-section-heading">
-            <span>Fan-powered promotion</span>
-            <h2>Fans Become the Street Team</h2>
-            <p>
-              Instead of asking organizers to rely only on social media posts or
-              expensive ads, Street Team gives fans a reason to help spread the
-              word. Fans can share the events they care about, help bring people
-              through the door, and earn points toward digital gift cards when
-              their promotion helps sell tickets.
-            </p>
-          </div>
-
-          <div className="raise-poster-card">
-            <Megaphone aria-hidden="true" size={42} />
-            <h3>Word-of-mouth should be measurable.</h3>
-            <p>
-              Street Team links connect fan sharing to event momentum so local
-              organizers can see what is actually helping.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="raise-section raise-charcoal" id="support">
-        <div className="raise-shell">
-          <div className="raise-section-heading">
-            <span>Grassroots Launch Fund</span>
-            <h2>Every Bit Helps</h2>
-            <p>
-              This is not all-or-nothing. Public supporter contributions help
-              fund the launch. Larger founding investor opportunities are
-              handled privately with proper paperwork.
-            </p>
-          </div>
-
-          <div className="raise-tier-grid">
-            {supportTiers.map((tier) => (
-              <Card key={tier.title} className="raise-tier-card">
-                <CardContent>
-                  <strong>{tier.amount}</strong>
-                  <h3>{tier.title}</h3>
-                  <p>{tier.text}</p>
-                  <Button asChild>
-                    <a
-                      href="#contact"
-                      onClick={() =>
-                        chooseInterestType('Supporting the launch')
-                      }
-                    >
-                      Contact Us to Support
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="raise-section" id="investors">
-        <div className="raise-shell raise-investor-grid">
-          <Card className="raise-investor-card">
-            <CardContent>
-              <BadgeDollarSign aria-hidden="true" size={42} />
-              <span>Private opportunities</span>
-              <h2>Private Founding Investor Opportunities</h2>
-              <p>
-                For people who want to support Street Team at a deeper level,
-                founding investor opportunities are handled privately with
-                formal paperwork so there is no confusion between supporters and
-                investors.
-              </p>
-
-              <div className="raise-investor-tiers">
-                {investorTiers.map((tier) => (
-                  <div key={tier.title}>
-                    <strong>{tier.amount}</strong>
-                    <h3>{tier.title}</h3>
-                    <p>{tier.text}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="raise-investor-copy">
-            <span>Built for the first market</span>
-            <h2>Launch capital gets Street Team into the real world.</h2>
-            <p>
-              The first-market rollout is about testing the full loop with real
-              organizers, performers, fans, ticketing, fan sharing, and launch
-              marketing behind it.
-            </p>
+          <h2>Support the Launch</h2>
+          <p>
+            Public supporter contributions help fund the Street Team launch and
+            are not equity or investment. Larger founding investor
+            opportunities are handled privately with proper paperwork.
+          </p>
+          <div className="raise-actions">
             <Button asChild>
+              <Link to="/launch-fund">
+                Go to the Launch Fund
+                <ArrowRight aria-hidden="true" size={18} />
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
               <a
                 href="#contact"
                 onClick={() =>
                   chooseInterestType('Founding investor conversation')
                 }
               >
-                Contact Us About Investing
-                <ArrowRight aria-hidden="true" size={18} />
+                Private Investor Conversation
               </a>
             </Button>
           </div>
@@ -549,11 +385,11 @@ function StreetTeamLandingPage() {
         <div className="raise-shell raise-contact-grid">
           <div className="raise-section-heading">
             <span>Contact</span>
-            <h2>Get Involved</h2>
+            <h2>Interested in supporting Street Team?</h2>
             <p>
-              Interested in supporting the launch, becoming a founding investor,
-              sponsoring Street Team, or bringing it to your event/venue? Fill
-              this out and we’ll follow up.
+              Whether you want to support the launch, talk about a founding
+              investor opportunity, sponsor the rollout, or bring Street Team to
+              your venue or event, fill out the form and we&rsquo;ll follow up.
             </p>
           </div>
 
@@ -650,13 +486,14 @@ function StreetTeamLandingPage() {
 
                 {submitStatus === 'success' ? (
                   <p className="raise-form-message is-success">
-                    Thanks — your message was sent. We’ll follow up soon.
+                    Thanks &mdash; your message was received. We&rsquo;ll follow
+                    up soon.
                   </p>
                 ) : null}
 
                 {submitStatus === 'error' ? (
                   <p className="raise-form-message is-error">
-                    {submitError || 'Contact request failed. Please try again.'}
+                    {submitError || contactFormErrorMessage}
                   </p>
                 ) : null}
               </form>
@@ -665,31 +502,12 @@ function StreetTeamLandingPage() {
         </div>
       </section>
 
-      <section className="raise-footer-cta">
-        <div className="raise-shell">
-          <h2>Small actions add up.</h2>
-          <p>
-            That is how Street Team works, and that is how we are launching it.
-          </p>
-          <Button asChild>
-            <a
-              href="#contact"
-              onClick={() => chooseInterestType('Supporting the launch')}
-            >
-              Invest / Support the Launch
-              <ArrowRight aria-hidden="true" size={18} />
-            </a>
-          </Button>
-        </div>
-      </section>
-
       <footer className="raise-footer">
         <div className="raise-shell">
           <p>(c) 2026 Street Team Labs. All rights reserved.</p>
           <div>
             <a href="#contact">Contact</a>
-            <a href="#support">Launch Fund</a>
-            <a href="#investors">Investors</a>
+            <Link to="/launch-fund">Launch Fund</Link>
           </div>
         </div>
       </footer>

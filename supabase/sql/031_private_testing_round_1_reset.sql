@@ -46,7 +46,7 @@ do $$
 declare
   v_execute_reset boolean := true;
   v_confirmation text := 'RESET_PRIVATE_TESTING_ROUND_1';
-  v_admin_email text := 'staticentertainmentsc@gmail.com';
+  v_admin_email text := '';
   v_delete_storage_objects boolean := false;
   v_admin_user_id uuid;
   v_count integer := 0;
@@ -59,8 +59,8 @@ begin
     raise exception 'Reset refused. Confirmation phrase is not correct.';
   end if;
 
-  if lower(v_admin_email) <> 'staticentertainmentsc@gmail.com' then
-    raise exception 'Reset refused. Admin email must remain staticentertainmentsc@gmail.com for Round 1 reset.';
+  if nullif(trim(v_admin_email), '') is null then
+    raise exception 'Reset refused. Set v_admin_email before running Round 1 reset.';
   end if;
 
   select users.id
